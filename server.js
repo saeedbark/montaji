@@ -195,22 +195,30 @@ function serveMedia(res, token) {
 
 /* ================= خادم MCP (Streamable HTTP، بلا جلسات) ================= */
 const MCP_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
-const MCP_TOOLS = [
-  ...TOOLS.map(t => ({ name: t.name, description: t.description, inputSchema: t.parameters })),
-  {
-    name: 'import_media',
-    description: 'Add image, video or audio files from this computer to the project by absolute path. Images and videos are appended to the main track in the given order; audio goes to the music track. Returns the new item ids.',
-    inputSchema: { type: 'object', properties: { paths: { type: 'array', items: { type: 'string' }, description: 'Absolute file paths.' } }, required: ['paths'] },
-  },
+// تُقرأ js/tools.js من جديد عند كل طلب، فإضافة أداة لا تحتاج إعادة تشغيل الخادم (يكفي تحديث صفحة المحرر)
+function loadTools() {
+  const file = require.resolve('./js/tools.js');
+  try { delete require.cache[file]; return require(file); } catch (e) { console.error('tools.js:', e.message); return TOOLS; }
+}
+const IMPORT_TOOL = {
+  name: 'import_media',
+  description: 'Add image, video or audio files from this computer to the project by absolute path. Images and videos are appended to the main track in the given order; audio goes to the music track. Returns the new item ids.',
+  inputSchema: { type: 'object', properties: { paths: { type: 'array', items: { type: 'string' }, description: 'Absolute file paths.' } }, required: ['paths'] },
+};
+const mcpTools = () => [
+  ...loadTools().map(t => ({ name: t.name, description: t.description, inputSchema: t.parameters })),
+  IMPORT_TOOL,
 ];
 const MCP_INSTRUCTIONS = 'Montaji is a video editor running in the user\'s browser. These tools edit the project that is open there, live. '
   + 'Start with get_project. The main track is a gapless sequence of clips (images and videos); texts and audio are placed freely by start time. '
-  + 'Add files with import_media, arrange and style them, then call export_video only if the user asks for the final file.';
+  + 'Add files with import_media, arrange and style them, then call export_video only if the user asks for the final file. '
+  + 'When there is music, finish with sync_to_beat so every cut lands on a beat (again after any change to the clip order or count); '
+  + 'on fast music use 2 beats per clip, short transitions and pulse.';
 
 async function mcpCall(params) {
   const name = params && params.name;
   let args = (params && params.arguments) || {};
-  if (!MCP_TOOLS.some(t => t.name === name)) throw Object.assign(new Error('Unknown tool: ' + name), { code: -32602 });
+  if (!mcpTools().some(t => t.name === name)) throw Object.assign(new Error('Unknown tool: ' + name), { code: -32602 });
   try {
     if (name === 'import_media') {
       const files = [];
@@ -253,7 +261,7 @@ async function mcpMessage(m) {
         });
       }
       case 'ping': return ok({});
-      case 'tools/list': return ok({ tools: MCP_TOOLS });
+      case 'tools/list': return ok({ tools: mcpTools() });
       case 'tools/call': return ok(await mcpCall(m.params));
       default: return { jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'Method not found: ' + m.method } };
     }

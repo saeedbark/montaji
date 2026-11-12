@@ -20,6 +20,7 @@ const Render = (() => {
     courier: { label: 'كوريير',    css: '"Courier New", monospace' },
   };
 
+  let curT = 0; // زمن الإطار الجاري رسمه (لنبضة الإيقاع)
   const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
 
   function filterCss(c) {
@@ -75,6 +76,8 @@ const Render = (() => {
         const extra = sw * s * Z;
         dx = (c.motion === 'panLeft' ? 0.5 - p : p - 0.5) * extra;
       }
+      // نبضة مع الإيقاع: تكبير خاطف عند كل ضربة في الموسيقى
+      if (c.pulse) m *= 1 + 0.045 * Beats.pulse(curT);
       const dw = sw * s * m, dh = sh * s * m;
       ctx.drawImage(el, (W - dw) / 2 + dx, (H - dh) / 2, dw, dh);
     } catch (e) { /* العنصر غير جاهز بعد */ }
@@ -223,6 +226,7 @@ const Render = (() => {
 
   /** يرسم الإطار عند الزمن t. opts.selText = معرّف النص المحدد (للمعاينة فقط) */
   function frame(ctx, W, H, t, opts = {}) {
+    curT = t;
     ctx.filter = 'none';
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#000';

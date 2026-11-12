@@ -26,7 +26,8 @@ function outputSize(ratio, res) {
 
 const clipLen = c => (c.out - c.in) / c.speed;
 const audioLen = a => a.out - a.in;
-const trDur = c => (c.transition && c.transition !== 'none') ? Math.min(0.6, clipLen(c) / 2) : 0;
+// trLen: طول الانتقال المخصّص بالثواني (الافتراضي 0.6). الموسيقى السريعة تحتاج انتقالات قصيرة كي لا تُميّع الضربة
+const trDur = c => (c.transition && c.transition !== 'none') ? Math.min(c.trLen > 0 ? c.trLen : 0.6, clipLen(c) / 2) : 0;
 
 /** يحسب بداية كل مقطع والمدة الكلية */
 function layout() {

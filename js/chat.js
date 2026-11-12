@@ -34,6 +34,7 @@ Project model
 - Texts and audio sit on their own tracks and are placed freely by start time. Text position uses x and y from 0 to 1 (0.5 is the center). Keep text away from the frame edges; on 9:16 keep y between 0.12 and 0.85.
 - Text is drawn exactly as written and supports Arabic. Keep overlay text short. Size is a percent of frame HEIGHT, so the right value depends on the aspect ratio: follow the size guide at the end of this message.
 - Audio longer than the video is cut at the video's end automatically, so give music a fade-out. When video clips carry speech, lower the music to about 20 to 30.
+- Music and pictures must feel together. Whenever the project has music, finish by calling sync_to_beat so every cut lands on a beat (call it again after you add, remove or reorder clips). Fast music (beat interval under 0.6 s): 2 beats per clip, short transitions (0.15 to 0.3 s) and pulse on. Slow music: 4 beats per clip and softer, longer transitions. Give a closing contact card more beats (last_clip_beats). Use analyze_audio to time titles on bar starts.
 - All times are in seconds.`;
 
   const VISION_NOTE = '\n- Use view_frame when you need to see what is on screen or to check how your result looks. Do not overuse it.';
@@ -110,6 +111,8 @@ Project model
     add_text: a => `إضافة نص: «${short(a.text)}»`,
     update_texts: () => 'تعديل النصوص',
     update_audio: () => 'ضبط الصوت والموسيقى',
+    analyze_audio: () => 'تحليل إيقاع الموسيقى',
+    sync_to_beat: () => 'مزامنة القص مع الإيقاع',
     duplicate_item: () => 'تكرار عنصر',
     delete_items: () => 'حذف عناصر',
     view_frame: () => 'معاينة النتيجة',

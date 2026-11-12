@@ -200,6 +200,7 @@
       id: uid(), name: file.name, url, file, el, buf, srcDur: buf.duration,
       start, in: 0, out: buf.duration, volume: 0.8, fadeIn: 0, fadeOut: 1.5, wave: waveform(buf),
     };
+    Beats.ensure(item); // الإيقاع يُحسب مرة واحدة عند الإضافة
     state.audios.push(item);
     return item;
   }
@@ -412,8 +413,12 @@
     const aLanes = assignLanes(state.audios, audioLen);
     const audios = state.audios.map(a => {
       const len = audioLen(a);
+      // علامات الضربات (الأطول = بداية المازورة) — تُخفى إن تزاحمت
+      const b = a.beats;
+      const marks = b && b.period * pps >= 5 ? b.beats.filter(x => x.t >= a.in && x.t < a.out)
+        .map(x => `<i class="beat${x.down ? ' down' : ''}" style="left:${(x.t - a.in) * pps}px"></i>`).join('') : '';
       return `<div class="item audio${isSel('audio', a.id)}" data-kind="audio" data-id="${a.id}" style="left:${a.start * pps}px;width:${Math.max(6, len * pps)}px;top:${a._lane * (AL + 4)}px;height:${AL}px;background-image:url('${a.wave}');background-size:${a.srcDur * pps}px 100%;background-position:${-a.in * pps}px 0">
-        <span class="name">${esc(a.name)}</span><i class="h l"></i><i class="h r"></i></div>`;
+        ${marks}<span class="name">${esc(a.name)}</span><i class="h l"></i><i class="h r"></i></div>`;
     }).join('');
 
     els.tlRows.innerHTML =
@@ -666,7 +671,9 @@
         h += check('muted', 'كتم صوت المقطع', obj.muted);
       }
       h += `<h3>الانتقال عند الدخول</h3>` + chips('transition', [['none', 'بدون'], ['fade', 'تلاشٍ'], ['slide', 'انزلاق'], ['zoom', 'تكبير'], ['wipe', 'مسح'], ['black', 'إظلام']], obj.transition);
+      if (obj.transition !== 'none') h += slider('trLen', 'طول الانتقال', 0.1, 1.5, 0.05, +(obj.trLen > 0 ? obj.trLen : 0.6).toFixed(2), 'ث');
       h += `<button class="link-btn" data-act="trAll">تطبيق هذا الانتقال على كل المقاطع</button>`;
+      if (state.audios.length) h += check('pulse', 'نبضة مع إيقاع الموسيقى', obj.pulse);
       h += `<h3>حركة الكاميرا</h3>` + chips('motion', [['none', 'ثابت'], ['zoomIn', 'تقريب'], ['zoomOut', 'تبعيد'], ['panRight', 'يمين'], ['panLeft', 'يسار']], obj.motion);
       h += `<h3>ملاءمة الإطار</h3>` + chips('fit', [['blur', 'خلفية ضبابية'], ['contain', 'حواف سوداء'], ['cover', 'ملء الإطار']], obj.fit);
       h += `<h3>الفلتر</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), obj.filter);
@@ -680,8 +687,14 @@
         + slider('volume', 'مستوى الصوت', 0, 100, 1, Math.round(obj.volume * 100), '%', 0.01)
         + slider('fadeIn', 'ظهور تدريجي', 0, 5, 0.1, obj.fadeIn, 'ث')
         + slider('fadeOut', 'اختفاء تدريجي', 0, 5, 0.1, obj.fadeOut, 'ث')
-        + `<p class="sub" style="white-space:normal;margin-top:12px">اسحب الموسيقى على الخط الزمني لتغيير موضعها. إن كانت أطول من الفيديو فستُقصّ عند نهايته مع اختفاء تدريجي.</p>`
-        + actions();
+        + `<p class="sub" style="white-space:normal;margin-top:12px">اسحب الموسيقى على الخط الزمني لتغيير موضعها. إن كانت أطول من الفيديو فستُقصّ عند نهايته مع اختفاء تدريجي.</p>`;
+      const b = Beats.ensure(obj);
+      if (b && b.bpm) {
+        h += `<h3>الإيقاع</h3><p class="sub" style="white-space:normal">السرعة <b dir="ltr">${Math.round(b.bpm)} BPM</b> · ضربة كل <span dir="ltr">${b.period.toFixed(2)}</span> ث</p>`
+          + chips('beatN', [[0, 'الضربات القوية فقط'], [1, 'كل ضربة'], [2, 'كل ضربتين'], [4, 'كل 4 ضربات']], beatChoice, true)
+          + `<button class="btn small primary" data-act="beatSync" style="width:100%;margin-top:8px">مزامنة القص مع الإيقاع</button>`;
+      }
+      h += actions();
     } else {
       h = `<h2>نص</h2><p class="sub">اسحب النص داخل المعاينة لتحريكه</p>`
         + `<textarea data-k="text" rows="3" dir="auto">${esc(obj.text)}</textarea>`
@@ -701,11 +714,26 @@
     els.props.scrollTop = 0;
   }
 
+  let beatChoice = 2; // عدد الضربات لكل مقطع في زر المزامنة
+
+  /** زر «مزامنة القص مع الإيقاع» في لوحة الموسيقى — نفس أداة المساعد */
+  async function beatSync(audioId) {
+    if (!state.clips.length) return toast('أضف صوراً أو مقاطع أولاً', 'err');
+    const opts = beatChoice ? { beats_per_clip: beatChoice } : { hits_only: true };
+    const r = await Agent.run('sync_to_beat', { audio_id: audioId, ...opts, pulse: true }, { commit: true });
+    if (r.error) return toast('تعذّرت المزامنة: ' + r.data.error, 'err');
+    renderProps();
+    toast(`تمت مزامنة القص مع الإيقاع (${Math.round(r.data.bpm)} BPM)`, 'ok');
+    if (r.data.warning) toast('الموسيقى أقصر من الفيديو — كرّرها أو قلّل الضربات لكل مقطع', 'err');
+  }
+
   function setProp(obj, k, v) {
+    if (k === 'beatN') { beatChoice = v; return; }
     if (k === 'pos') { obj.y = { top: 0.15, mid: 0.5, bottom: 0.82 }[v]; obj.x = 0.5; }
     else if (k === 'out' && state.sel.kind === 'clip') obj.out = Math.max(MIN_LEN, v);
     else obj[k] = v;
     touch();
+    if (k === 'transition') renderProps(); // يظهر/يختفي شريط طول الانتقال
   }
 
   els.props.addEventListener('input', e => {
@@ -736,6 +764,7 @@
     if (a === 'split') splitAtPlayhead();
     else if (a === 'dup') dupSel();
     else if (a === 'del') removeSel();
+    else if (a === 'beatSync') beatSync(state.sel.id);
     else if (a === 'trAll') {
       const obj = selObj();
       if (!obj) return;

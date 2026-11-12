@@ -39,12 +39,17 @@ const Agent = (() => {
   const clipInfo = (c, i) => ({
     id: c.id, index: i, type: c.type, name: c.name, start: r2(c._start), duration: r2(clipLen(c)), width: c.w, height: c.h,
     ...(c.type === 'video' ? { source_duration: r2(c.srcDur), trim_start: r2(c.in), trim_end: r2(c.out), speed: c.speed, volume: Math.round(c.volume * 100), muted: c.muted } : {}),
-    transition: c.transition, motion: c.motion, fit: c.fit, filter: c.filter, brightness: c.bright, contrast: c.contrast, saturation: c.sat,
+    transition: c.transition, ...(c.transition !== 'none' ? { transition_duration: r2(trDur(c)) } : {}), pulse: !!c.pulse,
+    motion: c.motion, fit: c.fit, filter: c.filter, brightness: c.bright, contrast: c.contrast, saturation: c.sat,
   });
-  const audioInfo = a => ({
-    id: a.id, name: a.name, start: r2(a.start), duration: r2(audioLen(a)), source_duration: r2(a.srcDur),
-    trim_start: r2(a.in), trim_end: r2(a.out), volume: Math.round(a.volume * 100), fade_in: a.fadeIn, fade_out: a.fadeOut,
-  });
+  const audioInfo = a => {
+    const b = Beats.ensure(a);
+    return {
+      id: a.id, name: a.name, start: r2(a.start), duration: r2(audioLen(a)), source_duration: r2(a.srcDur),
+      trim_start: r2(a.in), trim_end: r2(a.out), volume: Math.round(a.volume * 100), fade_in: a.fadeIn, fade_out: a.fadeOut,
+      ...(b && b.bpm ? { bpm: b.bpm, beat_interval: r2(b.period) } : {}),
+    };
+  };
   const textInfo = x => ({
     id: x.id, text: x.text, start: r2(x.start), duration: r2(x.dur), x: r2(x.x), y: r2(x.y), size: r2(x.size * 100),
     color: x.color, font: x.font, bold: x.bold, stroke: x.stroke, stroke_color: x.strokeColor,
@@ -93,6 +98,8 @@ const Agent = (() => {
       c.out = c.in + clamp(num(a.duration, 'duration'), MIN_LEN, 120);
     }
     if (has(a.transition)) c.transition = oneOf(a.transition, ['none', 'fade', 'slide', 'zoom', 'wipe', 'black'], 'transition');
+    if (has(a.transition_duration)) c.trLen = r2(clamp(num(a.transition_duration, 'transition_duration'), 0.1, 1.5));
+    if (has(a.pulse)) c.pulse = bool(a.pulse);
     if (has(a.motion)) c.motion = oneOf(a.motion, ['none', 'zoomIn', 'zoomOut', 'panRight', 'panLeft'], 'motion');
     if (has(a.fit)) c.fit = oneOf(a.fit, ['blur', 'contain', 'cover'], 'fit');
     if (has(a.filter)) c.filter = oneOf(a.filter, Object.keys(Render.FILTERS), 'filter');
@@ -230,6 +237,114 @@ const Agent = (() => {
       return { updated: list.map(o => ({ id: o.id, start: r2(o.start), duration: r2(audioLen(o)) })), ...brief() };
     },
 
+    analyze_audio({ id }) {
+      if (!state.audios.length) fail('The project has no music. Ask the user to add a music file.');
+      if (has(id) && !state.audios.some(o => o.id === id)) fail(`No audio has id "${id}".`);
+      layout();
+      const g = Beats.grid(has(id) ? id : null);
+      if (!g.beats.length) fail('No clear beat was found in this audio.');
+      const end = state.clips.length ? view.total + 0.01 : Infinity;
+      const inside = g.beats.filter(b => b.t <= end).slice(0, 200);
+      return {
+        bpm: g.bpm, beat_interval: r2(g.period), first_beat: r2(g.beats[0].t),
+        beats: inside.map(b => r2(b.t)), bar_starts: inside.filter(b => b.down).map(b => r2(b.t)),
+        tip: `Cuts every 2 beats = ${r2(g.period * 2)} s, every 4 beats = ${r2(g.period * 4)} s. sync_to_beat does the re-timing for you.`,
+      };
+    },
+
+    sync_to_beat(a) {
+      layout();
+      if (!state.clips.length) fail('The main track is empty.');
+      if (!state.audios.length) fail('The project has no music to follow. Ask the user to add a music file.');
+      if (has(a.audio_id) && !state.audios.some(o => o.id === a.audio_id)) fail(`No audio has id "${a.audio_id}".`);
+      const g = Beats.grid(has(a.audio_id) ? a.audio_id : null);
+      const hitsOnly = bool(a.hits_only);
+      // وضع «الضربات المسموعة»: نتجاهل ضربات الشبكة الواقعة في الصمت أو المقاطع الهادئة
+      const B = hitsOnly ? g.beats.filter(b => b.s >= 0.2) : g.beats, P = g.period;
+      if (B.length < 2 || !(P > 0)) fail('No clear beat was found in the music.');
+
+      // الضربات بعد نهاية الموسيقى تُكمَل بنفس الإيقاع
+      const lastT = B[B.length - 1].t;
+      let lastDown = -1;
+      B.forEach((b, k) => { if (b.down) lastDown = k; });
+      const beatAt = k => (k < B.length ? B[k].t : lastT + (k - B.length + 1) * P);
+      const isDown = k => (k < B.length ? B[k].down : lastDown >= 0 && (k - lastDown) % 4 === 0);
+      const beatBefore = t => { // آخر ضربة عند t أو قبلها بقليل، و -1 قبل أول ضربة
+        if (t + 0.05 < B[0].t) return -1;
+        if (t + 0.05 >= lastT) return B.length - 1 + Math.floor((t + 0.05 - lastT) / P);
+        let lo = 0, hi = B.length - 1;
+        while (lo < hi) { const m = (lo + hi + 1) >> 1; if (B[m].t <= t + 0.05) lo = m; else hi = m - 1; }
+        return lo;
+      };
+
+      const count = n => clamp(Math.round(num(n, 'beats')), 1, 32);
+      let pattern;
+      if (Array.isArray(a.pattern) && a.pattern.length) pattern = a.pattern.map(count);
+      else if (has(a.beats_per_clip)) pattern = [count(a.beats_per_clip)];
+      else if (hitsOnly) pattern = [1];
+      else {
+        const target = has(a.clip_seconds) ? clamp(num(a.clip_seconds, 'clip_seconds'), 0.3, 10) : 2;
+        pattern = [[1, 2, 4, 8].reduce((b, n) => (Math.abs(n * P - target) < Math.abs(b * P - target) ? n : b), 1)];
+      }
+      const onBars = has(a.on_bars) ? bool(a.on_bars) : pattern.every(n => n % 4 === 0);
+      const lastBeats = has(a.last_clip_beats) ? count(a.last_clip_beats) : null;
+
+      const cs = state.clips, offBeat = [];
+      let cur = 0;
+      cs.forEach((c, i) => {
+        const n = i === cs.length - 1 && lastBeats ? lastBeats : pattern[i % pattern.length];
+        const s = beatBefore(cur);
+        let e = s + n;
+        while (beatAt(e) - cur < Math.max(MIN_LEN, 0.5 * n * P)) e++; // لا مقطع أقصر من نصف المطلوب (مقدمة قصيرة مثلاً)
+        if (i === 0 && onBars && lastDown >= 0) { let k = e; while (k < e + 4 && !isDown(k)) k++; if (isDown(k)) e = k; }
+        let dur = beatAt(e) - cur;
+        if (c.type === 'video') {
+          const room = (c.srcDur - c.in) / c.speed;
+          if (dur > room) {
+            while (e > s + 1 && beatAt(e) - cur > room) e--;
+            dur = beatAt(e) - cur;
+            if (dur > room || dur < MIN_LEN) { dur = room; offBeat.push(c.id); } // الفيديو أقصر من ضربة واحدة
+          }
+          c.out = Math.min(c.srcDur, c.in + dur * c.speed);
+        } else c.out = c.in + dur;
+        cur += clipLen(c);
+      });
+
+      // النهاية مع نهاية الموسيقى (إن كانت تنتهي بعد قليل من بداية آخر مقطع، لا أغنية كاملة)
+      const musicEnd = Math.max(...state.audios.filter(o => !has(a.audio_id) || o.id === a.audio_id).map(o => o.start + audioLen(o)));
+      const last = cs[cs.length - 1];
+      layout();
+      if ((!has(a.end_with_music) || bool(a.end_with_music)) && !lastBeats) {
+        const want = musicEnd - last._start;
+        if (want >= MIN_LEN && want <= Math.max(8 * P, 6)) {
+          if (last.type === 'video') last.out = Math.min(last.srcDur, last.in + want * last.speed);
+          else last.out = last.in + want;
+        }
+      }
+
+      const td = has(a.transition_duration) ? clamp(num(a.transition_duration, 'transition_duration'), 0.1, 1.5) : P < 0.6 ? 0.25 : null;
+      if (td != null) cs.forEach(c => { c.trLen = r2(td); });
+      if (has(a.pulse)) cs.forEach(c => { c.pulse = bool(a.pulse); });
+      layout();
+      if (!has(a.snap_texts) || bool(a.snap_texts)) {
+        for (const x of state.texts) {
+          let best = x.start, bd = Infinity;
+          for (let k = Math.max(0, beatBefore(x.start) - 1), t; (t = beatAt(k)) <= x.start + P; k++) {
+            if (Math.abs(t - x.start) < bd) { bd = Math.abs(t - x.start); best = t; }
+          }
+          x.start = r2(Math.max(0, best));
+        }
+      }
+      return {
+        bpm: g.bpm, beat_interval: r2(P), ...(hitsOnly ? { hits_only: true, hits: B.map(b => r2(b.t)) } : {}), beats_per_clip: pattern, ...(lastBeats ? { last_clip_beats: lastBeats } : {}),
+        transition_duration: td != null ? r2(td) : 'unchanged',
+        cuts: cs.map(c => r2(c._start)).slice(1),
+        ...(offBeat.length ? { off_beat_clips: offBeat, note: 'These videos are shorter than one beat, so their cut is not on a beat.' } : {}),
+        ...(musicEnd < view.total - 0.05 ? { warning: `The music ends at ${r2(musicEnd)} s but the video lasts ${r2(view.total)} s. Loop or extend the music, or use fewer beats per clip.` } : {}),
+        ...brief(),
+      };
+    },
+
     duplicate_item({ id }) {
       const hit = find(id) || fail(`No item has id "${id}".`);
       const { kind, obj } = hit, n = S.cloneItem(kind, obj);
@@ -308,7 +423,7 @@ const Agent = (() => {
     },
   };
 
-  const READ_ONLY = new Set(['get_project', 'view_frame', 'seek', 'export_video', 'undo', 'import_media']);
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'seek', 'export_video', 'undo', 'import_media']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {

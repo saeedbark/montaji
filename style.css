@@ -238,6 +238,8 @@ body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
 .item.audio { background-color: #0f3b31; border-color: color-mix(in srgb, var(--audio) 60%, transparent); background-repeat: no-repeat; }
 .item.text { background: #4a3611; border-color: color-mix(in srgb, var(--textc) 60%, transparent); }
 .item.audio.sel, .item.text.sel { border-color: #fff; }
+.item.audio .beat { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -1px; background: rgba(255,255,255,.22); pointer-events: none; }
+.item.audio .beat.down { width: 2px; background: rgba(255,209,102,.75); }
 
 .tl-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; z-index: 4; pointer-events: none; }
 .tl-playhead::before { content: ""; position: absolute; top: 0; left: -6px; width: 14px; height: 12px; background: #fff; border-radius: 3px 3px 7px 7px; }

@@ -82,7 +82,11 @@ Cursor وغيره (ملف إعدادات MCP):
 
 أبقِ صفحة المحرر مفتوحة أثناء العمل، فالأدوات تُنفَّذ داخلها. هذا الخادم لا يحتاج مفتاحاً؛ النموذج هنا هو نموذج العميل نفسه.
 
-الأدوات: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `duplicate_item` `delete_items` `view_frame` `seek` `undo` `export_video`
+الأدوات: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `view_frame` `seek` `undo` `export_video`
+
+### المزامنة مع الإيقاع
+
+عند إضافة موسيقى يحلّل المحرر إيقاعها محلياً (السرعة BPM ومواضع الضربات) ويرسم الضربات على مسار الموسيقى. من لوحة الموسيقى اضغط «مزامنة القص مع الإيقاع» فيُعاد توقيت كل المقاطع لتقع كل قصّة على ضربة، مع «نبضة» خفيفة للصورة عند كل ضربة. خيار «الضربات القوية فقط» مناسب للنغمات القصيرة ذات المؤثرات (ضربات ثم صمت ثم انفجار). المساعد وعملاء MCP يستخدمون الأداة نفسها `sync_to_beat`.
 
 ## الشرح
 
@@ -98,6 +102,7 @@ Cursor وغيره (ملف إعدادات MCP):
 | `index.html`, `style.css` | الواجهة |
 | `js/app.js` | منطق المحرر والخط الزمني |
 | `js/render.js` | رسم الإطارات والمؤثرات |
+| `js/beats.js` | كشف إيقاع الموسيقى (BPM والضربات) |
 | `js/export.js` | التصدير إلى MP4 (WebCodecs) |
 | `js/tools.js` | تعريف أدوات المساعد (مشترك بين الشات و MCP) |
 | `js/agent.js` | تنفيذ الأدوات على المشروع |
