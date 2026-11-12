@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دليل استخدام استوديو المونتاج</title>
+<style>
+  :root {
+    --bg: #0d0f13; --panel: #14171d; --panel-2: #1b1f27; --panel-3: #232833; --line: #2a303c;
+    --text: #e9ebf1; --soft: #c5cad6; --muted: #8c94a5;
+    --accent: #ff5c7a; --clip: #3d7bff; --audio: #17b890; --textc: #f2a93b;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.85 "Segoe UI", Tahoma, system-ui, sans-serif; }
+  a { color: var(--accent); }
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 36px; max-width: 1120px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* الترويسة */
+  .hero { max-width: 1120px; margin: 0 auto; padding: 44px 20px 28px; }
+  .hero .tag { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 700; font-size: 14px; }
+  .hero .tag svg { width: 22px; height: 22px; }
+  .hero h1 { margin: 8px 0 8px; font-size: clamp(28px, 4.5vw, 42px); line-height: 1.3; text-wrap: balance; }
+  .hero p { margin: 0; color: var(--soft); max-width: 62ch; font-size: 17px; }
+  .hero .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  .btn { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 10px; font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); }
+  .btn:hover { background: var(--panel-3); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #ff7590; }
+
+  .intro-video { margin: 26px 0 0; max-width: 860px; }
+  .intro-video video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+  .intro-video figcaption { margin-top: 8px; color: var(--muted); font-size: 14px; }
+  @media print { .intro-video { display: none; } }
+
+  /* الفهرس */
+  nav.toc { position: sticky; top: 20px; align-self: start; max-height: calc(100vh - 40px); overflow: auto; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  nav.toc ol { margin: 0; padding: 0; list-style: none; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; }
+  nav.toc a { display: flex; gap: 10px; padding: 6px 8px; border-radius: 8px; color: var(--soft); text-decoration: none; font-size: 14.5px; line-height: 1.5; }
+  nav.toc a::before { content: counter(toc); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 14px; }
+  nav.toc a:hover { background: var(--panel-2); color: var(--text); }
+
+  /* المحتوى */
+  main { min-width: 0; }
+  section { padding-top: 12px; margin-bottom: 44px; }
+  section > h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: 25px; line-height: 1.4; }
+  section > h2 .n { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 17px; }
+  h3 { margin: 26px 0 8px; font-size: 18px; }
+  p { margin: 0 0 12px; color: var(--soft); max-width: 70ch; }
+  ul, ol { color: var(--soft); padding-inline-start: 22px; margin: 0 0 14px; max-width: 70ch; }
+  li { margin: 4px 0; }
+  b, strong { color: var(--text); }
+  .ui { display: inline-block; padding: 0 9px; border-radius: 7px; background: var(--panel-3); border: 1px solid var(--line); color: var(--text); font-weight: 600; font-size: .9em; line-height: 1.7; white-space: nowrap; }
+  .ui.red { background: var(--accent); border-color: var(--accent); color: #fff; }
+  kbd { display: inline-block; min-width: 26px; text-align: center; padding: 1px 8px; border-radius: 6px; background: var(--panel-3); border: 1px solid #3a4251; border-bottom-width: 2px; font: inherit; font-size: .85em; color: var(--text); direction: ltr; }
+  code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-family: Consolas, monospace; font-size: .9em; direction: ltr; unicode-bidi: isolate; }
+
+  .note { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 13px 16px; margin: 16px 0; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); border-inline-start: 4px solid var(--textc); max-width: 74ch; }
+  .note.tip { border-inline-start-color: var(--audio); }
+  .note.warn { border-inline-start-color: var(--accent); }
+  .note .ico { font-weight: 800; color: var(--textc); }
+  .note.tip .ico { color: var(--audio); }
+  .note.warn .ico { color: var(--accent); }
+  .note p { margin: 0; color: var(--soft); }
+
+  /* خطوات مرقمة */
+  .steps { list-style: none; padding: 0; counter-reset: st; max-width: 74ch; }
+  .steps > li { counter-increment: st; position: relative; padding: 2px 46px 16px 0; margin: 0; }
+  .steps > li::before { content: counter(st); position: absolute; right: 0; top: 2px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-3); border: 1px solid var(--line); color: var(--accent); font-weight: 700; font-size: 15px; }
+  .steps > li:not(:last-child)::after { content: ""; position: absolute; right: 14.5px; top: 36px; bottom: 2px; width: 1px; background: var(--line); }
+
+  /* جداول */
+  .tbl { overflow-x: auto; margin: 14px 0 18px; border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 460px; font-size: 15px; }
+  th, td { padding: 10px 14px; text-align: start; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+  td { color: var(--soft); }
+  td:first-child { color: var(--text); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td .ltr { direction: ltr; unicode-bidi: isolate; }
+
+  /* مخطط الواجهة */
+  .mock { direction: rtl; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); margin: 16px 0 10px; font-size: 13px; line-height: 1.4; }
+  .mock .bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .mock .chip { padding: 5px 10px; border-radius: 8px; background: var(--panel-3); border: 1px solid var(--line); white-space: nowrap; }
+  .mock .chip.red { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .mock .sp { flex: 1; }
+  .mock .mid { display: grid; grid-template-columns: minmax(0, 1fr) 30%; min-height: 190px; }
+  .mock .stage { position: relative; display: grid; place-items: center; padding: 16px; }
+  .mock .screen { width: min(78%, 330px); aspect-ratio: 16 / 9; border-radius: 8px; background: linear-gradient(135deg, #ff7a59, #7a1f5c); display: grid; place-items: center; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+  .mock .side { position: relative; border-inline-start: 1px solid var(--line); padding: 14px; color: var(--muted); }
+  .mock .side i { display: block; height: 9px; border-radius: 5px; background: var(--panel-3); margin: 9px 0; }
+  .mock .side i:nth-child(odd) { width: 70%; }
+  .mock .tl { position: relative; border-top: 1px solid var(--line); padding: 10px 12px 12px; direction: ltr; }
+  .mock .row { display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 8px; margin-top: 7px; }
+  .mock .row > span { color: var(--muted); font-size: 12px; text-align: center; direction: rtl; }
+  .mock .lane { position: relative; height: 26px; }
+  .mock .lane.big { height: 40px; }
+  .mock .it { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+  .mock .it.t { background: #4a3611; border: 1.5px solid var(--textc); }
+  .mock .it.c { background: #1d2c4d; border: 1.5px solid var(--clip); }
+  .mock .it.a { background: #0f3b31; border: 1.5px solid var(--audio); }
+  .mock .head { position: absolute; top: 6px; bottom: 6px; left: calc(62px + 8px + 12px + 30%); width: 2px; background: #fff; }
+  .pin { position: absolute; z-index: 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #111; font-weight: 800; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.5); direction: rtl; }
+  .legend { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 22px; max-width: none; }
+  .legend li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; margin: 0; }
+  .legend .pin { position: static; margin-top: 3px; box-shadow: none; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 14px 0; }
+  .card { padding: 14px 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+  .card h4 { margin: 0 0 4px; font-size: 16px; }
+  .card p { margin: 0; font-size: 14.5px; line-height: 1.7; }
+
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 8px 0; max-width: 76ch; }
+  summary { cursor: pointer; padding: 12px 16px; font-weight: 700; }
+  details > div { padding: 0 16px 12px; }
+  details p:last-child { margin-bottom: 0; }
+
+  footer { max-width: 1120px; margin: 0 auto; padding: 22px 20px 46px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 0 16px 60px; }
+    nav.toc { position: static; max-height: none; }
+    nav.toc ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .hero { padding: 30px 16px 20px; }
+    .mock .mid { grid-template-columns: minmax(0, 1fr); }
+    .mock .side { border-inline-start: 0; border-top: 1px solid var(--line); }
+    section > h2 { font-size: 22px; }
+  }
+  @media print {
+    :root { --bg: #fff; --panel: #fff; --panel-2: #f3f4f6; --panel-3: #e9ebef; --line: #cfd3da; --text: #111; --soft: #222; --muted: #555; color-scheme: light; }
+    nav.toc, .hero .cta { display: none; }
+    .layout { display: block; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="tag">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></svg>
+    استوديو المونتاج
+  </span>
+  <h1>دليل الاستخدام خطوة بخطوة</h1>
+  <p>كل ما تحتاجه لصنع فيديو من صورك ومقاطعك: الرفع، الترتيب والقص، الموسيقى، النصوص، المؤثرات، ثم تنزيل الفيديو بدقة عالية.</p>
+  <div class="cta">
+    <a class="btn primary" href="index.html">فتح المحرر</a>
+    <a class="btn" href="#quick">البداية السريعة</a>
+  </div>
+  <figure class="intro-video">
+    <video src="شرح-الاستخدام.mp4" controls playsinline preload="metadata"></video>
+    <figcaption>شرح مصوّر سريع (أقل من دقيقة) لكل خطوات العمل</figcaption>
+  </figure>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="محتويات الدليل">
+    <h2>محتويات الدليل</h2>
+    <ol>
+      <li><a href="#run">تشغيل البرنامج</a></li>
+      <li><a href="#quick">البداية السريعة</a></li>
+      <li><a href="#ui">التعرّف على الواجهة</a></li>
+      <li><a href="#upload">رفع الصور والمقاطع</a></li>
+      <li><a href="#arrange">الترتيب والقص والتقسيم</a></li>
+      <li><a href="#music">إضافة الموسيقى</a></li>
+      <li><a href="#text">إضافة النصوص</a></li>
+      <li><a href="#effects">الانتقالات والمؤثرات</a></li>
+      <li><a href="#ratio">مقاس الفيديو</a></li>
+      <li><a href="#export">التصدير والتنزيل</a></li>
+      <li><a href="#keys">اختصارات لوحة المفاتيح</a></li>
+      <li><a href="#help">حل المشكلات الشائعة</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="run">
+      <h2><span class="n">1</span>تشغيل البرنامج</h2>
+      <ol class="steps">
+        <li>افتح مجلد البرنامج وانقر مرتين على الملف <code>start.bat</code>.</li>
+        <li>ستظهر نافذة سوداء صغيرة (اتركها مفتوحة) ثم يفتح المحرر في المتصفح على العنوان <code>http://localhost:5173</code>.</li>
+        <li>عند الانتهاء من العمل أغلق تبويب المتصفح ثم أغلق النافذة السوداء.</li>
+      </ol>
+      <div class="note">
+        <span class="ico">!</span>
+        <p><b>المتصفح المناسب:</b> استخدم Google Chrome أو Microsoft Edge بإصدار حديث؛ فالتصدير يعتمد على تقنيات لا تتوفر في كل المتصفحات.</p>
+      </div>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>خصوصيتك محفوظة:</b> كل شيء يعمل على جهازك. لا تُرفع صورك ولا مقاطعك إلى الإنترنت.</p>
+      </div>
+    </section>
+
+    <section id="quick">
+      <h2><span class="n">2</span>البداية السريعة</h2>
+      <p>خمس خطوات تكفي لصنع أول فيديو:</p>
+      <ol class="steps">
+        <li><b>ارفع ملفاتك:</b> اضغط <span class="ui">صور وفيديو</span> واختر الصور والمقاطع. تُضاف إلى الخط الزمني بالترتيب.</li>
+        <li><b>رتّبها:</b> اسحب أي مقطع يميناً أو يساراً لتغيير مكانه، واسحب حافته لتقصيره.</li>
+        <li><b>أضف موسيقى:</b> اضغط <span class="ui">موسيقى</span> واختر ملفاً صوتياً.</li>
+        <li><b>أضف نصاً:</b> اضغط <span class="ui">نص</span> واكتب العنوان، ثم اسحبه داخل المعاينة إلى المكان المناسب.</li>
+        <li><b>صدّر:</b> اضغط <span class="ui red">تصدير الفيديو</span>، اختر الدقة، ثم <span class="ui red">تنزيل الفيديو</span>.</li>
+      </ol>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>للتجربة أولاً:</b> اضغط «جرّب مثالاً جاهزاً» في الشاشة الأولى ليُنشأ مشروع صغير فيه صور وموسيقى ونصوص، فتتعرّف على الأدوات قبل استخدام ملفاتك.</p>
+      </div>
+    </section>
+
+    <section id="ui">
+      <h2><span class="n">3</span>التعرّف على الواجهة</h2>
+      <p>تتكوّن الشاشة من أربعة أجزاء:</p>
+
+      <div class="mock" role="img" aria-label="مخطط مبسّط لواجهة المحرر: شريط علوي، معاينة، لوحة خصائص، وخط زمني">
+        <div class="bar">
+          <span class="pin" style="position:static">١</span>
+          <b>استوديو المونتاج</b>
+          <span class="chip">صور وفيديو</span><span class="chip">موسيقى</span><span class="chip">نص</span>
+          <span class="sp"></span>
+          <span class="chip">المقاس</span><span class="chip">↶ ↷</span><span class="chip red">تصدير الفيديو</span>
+        </div>
+        <div class="mid">
+          <div class="stage">
+            <div class="screen">المعاينة</div>
+            <span class="pin" style="top:8px;right:8px">٢</span>
+          </div>
+          <div class="side">
+            <span class="pin" style="top:8px;left:8px">٣</span>
+            الخصائص
+            <i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </div>
+        <div class="tl">
+          <span class="pin" style="top:6px;right:8px">٤</span>
+          <div class="row"><span>النصوص</span><div class="lane"><div class="it t" style="left:4%;width:30%"></div><div class="it t" style="left:62%;width:26%"></div></div></div>
+          <div class="row"><span>المقاطع</span><div class="lane big"><div class="it c" style="left:0;width:31%"></div><div class="it c" style="left:32%;width:27%"></div><div class="it c" style="left:60%;width:32%"></div></div></div>
+          <div class="row"><span>الموسيقى</span><div class="lane"><div class="it a" style="left:0;width:92%"></div></div></div>
+          <div class="head"></div>
+        </div>
+      </div>
+
+      <ul class="legend">
+        <li><span class="pin">١</span><span><b>الشريط العلوي:</b> أزرار الإضافة، مقاس الفيديو، التراجع والإعادة، وزر التصدير.</span></li>
+        <li><span class="pin">٢</span><span><b>المعاينة:</b> ترى فيها الفيديو كما سيخرج، وتحتها زر التشغيل والوقت.</span></li>
+        <li><span class="pin">٣</span><span><b>لوحة الخصائص:</b> تتغيّر بحسب العنصر الذي تضغط عليه (صورة، فيديو، موسيقى، نص).</span></li>
+        <li><span class="pin">٤</span><span><b>الخط الزمني:</b> ثلاثة مسارات للنصوص والمقاطع والموسيقى، والخط الأبيض هو مؤشر الوقت.</span></li>
+      </ul>
+
+      <h3>التنقّل في الوقت</h3>
+      <ul>
+        <li>اضغط على المسطرة أعلى الخط الزمني، أو اسحب عليها، لتحريك المؤشر إلى أي لحظة.</li>
+        <li>شريط <span class="ui">تكبير</span> يقرّب الخط الزمني للعمل الدقيق أو يبعّده لرؤية المشروع كله.</li>
+        <li>زر الأسهم الأربعة بجانب التكبير يُظهر المشروع كاملاً في الشاشة.</li>
+      </ul>
+    </section>
+
+    <section id="upload">
+      <h2><span class="n">4</span>رفع الصور والمقاطع</h2>
+      <p>توجد طريقتان:</p>
+      <ul>
+        <li>اضغط <span class="ui">صور وفيديو</span> واختر ملفاً أو عدة ملفات معاً.</li>
+        <li>أو اسحب الملفات من مجلدك وأفلتها في أي مكان داخل الصفحة.</li>
+      </ul>
+      <p>كل ملف جديد يُضاف في <b>نهاية</b> مسار المقاطع. الصورة تُعرض 4 ثوانٍ افتراضياً، والفيديو بمدته الكاملة.</p>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>النوع</th><th>الصيغ المقبولة</th></tr></thead>
+          <tbody>
+            <tr><td>صور</td><td><span class="ltr">JPG, PNG, WebP, GIF, BMP, AVIF</span></td></tr>
+            <tr><td>فيديو</td><td><span class="ltr">MP4, WebM, MOV, M4V, MKV</span> — الأضمن هو <span class="ltr">MP4</span></td></tr>
+            <tr><td>صوت</td><td><span class="ltr">MP3, WAV, M4A, AAC, OGG, FLAC</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <span class="ico">!</span>
+        <p>صور الآيفون بصيغة <span dir="ltr">HEIC</span> وبعض مقاطع <span dir="ltr">MOV</span> قد لا يفتحها المتصفح. حوّلها إلى <span dir="ltr">JPG</span> أو <span dir="ltr">MP4</span> أولاً.</p>
+      </div>
+    </section>
+
+    <section id="arrange">
+      <h2><span class="n">5</span>الترتيب والقص والتقسيم</h2>
+
+      <div class="cards">
+        <div class="card"><h4>تغيير الترتيب</h4><p>اسحب المقطع من وسطه إلى مكانه الجديد. يظهر خط وردي يبيّن أين سيوضع.</p></div>
+        <div class="card"><h4>القص (التقصير)</h4><p>اضغط على المقطع ثم اسحب إحدى حافتيه البيضاوين إلى الداخل. للصورة يغيّر ذلك مدة عرضها.</p></div>
+        <div class="card"><h4>التقسيم</h4><p>ضع المؤشر عند نقطة القطع واضغط <span class="ui">تقسيم</span> فينقسم المقطع إلى جزأين مستقلين.</p></div>
+        <div class="card"><h4>التكرار والحذف</h4><p>حدّد العنصر ثم اضغط <span class="ui">تكرار</span> لنسخه أو <span class="ui">حذف</span> لإزالته.</p></div>
+      </div>
+
+      <h3>حذف جزء من منتصف مقطع</h3>
+      <ol class="steps">
+        <li>ضع المؤشر عند بداية الجزء غير المرغوب واضغط <span class="ui">تقسيم</span>.</li>
+        <li>ضع المؤشر عند نهايته واضغط <span class="ui">تقسيم</span> مرة أخرى.</li>
+        <li>اضغط على الجزء الأوسط ثم <span class="ui">حذف</span>. تلتصق الأجزاء الباقية تلقائياً.</li>
+      </ol>
+
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>أخطأت؟</b> اضغط سهم التراجع في الشريط العلوي أو <kbd>Ctrl</kbd> + <kbd>Z</kbd> للرجوع خطوة، وكرّر للرجوع أكثر.</p>
+      </div>
+      <p>المقاطع متلاصقة دائماً ولا تترك فراغات بينها. <b>مدة الفيديو النهائي = مجموع مدد المقاطع</b> في هذا المسار.</p>
+    </section>
+
+    <section id="music">
+      <h2><span class="n">6</span>إضافة الموسيقى</h2>
+      <ol class="steps">
+        <li>اضغط <span class="ui">موسيقى</span> واختر الملف الصوتي. يظهر شريطاً أخضر في مسار الموسيقى.</li>
+        <li>اسحب الشريط لتحديد متى تبدأ الموسيقى، واسحب حافتيه لاختيار الجزء المطلوب منها.</li>
+        <li>اضغط على الشريط لتعديل خصائصه في اللوحة الجانبية.</li>
+      </ol>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>الخاصية</th><th>وظيفتها</th></tr></thead>
+          <tbody>
+            <tr><td>مستوى الصوت</td><td>ارتفاع صوت الموسيقى. اخفضه إن كان في مقاطعك كلام تريد سماعه.</td></tr>
+            <tr><td>ظهور تدريجي</td><td>تبدأ الموسيقى خافتة ثم ترتفع خلال المدة المحددة.</td></tr>
+            <tr><td>اختفاء تدريجي</td><td>تنخفض الموسيقى بهدوء قبل نهايتها بدل أن تنقطع فجأة.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>إن كانت الموسيقى <b>أطول</b> من الفيديو فستُقصّ تلقائياً عند نهايته مع الاختفاء التدريجي.</li>
+        <li>إن كانت <b>أقصر</b>، حدّدها واضغط <span class="ui">تكرار</span> فتُضاف نسخة بعدها مباشرة.</li>
+        <li>يمكنك إضافة أكثر من ملف صوتي، مثل موسيقى وتعليق صوتي معاً.</li>
+        <li>لكتم صوت مقطع فيديو أو خفضه: اضغط على المقطع ثم استخدم «صوت المقطع» أو «كتم صوت المقطع».</li>
+      </ul>
+    </section>
+
+    <section id="text">
+      <h2><span class="n">7</span>إضافة النصوص</h2>
+      <ol class="steps">
+        <li>حرّك المؤشر إلى اللحظة التي تريد أن يظهر فيها النص.</li>
+        <li>اضغط <span class="ui">نص</span> واكتب ما تريد في مربع الكتابة باللوحة الجانبية. لسطر جديد اضغط <kbd>Enter</kbd>.</li>
+        <li>اسحب النص داخل المعاينة لوضعه في المكان المناسب، أو اختر «أعلى / وسط / أسفل».</li>
+        <li>على الخط الزمني: اسحب الشريط الأصفر لتغيير وقت الظهور، واسحب حافته لتغيير المدة.</li>
+      </ol>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>الخاصية</th><th>وظيفتها</th></tr></thead>
+          <tbody>
+            <tr><td>الحجم والخط واللون</td><td>شكل النص الأساسي، مع خيار الخط العريض.</td></tr>
+            <tr><td>حدّ خارجي</td><td>إطار حول الحروف يجعل النص مقروءاً فوق أي صورة.</td></tr>
+            <tr><td>خلفية للنص</td><td>مستطيل ملوّن شبه شفاف خلف النص، مناسب للتعليقات.</td></tr>
+            <tr><td>ظل</td><td>ظل خفيف يفصل النص عن الخلفية.</td></tr>
+            <tr><td>حركة الظهور</td><td>بدون، تلاشٍ، صعود من الأسفل، أو نبضة تكبير.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="effects">
+      <h2><span class="n">8</span>الانتقالات والمؤثرات</h2>
+      <p>اضغط على أي صورة أو مقطع في الخط الزمني لتظهر خياراته في لوحة الخصائص.</p>
+
+      <h3>الانتقال عند الدخول</h3>
+      <p>طريقة ظهور المقطع بعد الذي قبله: <b>تلاشٍ</b>، <b>انزلاق</b>، <b>تكبير</b>، <b>مسح</b>، أو <b>إظلام</b>. المقطع الذي له انتقال تظهر عليه علامة ⇄.</p>
+      <p>لتوحيد الانتقال في الفيديو كله اضغط «تطبيق هذا الانتقال على كل المقاطع».</p>
+
+      <h3>حركة الكاميرا</h3>
+      <p>تضيف حياة للصور الثابتة: <b>تقريب</b> أو <b>تبعيد</b> بطيء، أو تحريك نحو <b>اليمين</b> أو <b>اليسار</b>.</p>
+
+      <h3>ملاءمة الإطار</h3>
+      <p>تُستخدم حين يختلف شكل الصورة عن مقاس الفيديو، كصورة عمودية في فيديو أفقي:</p>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>الخيار</th><th>النتيجة</th></tr></thead>
+          <tbody>
+            <tr><td>خلفية ضبابية</td><td>تظهر الصورة كاملة، وتُملأ الجوانب بنسخة ضبابية منها. (الافتراضي)</td></tr>
+            <tr><td>حواف سوداء</td><td>تظهر الصورة كاملة مع أشرطة سوداء على الجوانب.</td></tr>
+            <tr><td>ملء الإطار</td><td>تُكبَّر الصورة لتغطي الشاشة كلها ويُقتطع الزائد منها.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>الفلاتر وتعديل الألوان</h3>
+      <p>اختر فلتراً جاهزاً (زاهٍ، دافئ، بارد، أبيض وأسود، قديم، ناعم)، ثم اضبط <b>السطوع</b> و<b>التباين</b> و<b>التشبّع</b> بالأشرطة إن أردت.</p>
+
+      <h3>سرعة الفيديو</h3>
+      <p>لمقاطع الفيديو فقط: <span dir="ltr">0.5×</span> للتصوير البطيء، أو <span dir="ltr">1.5×</span> و <span dir="ltr">2×</span> للتسريع. تتغيّر مدة المقطع تبعاً لذلك.</p>
+    </section>
+
+    <section id="ratio">
+      <h2><span class="n">9</span>مقاس الفيديو</h2>
+      <p>اختر المقاس من القائمة في الشريط العلوي بحسب المكان الذي ستنشر فيه. يمكنك تغييره في أي وقت.</p>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>المقاس</th><th>الشكل</th><th>مناسب لـ</th></tr></thead>
+          <tbody>
+            <tr><td><span class="ltr">16:9</span></td><td>أفقي عريض</td><td>يوتيوب، التلفاز، العروض</td></tr>
+            <tr><td><span class="ltr">9:16</span></td><td>عمودي طويل</td><td>تيك توك، ريلز، ستوري، شورتس</td></tr>
+            <tr><td><span class="ltr">1:1</span></td><td>مربع</td><td>منشورات إنستغرام وفيسبوك</td></tr>
+            <tr><td><span class="ltr">4:5</span></td><td>عمودي قصير</td><td>منشورات إنستغرام</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="export">
+      <h2><span class="n">10</span>التصدير والتنزيل</h2>
+      <ol class="steps">
+        <li>اضغط <span class="ui red">تصدير الفيديو</span> في الشريط العلوي.</li>
+        <li>اختر <b>الدقة</b> و<b>عدد الإطارات</b> و<b>الجودة</b>. يظهر أسفلها الحجم التقريبي للملف.</li>
+        <li>اضغط <span class="ui red">ابدأ التصدير</span> وانتظر اكتمال شريط التقدّم. أبقِ الصفحة مفتوحة.</li>
+        <li>شاهد النتيجة في نافذة المعاينة، ثم اضغط <span class="ui red">تنزيل الفيديو</span> ليُحفظ ملف <span dir="ltr">MP4</span> في مجلد التنزيلات.</li>
+      </ol>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>الدقة</th><th>متى تختارها</th></tr></thead>
+          <tbody>
+            <tr><td><span class="ltr">HD — 720p</span></td><td>مشاركة سريعة عبر واتساب، ملف صغير وتصدير أسرع.</td></tr>
+            <tr><td><span class="ltr">Full HD — 1080p</span></td><td>الخيار الأنسب لمعظم الاستخدامات ومواقع التواصل. (الافتراضي)</td></tr>
+            <tr><td><span class="ltr">2K — 1440p</span></td><td>وضوح أعلى للشاشات الكبيرة.</td></tr>
+            <tr><td><span class="ltr">4K — 2160p</span></td><td>أعلى دقة. يحتاج وقتاً أطول وجهازاً قوياً، والملف كبير.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li><b>عدد الإطارات:</b> 30 مناسب دائماً. اختر 60 لحركة أنعم إن كانت مقاطعك مصوّرة بـ 60.</li>
+        <li><b>الجودة:</b> «عالية» توازن جيد. «فائقة» لأفضل وضوح بحجم أكبر، و«عادية» لملف أصغر.</li>
+      </ul>
+      <div class="note">
+        <span class="ico">!</span>
+        <p><b>مدة التصدير:</b> قد تبلغ عدة أضعاف مدة الفيديو، وتزيد مع الدقة الأعلى ومع مقاطع الفيديو الطويلة. يمكنك إيقافه في أي لحظة بزر «إيقاف التصدير».</p>
+      </div>
+      <div class="note warn">
+        <span class="ico">!</span>
+        <p><b>المشروع لا يُحفظ:</b> إذا أغلقت الصفحة أو حدّثتها فسيضيع عملك. صدّر الفيديو ونزّله قبل الإغلاق.</p>
+      </div>
+    </section>
+
+    <section id="keys">
+      <h2><span class="n">11</span>اختصارات لوحة المفاتيح</h2>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>المفتاح</th><th>الوظيفة</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>Space</kbd></td><td>تشغيل أو إيقاف المعاينة</td></tr>
+            <tr><td><kbd>S</kbd></td><td>تقسيم عند المؤشر</td></tr>
+            <tr><td><kbd>Delete</kbd></td><td>حذف العنصر المحدد</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>تراجع</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>إعادة</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>تكرار العنصر المحدد</td></tr>
+            <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>تحريك المؤشر إطاراً واحداً</td></tr>
+            <tr><td><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd></td><td>تحريك المؤشر ثانية كاملة</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>إلغاء التحديد</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>الاختصارات لا تعمل أثناء الكتابة في مربع النص؛ اضغط خارج المربع أولاً.</p>
+    </section>
+
+    <section id="help">
+      <h2><span class="n">12</span>حل المشكلات الشائعة</h2>
+
+      <details>
+        <summary>الصفحة لا تفتح بعد تشغيل start.bat</summary>
+        <div><p>تأكد أن النافذة السوداء ما زالت مفتوحة، ثم اكتب <code>http://localhost:5173</code> في شريط العنوان. إن ظهرت في النافذة رسالة تفيد بأن الأمر <code>node</code> غير معروف فبرنامج Node.js غير مثبّت على الجهاز.</p></div>
+      </details>
+      <details>
+        <summary>تظهر رسالة «تعذّر فتح الملف»</summary>
+        <div><p>الصيغة غير مدعومة في المتصفح. حوّل الصور إلى <span dir="ltr">JPG</span> والفيديو إلى <span dir="ltr">MP4</span> ثم أعد المحاولة.</p></div>
+      </details>
+      <details>
+        <summary>رسالة «متصفحك لا يدعم التصدير»</summary>
+        <div><p>افتح البرنامج في Google Chrome أو Microsoft Edge بعد تحديثه لآخر إصدار.</p></div>
+      </details>
+      <details>
+        <summary>رسالة «هذه الدقة غير مدعومة على جهازك»</summary>
+        <div><p>جهازك لا يستطيع ترميز هذه الدقة. اختر دقة أقل مثل <span dir="ltr">1080p</span>.</p></div>
+      </details>
+      <details>
+        <summary>التصدير بطيء جداً</summary>
+        <div><p>اختر دقة أقل أو 30 إطاراً بدل 60، وأغلق البرامج والتبويبات الأخرى، وأبقِ نافذة المحرر ظاهرة أمامك حتى ينتهي.</p></div>
+      </details>
+      <details>
+        <summary>الفيديو المُصدَّر بلا صوت</summary>
+        <div><p>تأكد أن «مستوى الصوت» للموسيقى ليس صفراً، وأن «كتم صوت المقطع» غير مفعّل، وأن الموسيقى تقع ضمن مدة الفيديو لا بعد نهايته.</p></div>
+      </details>
+      <details>
+        <summary>الموسيقى تنقطع قبل نهاية الفيديو</summary>
+        <div><p>الملف الصوتي أقصر من الفيديو. حدّد شريط الموسيقى واضغط «تكرار»، أو أضف ملفاً صوتياً آخر بعده.</p></div>
+      </details>
+      <details>
+        <summary>المعاينة تتقطّع أثناء التشغيل</summary>
+        <div><p>هذا يحدث مع المقاطع الثقيلة على الأجهزة المتوسطة ولا يؤثر في الملف النهائي؛ فالتصدير يعالج كل إطار على حدة.</p></div>
+      </details>
+    </section>
+
+  </main>
+</div>
+
+<footer>دليل استخدام استوديو المونتاج — يمكنك طباعته أو حفظه بصيغة PDF من قائمة المتصفح (<span dir="ltr">Ctrl + P</span>).</footer>
+
+</body>
+</html>

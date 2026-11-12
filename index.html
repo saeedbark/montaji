@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>استوديو المونتاج</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- أيقونات -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-media" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7V4h14v3M12 4v16M9 20h6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="3.2"/></symbol>
+  <symbol id="i-start" viewBox="0 0 24 24"><path d="M6 5v14"/><path d="M19 5l-10 7 10 7z" fill="currentColor"/></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 114.3 1.8c-.9.8-1.9 1.3-1.9 2.6M12 17v.4"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="ic"><use href="#i-logo"/></svg>
+    <span>استوديو المونتاج</span>
+  </div>
+
+  <div class="add-group">
+    <button class="btn" id="btnAddMedia" title="رفع صور ومقاطع فيديو">
+      <svg class="ic"><use href="#i-media"/></svg><span>صور وفيديو</span>
+    </button>
+    <button class="btn" id="btnAddMusic" title="إضافة موسيقى أو تسجيل صوتي">
+      <svg class="ic"><use href="#i-music"/></svg><span>موسيقى</span>
+    </button>
+    <button class="btn" id="btnAddText" title="إضافة نص فوق الفيديو">
+      <svg class="ic"><use href="#i-text"/></svg><span>نص</span>
+    </button>
+  </div>
+
+  <div class="spacer"></div>
+  <span class="busy" id="busy" hidden>جارٍ تحميل الملفات…</span>
+
+  <label class="ratio" title="مقاس الفيديو">
+    <span>المقاس</span>
+    <select id="ratio">
+      <option value="16:9">16:9 أفقي (يوتيوب)</option>
+      <option value="9:16">9:16 عمودي (تيك توك / ريلز)</option>
+      <option value="1:1">1:1 مربع</option>
+      <option value="4:5">4:5 إنستغرام</option>
+    </select>
+  </label>
+
+  <a class="btn icon" href="guide.html" target="_blank" rel="noopener" title="دليل الاستخدام" aria-label="دليل الاستخدام"><svg class="ic"><use href="#i-help"/></svg></a>
+
+  <div class="hist">
+    <button class="btn icon" id="btnUndo" title="تراجع (Ctrl+Z)" disabled><svg class="ic"><use href="#i-undo"/></svg></button>
+    <button class="btn icon" id="btnRedo" title="إعادة (Ctrl+Y)" disabled><svg class="ic"><use href="#i-redo"/></svg></button>
+  </div>
+
+  <button class="btn primary" id="btnExport">
+    <svg class="ic"><use href="#i-download"/></svg><span>تصدير الفيديو</span>
+  </button>
+</header>
+
+<main class="workspace">
+  <section class="stage">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="preview" width="1280" height="720"></canvas>
+      <div class="empty" id="empty">
+        <div class="empty-card">
+          <svg class="ic big"><use href="#i-media"/></svg>
+          <h1>ابدأ مشروعك</h1>
+          <p>اسحب الصور ومقاطع الفيديو والموسيقى وأفلتها هنا، أو اضغط الزر لاختيارها من جهازك.</p>
+          <div class="empty-actions">
+            <button class="btn primary" id="btnEmptyAdd">اختيار ملفات</button>
+            <button class="btn" id="btnSample">جرّب مثالاً جاهزاً</button>
+          </div>
+          <small>كل شيء يعمل على جهازك — لا يُرفع أي ملف إلى الإنترنت.</small>
+        </div>
+      </div>
+    </div>
+    <div class="transport">
+      <button class="btn icon" id="btnStart" title="العودة إلى البداية"><svg class="ic"><use href="#i-start"/></svg></button>
+      <button class="btn icon play" id="btnPlay" title="تشغيل / إيقاف (مسافة)"><svg class="ic"><use id="playIcon" href="#i-play"/></svg></button>
+      <span class="time" id="timeLabel" dir="ltr">0:00.0 / 0:00.0</span>
+    </div>
+  </section>
+
+  <aside class="props" id="props"></aside>
+</main>
+
+<section class="timeline">
+  <div class="tl-toolbar">
+    <button class="btn small" id="btnSplit" title="تقسيم عند المؤشر (S)"><svg class="ic"><use href="#i-split"/></svg><span>تقسيم</span></button>
+    <button class="btn small" id="btnDup" title="تكرار العنصر المحدد"><svg class="ic"><use href="#i-copy"/></svg><span>تكرار</span></button>
+    <button class="btn small" id="btnDel" title="حذف العنصر المحدد (Delete)"><svg class="ic"><use href="#i-trash"/></svg><span>حذف</span></button>
+    <div class="spacer"></div>
+    <span class="hint">اسحب المقاطع لإعادة ترتيبها · اسحب الحواف للقص</span>
+    <button class="btn small icon" id="btnFit" title="إظهار المشروع كاملاً"><svg class="ic"><use href="#i-fit"/></svg></button>
+    <label class="zoom" title="تكبير الخط الزمني"><span>تكبير</span><input type="range" id="zoom" min="8" max="220" value="60"></label>
+  </div>
+  <div class="tl-scroll" id="tlScroll">
+    <div class="tl-inner" id="tlInner">
+      <div id="tlRows"></div>
+      <div class="tl-dropmark" id="dropMark" hidden></div>
+      <div class="tl-playhead" id="playhead"></div>
+    </div>
+  </div>
+</section>
+
+<input type="file" id="fileMedia" accept="image/*,video/*" multiple hidden>
+<input type="file" id="fileMusic" accept="audio/*" multiple hidden>
+
+<!-- نافذة التصدير -->
+<div class="modal" id="exportModal" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+    <h2 id="exTitle">تصدير الفيديو</h2>
+
+    <div id="exForm">
+      <label class="row"><span>الدقة</span>
+        <select id="exRes">
+          <option value="720">HD — 720p</option>
+          <option value="1080" selected>Full HD — 1080p</option>
+          <option value="1440">2K — 1440p</option>
+          <option value="2160">4K — 2160p</option>
+        </select>
+      </label>
+      <label class="row"><span>عدد الإطارات</span>
+        <select id="exFps">
+          <option value="24">24 إطار/ثانية</option>
+          <option value="30" selected>30 إطار/ثانية</option>
+          <option value="60">60 إطار/ثانية</option>
+        </select>
+      </label>
+      <label class="row"><span>الجودة</span>
+        <select id="exQuality">
+          <option value="normal">عادية (حجم أصغر)</option>
+          <option value="high" selected>عالية</option>
+          <option value="ultra">فائقة (حجم أكبر)</option>
+        </select>
+      </label>
+      <p class="ex-summary" id="exSummary"></p>
+      <div class="dialog-actions">
+        <button class="btn" id="exCancel">إلغاء</button>
+        <button class="btn primary" id="exStart">ابدأ التصدير</button>
+      </div>
+    </div>
+
+    <div id="exProgress" hidden>
+      <div class="bar"><div class="bar-fill" id="exBar"></div></div>
+      <div class="ex-status"><span id="exStatus">جارٍ التحضير…</span><b id="exPct" dir="ltr">0%</b></div>
+      <p class="ex-note">أبقِ هذه الصفحة مفتوحة حتى ينتهي التصدير.</p>
+      <div class="dialog-actions">
+        <button class="btn" id="exAbort">إيقاف التصدير</button>
+      </div>
+    </div>
+
+    <div id="exDone" hidden>
+      <video id="exVideo" controls playsinline></video>
+      <p class="ex-summary" id="exInfo"></p>
+      <div class="dialog-actions">
+        <button class="btn" id="exClose">إغلاق</button>
+        <a class="btn primary" id="exLink" download><svg class="ic"><use href="#i-download"/></svg><span>تنزيل الفيديو</span></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drop-overlay" id="dropOverlay" hidden><div>أفلت الملفات هنا لإضافتها</div></div>
+<div id="toasts"></div>
+
+<script src="vendor/mp4-muxer.js"></script>
+<script src="js/core.js"></script>
+<script src="js/render.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

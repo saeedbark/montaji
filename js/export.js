@@ -1,0 +1,221 @@
+'use strict';
+/* تصدير المشروع إلى ملف MP4 عالي الدقة باستخدام WebCodecs + mp4-muxer
+   يُرسم كل إطار بدقته الكاملة (لا تسجيل للشاشة) فتكون النتيجة حادّة ودقيقة. */
+
+const Exporter = (() => {
+  const SR = 48000;
+  const audioCache = new Map(); // url -> AudioBuffer | null
+
+  const supported = () => typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
+
+  // يُفسح المجال للواجهة دون التأثر بتقييد المؤقتات في التبويبات الخلفية
+  const breathe = () => new Promise(r => {
+    const ch = new MessageChannel();
+    ch.port1.onmessage = () => r();
+    ch.port2.postMessage(0);
+  });
+
+  const abortError = () => { const e = new Error('aborted'); e.name = 'AbortError'; return e; };
+
+  function bitrateFor(W, H, fps, quality) {
+    const bpp = { normal: 0.1, high: 0.2, ultra: 0.3 }[quality] || 0.2;
+    return Math.round(W * H * 30 * bpp * Math.pow(fps / 30, 0.7));
+  }
+
+  async function pickVideoConfig(W, H, fps, bitrate) {
+    const load = W * H * fps;
+    // مستويات H.264 (High) مرتبة تصاعدياً: 4.0, 4.2, 5.0, 5.1, 5.2
+    const levels = [
+      ['640028', 1920 * 1088 * 30],
+      ['64002A', 1920 * 1088 * 61],
+      ['640032', 2560 * 1920 * 30],
+      ['640033', 4096 * 2304 * 30],
+      ['640034', Infinity],
+    ];
+    const start = levels.findIndex(l => load <= l[1]);
+    const tries = levels.slice(Math.max(0, start)).map(l => ({ codec: 'avc1.' + l[0], mux: 'avc' }));
+    tries.push({ codec: 'avc1.4d0034', mux: 'avc' }, { codec: 'avc1.42003e', mux: 'avc' });
+    tries.push({ codec: 'vp09.00.51.08', mux: 'vp9' }, { codec: 'vp09.00.40.08', mux: 'vp9' });
+
+    for (const tr of tries) {
+      const config = { codec: tr.codec, width: W, height: H, bitrate, framerate: fps, latencyMode: 'quality' };
+      if (tr.mux === 'avc') config.avc = { format: 'avc' };
+      try {
+        const r = await VideoEncoder.isConfigSupported(config);
+        if (r.supported) return { config, mux: tr.mux };
+      } catch (e) { /* جرّب التالي */ }
+    }
+    throw new Error('هذه الدقة غير مدعومة على جهازك — جرّب دقة أقل.');
+  }
+
+  async function pickAudioConfig() {
+    if (typeof AudioEncoder === 'undefined') return null;
+    const tries = [
+      { config: { codec: 'mp4a.40.2', sampleRate: SR, numberOfChannels: 2, bitrate: 192000 }, mux: 'aac' },
+      { config: { codec: 'opus', sampleRate: SR, numberOfChannels: 2, bitrate: 160000 }, mux: 'opus' },
+    ];
+    for (const tr of tries) {
+      try { if ((await AudioEncoder.isConfigSupported(tr.config)).supported) return tr; } catch (e) {}
+    }
+    return null;
+  }
+
+  async function clipAudio(c) {
+    if (audioCache.has(c.url)) return audioCache.get(c.url);
+    let buf = null;
+    try { buf = await decodeAudioFile(c.file); } catch (e) { buf = null; } // فيديو بلا صوت
+    audioCache.set(c.url, buf);
+    return buf;
+  }
+
+  /** يمزج صوت المقاطع والموسيقى في مسار واحد بطول الفيديو */
+  async function mixAudio(D) {
+    const jobs = [];
+    for (const c of state.clips) {
+      if (c.type !== 'video' || c.muted || c.volume <= 0) continue;
+      const buf = await clipAudio(c);
+      if (buf) jobs.push({ buf, when: c._start, offset: c.in, dur: c.out - c.in, rate: c.speed, vol: c.volume });
+    }
+    for (const a of state.audios) {
+      if (a.volume <= 0 || a.start >= D || !a.buf) continue;
+      jobs.push({ buf: a.buf, when: a.start, offset: a.in, dur: audioLen(a), rate: 1, vol: a.volume, fadeIn: a.fadeIn, fadeOut: a.fadeOut });
+    }
+    if (!jobs.length) return null;
+
+    const oc = new OfflineAudioContext(2, Math.ceil(D * SR), SR);
+    for (const j of jobs) {
+      const src = oc.createBufferSource();
+      src.buffer = j.buf;
+      src.playbackRate.value = j.rate;
+      const g = oc.createGain();
+      const end = Math.min(j.when + j.dur / j.rate, D);
+      const fi = Math.min(j.fadeIn || 0, end - j.when);
+      const fo = Math.min(j.fadeOut || 0, end - j.when - fi);
+      if (fi > 0) { g.gain.setValueAtTime(0, j.when); g.gain.linearRampToValueAtTime(j.vol, j.when + fi); }
+      else g.gain.setValueAtTime(j.vol, j.when);
+      if (fo > 0) { g.gain.setValueAtTime(j.vol, end - fo); g.gain.linearRampToValueAtTime(0, end); }
+      src.connect(g).connect(oc.destination);
+      src.start(j.when, j.offset, j.dur);
+    }
+    return oc.startRendering();
+  }
+
+  /** يجهّز عناصر الفيديو على الإطار المطلوب بالضبط */
+  async function prepareFrame(t) {
+    const i = clipIndexAt(t);
+    if (i < 0) return;
+    const c = state.clips[i];
+    const lt = t - c._start;
+    const jobs = [];
+    if (c.type === 'video') jobs.push(seekExact(c.el, c.in + lt * c.speed));
+    const prev = state.clips[i - 1];
+    if (prev && prev.type === 'video' && lt < trDur(c)) jobs.push(seekExact(prev.el, prev.out - 0.04));
+    if (jobs.length) await Promise.all(jobs);
+  }
+
+  const waitDequeue = enc => Promise.race([
+    new Promise(r => enc.addEventListener('dequeue', r, { once: true })),
+    new Promise(r => setTimeout(r, 1500)),
+  ]);
+
+  async function run({ res, fps, quality, signal, onProgress }) {
+    if (!supported()) throw new Error('متصفحك لا يدعم التصدير. استخدم Chrome أو Edge بإصدار حديث.');
+    const D = layout();
+    if (D <= 0) throw new Error('المشروع فارغ.');
+    const [W, H] = outputSize(state.ratio, res);
+    const bitrate = bitrateFor(W, H, fps, quality);
+
+    onProgress(0, 'جارٍ التحضير…');
+    const vcfg = await pickVideoConfig(W, H, fps, bitrate);
+
+    onProgress(0, 'جارٍ تجهيز الصوت…');
+    const mix = await mixAudio(D);
+    const acfg = mix ? await pickAudioConfig() : null;
+    if (signal.aborted) throw abortError();
+
+    const muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: { codec: vcfg.mux, width: W, height: H, frameRate: fps },
+      audio: acfg ? { codec: acfg.mux, numberOfChannels: 2, sampleRate: SR } : undefined,
+      fastStart: 'in-memory',
+      firstTimestampBehavior: 'offset',
+    });
+
+    let failure = null;
+    const fail = e => { failure = failure || e; };
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    const venc = new VideoEncoder({
+      output: (chunk, meta) => { try { muxer.addVideoChunk(chunk, meta); } catch (e) { fail(e); } },
+      error: fail,
+    });
+    venc.configure(vcfg.config);
+
+    const N = Math.max(1, Math.round(D * fps));
+    const frameUs = 1e6 / fps;
+    const gop = Math.round(fps * 2);
+    const t0 = performance.now();
+
+    try {
+      for (let i = 0; i < N; i++) {
+        if (signal.aborted) throw abortError();
+        if (failure) throw failure;
+        const t = Math.min(i / fps, D - 0.0001);
+        await prepareFrame(t);
+        Render.frame(ctx, W, H, t);
+        const vf = new VideoFrame(canvas, { timestamp: Math.round(i * frameUs), duration: Math.round(frameUs) });
+        venc.encode(vf, { keyFrame: i % gop === 0 });
+        vf.close();
+        if (venc.encodeQueueSize > 6) await waitDequeue(venc);
+        if (i % 4 === 0) {
+          const el = (performance.now() - t0) / 1000;
+          const left = i > 8 ? el / i * (N - i) : null;
+          onProgress(0.94 * i / N, 'جارٍ تصدير الإطارات…', left);
+          await breathe();
+        }
+      }
+      await venc.flush();
+      if (failure) throw failure;
+
+      if (mix && acfg) {
+        onProgress(0.95, 'جارٍ ترميز الصوت…');
+        const aenc = new AudioEncoder({
+          output: (chunk, meta) => { try { muxer.addAudioChunk(chunk, meta); } catch (e) { fail(e); } },
+          error: fail,
+        });
+        aenc.configure(acfg.config);
+        const L = mix.getChannelData(0);
+        const R = mix.numberOfChannels > 1 ? mix.getChannelData(1) : L;
+        const CH = 4800;
+        for (let off = 0; off < mix.length; off += CH) {
+          if (signal.aborted) throw abortError();
+          if (failure) throw failure;
+          const n = Math.min(CH, mix.length - off);
+          const data = new Float32Array(n * 2);
+          data.set(L.subarray(off, off + n), 0);
+          data.set(R.subarray(off, off + n), n);
+          const ad = new AudioData({ format: 'f32-planar', sampleRate: SR, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(off / SR * 1e6), data });
+          aenc.encode(ad);
+          ad.close();
+          if (aenc.encodeQueueSize > 30) await waitDequeue(aenc);
+        }
+        await aenc.flush();
+        aenc.close();
+        if (failure) throw failure;
+      }
+
+      onProgress(0.99, 'جارٍ إنهاء الملف…');
+      muxer.finalize();
+      const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+      onProgress(1, 'تم');
+      return { blob, W, H, fps, hasAudio: !!(mix && acfg), audioDropped: !!(mix && !acfg), codec: vcfg.mux };
+    } finally {
+      try { if (venc.state !== 'closed') venc.close(); } catch (e) {}
+    }
+  }
+
+  return { run, supported, bitrateFor };
+})();
