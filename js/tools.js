@@ -14,7 +14,7 @@ const MONTAJI_TOOLS = (() => {
     position: pick(['top', 'middle', 'bottom'], 'Quick vertical placement, horizontally centered.'),
     x: num('Horizontal center, 0 (left) to 1 (right). Overrides position.'),
     y: num('Vertical center, 0 (top) to 1 (bottom). Overrides position.'),
-    size: num('Font size as a percent of frame height, 3 to 22. Titles ~10, captions ~6.'),
+    size: num('Font size as a percent of frame HEIGHT, 3 to 22, so it depends on the ratio. Titles: ~10 on 16:9, ~8 on 1:1, ~7 on 4:5, ~5.5 on 9:16. Captions: ~6 on 16:9, ~4.5 on 1:1, ~4 on 4:5, ~3.5 on 9:16.'),
     color: str('Text color as #rrggbb.'),
     font: pick(['segoe', 'tahoma', 'arial', 'times', 'courier'], 'Font family.'),
     bold: bool('Bold weight.'),

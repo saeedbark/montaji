@@ -32,14 +32,28 @@ Project model
 - Images last 4 s by default. Good pacing is 2.5 to 4 s per photo in a slideshow, shorter for energetic videos.
 - A transition belongs to the clip that enters and takes up to 0.6 s at its start. The first clip needs none.
 - Texts and audio sit on their own tracks and are placed freely by start time. Text position uses x and y from 0 to 1 (0.5 is the center). Keep text away from the frame edges; on 9:16 keep y between 0.12 and 0.85.
-- Text is drawn exactly as written and supports Arabic. Keep overlay text short. Size is a percent of frame height: titles 9 to 12, captions 5 to 7.
+- Text is drawn exactly as written and supports Arabic. Keep overlay text short. Size is a percent of frame HEIGHT, so the right value depends on the aspect ratio: follow the size guide at the end of this message.
 - Audio longer than the video is cut at the video's end automatically, so give music a fade-out. When video clips carry speech, lower the music to about 20 to 30.
 - All times are in seconds.`;
 
   const VISION_NOTE = '\n- Use view_frame when you need to see what is on screen or to check how your result looks. Do not overuse it.';
 
+  // حجم النص نسبة من ارتفاع الإطار؛ في المقاس العمودي الارتفاع كبير فتلزم قيم أصغر بكثير
+  const TEXT_SIZES = {
+    '16:9': [9, 12, 5, 7],
+    '1:1': [7, 9, 4, 5],
+    '4:5': [6, 8, 3.5, 4.5],
+    '9:16': [5, 6.5, 3, 4],
+  };
+  function sizeGuide() {
+    const r = TEXT_SIZES[state.ratio] ? state.ratio : '16:9';
+    const [t0, t1, c0, c1] = TEXT_SIZES[r];
+    return `\n\nText size guide for the current ratio ${r}: titles ${t0} to ${t1}, captions and small lines ${c0} to ${c1}.`
+      + ' If you change the ratio, resize existing texts to the guide of the new ratio (you will see the new guide in the next step).';
+  }
+
   function systemMessage() {
-    return SYSTEM + (cfg.vision ? VISION_NOTE : '')
+    return SYSTEM + (cfg.vision ? VISION_NOTE : '') + sizeGuide()
       + '\n\nCurrent project state (refreshed at every step):\n' + JSON.stringify(Agent.project());
   }
 
