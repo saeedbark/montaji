@@ -819,7 +819,7 @@
       const d = new Date(), p2 = n => String(n).padStart(2, '0');
       ex.video.src = ex.url;
       ex.link.href = ex.url;
-      ex.link.download = `montage-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}-${r.H >= r.W ? r.W : r.H}p.mp4`;
+      ex.link.download = `montaji-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}-${r.H >= r.W ? r.W : r.H}p.mp4`;
       ex.info.innerHTML = `الفيديو جاهز ✓ · <span dir="ltr">${r.W}×${r.H}</span> · ${r.fps} إطار/ث · ${(r.blob.size / 1048576).toFixed(1)} م.ب`
         + (r.audioDropped ? '<br>تنبيه: تعذّر ترميز الصوت على هذا المتصفح، فالملف بلا صوت.' : '');
       exShow('done');
@@ -918,7 +918,7 @@
       const motions = ['zoomIn', 'panRight', 'zoomOut'];
       state.clips.forEach((c, i) => { c.motion = motions[i % 3]; if (i) c.transition = ['fade', 'slide'][(i - 1) % 2]; });
       const base = { x: 0.5, size: 0.1, color: '#ffffff', font: 'segoe', bold: true, stroke: false, strokeColor: '#000000', bg: false, bgColor: '#000000', shadow: true };
-      state.texts.push({ ...base, id: uid(), text: 'أهلاً بك في استوديو المونتاج', start: 0.3, dur: 3.4, y: 0.5, anim: 'rise' });
+      state.texts.push({ ...base, id: uid(), text: 'أهلاً بك في مونتاجي', start: 0.3, dur: 3.4, y: 0.5, anim: 'rise' });
       state.texts.push({ ...base, id: uid(), text: 'جرّب تعديل أي عنصر ثم صدّر الفيديو', start: 8.4, dur: 3.3, y: 0.82, size: 0.065, bg: true, anim: 'fade' });
       touch();
       fitTimeline();
