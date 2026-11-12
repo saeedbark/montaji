@@ -84,8 +84,10 @@
     updateTransport();
     els.empty.hidden = !isEmpty();
     dirty = true;
+    document.dispatchEvent(new Event('studio:change'));
   }
   function touch() { refresh(); commit(); }
+  function setRatio(r) { state.ratio = r; els.ratio.value = r; applyRatio(); }
 
   function applyRatio() {
     const [w, h] = outputSize(state.ratio, 720);
@@ -823,15 +825,31 @@
       ex.info.innerHTML = `الفيديو جاهز ✓ · <span dir="ltr">${r.W}×${r.H}</span> · ${r.fps} إطار/ث · ${(r.blob.size / 1048576).toFixed(1)} م.ب`
         + (r.audioDropped ? '<br>تنبيه: تعذّر ترميز الصوت على هذا المتصفح، فالملف بلا صوت.' : '');
       exShow('done');
+      return { ok: true, width: r.W, height: r.H, fps: r.fps, size_mb: +(r.blob.size / 1048576).toFixed(1), file: ex.link.download };
     } catch (e) {
       if (e.name !== 'AbortError') { console.error(e); toast('فشل التصدير: ' + (e.message || e), 'err'); }
       exShow('form');
+      return { ok: false, error: e.name === 'AbortError' ? 'أوقف المستخدم التصدير' : String(e.message || e) };
     } finally {
       ex.abort = null;
       view.exporting = false;
       syncMedia();
       dirty = true;
     }
+  }
+
+  /** تصدير يبدأ مباشرة بإعدادات محددة (يستخدمه المساعد الذكي) */
+  async function exportVideo(o = {}) {
+    layout();
+    if (view.total <= 0) return { ok: false, error: 'المشروع فارغ' };
+    if (!Exporter.supported()) return { ok: false, error: 'المتصفح لا يدعم التصدير — استخدم Chrome أو Edge' };
+    if (ex.abort) return { ok: false, error: 'هناك تصدير جارٍ بالفعل' };
+    if (o.res) ex.res.value = o.res;
+    if (o.fps) ex.fps.value = o.fps;
+    if (o.quality) ex.q.value = o.quality;
+    ex.video.pause();
+    ex.modal.hidden = false;
+    return startExport();
   }
 
   $('#btnExport').onclick = openExport;
@@ -993,6 +1011,9 @@
   pushHist();
   requestAnimationFrame(loop);
 
-  // واجهة بسيطة للفحص من وحدة التحكم
-  window.studio = { state, view, addFiles, loadSample, setTime, play, pause };
+  // واجهة يستخدمها المساعد الذكي (js/agent.js) ووحدة التحكم
+  window.studio = {
+    state, view, addFiles, loadSample, setTime, play, pause,
+    refresh, commit, pushHist, undo, redo, select, renderProps, fitTimeline, setRatio, cloneItem, exportVideo, toast,
+  };
 })();

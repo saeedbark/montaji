@@ -4,7 +4,7 @@
     {
       "name": "studio",
       "runtimeExecutable": "node",
-      "runtimeArgs": [".claude/serve.js"],
+      "runtimeArgs": ["server.js"],
       "port": 5173
     }
   ]
