@@ -38,7 +38,7 @@
      npm start
      ```
 
-يفتح المحرر على `http://localhost:5173`. لا حاجة إلى `npm install`، فالمشروع بلا مكتبات.
+يفتح المحرر على `http://localhost:4747`. لا حاجة إلى `npm install`، فالمشروع بلا مكتبات.
 
 التصدير يحتاج Google Chrome أو Microsoft Edge بإصدار حديث. لتغيير المنفذ شغّل الخادم بالمتغيّر `PORT`.
 
@@ -85,18 +85,18 @@
 
 ## خادم MCP
 
-الخادم نفسه يعمل كخادم [MCP](https://modelcontextprotocol.io) على العنوان `http://localhost:5173/mcp`، فيستطيع أي عميل يدعم MCP أن يحرّر المشروع المفتوح في المتصفح: يضيف ملفات من جهازك بمسارها، يرتّب ويقصّ ويضيف النصوص، ويصدّر الفيديو.
+الخادم نفسه يعمل كخادم [MCP](https://modelcontextprotocol.io) على العنوان `http://localhost:4747/mcp`، فيستطيع أي عميل يدعم MCP أن يحرّر المشروع المفتوح في المتصفح: يضيف ملفات من جهازك بمسارها، يرتّب ويقصّ ويضيف النصوص، ويصدّر الفيديو.
 
 Claude Code:
 
 ```bash
-claude mcp add --transport http montaji http://localhost:5173/mcp
+claude mcp add --transport http montaji http://localhost:4747/mcp
 ```
 
 Cursor وغيره (ملف إعدادات MCP):
 
 ```json
-{ "mcpServers": { "montaji": { "url": "http://localhost:5173/mcp" } } }
+{ "mcpServers": { "montaji": { "url": "http://localhost:4747/mcp" } } }
 ```
 
 أبقِ صفحة المحرر مفتوحة أثناء العمل، فالأدوات تُنفَّذ داخلها. هذا الخادم لا يحتاج مفتاحاً؛ النموذج هنا هو نموذج العميل نفسه.

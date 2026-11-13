@@ -34,7 +34,7 @@ The interface is in Arabic (RTL). Code comments are in Arabic; tool descriptions
 
    On Windows you can double-click `start.bat`; on macOS and Linux run `./start.sh`.
 
-The editor opens at `http://localhost:5173`. Export needs a recent Chrome or Edge. Set `PORT` to use another port.
+The editor opens at `http://localhost:4747`. Export needs a recent Chrome or Edge. Set `PORT` to use another port.
 
 ## AI assistant
 
@@ -55,14 +55,14 @@ Use `AI_MODEL` to pick a model and `AI_PROVIDER` to choose between several keys.
 
 ## MCP server
 
-The same server speaks [MCP](https://modelcontextprotocol.io) at `http://localhost:5173/mcp`. Keep the editor tab open: tools run inside it.
+The same server speaks [MCP](https://modelcontextprotocol.io) at `http://localhost:4747/mcp`. Keep the editor tab open: tools run inside it.
 
 ```bash
-claude mcp add --transport http montaji http://localhost:5173/mcp
+claude mcp add --transport http montaji http://localhost:4747/mcp
 ```
 
 ```json
-{ "mcpServers": { "montaji": { "url": "http://localhost:5173/mcp" } } }
+{ "mcpServers": { "montaji": { "url": "http://localhost:4747/mcp" } } }
 ```
 
 Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `save_image` `view_frame` `seek` `undo` `export_video`

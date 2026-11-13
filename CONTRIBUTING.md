@@ -18,7 +18,7 @@
 ```bash
 git clone https://github.com/<اسمك>/montaji.git
 cd montaji
-npm start        # يشغّل الخادم على http://localhost:5173
+npm start        # يشغّل الخادم على http://localhost:4747
 npm test         # يشغّل الاختبارات
 ```
 

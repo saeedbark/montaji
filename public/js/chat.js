@@ -141,7 +141,7 @@ Project model
     let h;
     if (!cfg) {
       h = `<h3>المساعد يحتاج الخادم المحلي</h3>
-        <p>شغّل البرنامج بالنقر المزدوج على <code>start.bat</code> (أو <code>node server.js</code>) ثم افتح <code>http://localhost:5173</code>.</p>
+        <p>شغّل البرنامج بالنقر المزدوج على <code>start.bat</code> (أو <code>node server.js</code>) ثم افتح <code>http://localhost:4747</code>.</p>
         <button class="btn small" data-retry>إعادة المحاولة</button>`;
     } else if (!cfg.ready) {
       h = `<h3>فعّل المساعد بمفتاحك</h3>

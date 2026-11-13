@@ -7,7 +7,7 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-URL="http://localhost:${PORT:-5173}"
+URL="http://localhost:${PORT:-4747}"
 (
   sleep 1
   if command -v open >/dev/null 2>&1; then open "$URL"

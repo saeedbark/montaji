@@ -6,7 +6,7 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 // كل ما يُقدَّم للمتصفح يعيش في public/ فقط؛ الخادم وملف .env خارجه فلا يمكن طلبهما برابط
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const PORT = +process.env.PORT || 5173;
+const PORT = +process.env.PORT || 4747;
 // MONTAJI_ENV_FILE يُستعمل في الاختبارات كي لا تُقرأ مفاتيح المطوّر الحقيقية
 const ENV_FILE = process.env.MONTAJI_ENV_FILE || path.join(ROOT, '.env');
 const ENV_TEMPLATE = path.join(ROOT, '.env.example');

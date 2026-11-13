@@ -7,5 +7,5 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-start "" http://localhost:5173
+start "" http://localhost:4747
 node server/index.js
