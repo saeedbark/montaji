@@ -95,8 +95,11 @@ function trusted(req) {
 function serveStatic(req, res, p) {
   if (p === '/') p = '/index.html';
   const f = path.join(ROOT, p);
-  // لا تُقدَّم الملفات المخفية (.env وغيرها) ولا أي شيء خارج مجلد المشروع
-  if (!f.startsWith(ROOT + path.sep) || p.split('/').some(s => s.startsWith('.'))) { res.writeHead(403); return res.end(); }
+  // لا تُقدَّم الملفات المخفية (.env وغيرها) ولا أي شيء خارج مجلد المشروع.
+  // الفحص على المسار الناتج لا على نص الرابط: في ويندوز «\» فاصل أيضاً، فالرابط /js\..\.env كان يتجاوز الفحص
+  const rel = path.relative(ROOT, f);
+  const hidden = !rel || path.isAbsolute(rel) || rel.split(path.sep).some(s => s.startsWith('.'));
+  if (hidden || /[\\:\0]/.test(p)) { res.writeHead(403); return res.end(); }
   fs.readFile(f, (err, data) => {
     if (err) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
