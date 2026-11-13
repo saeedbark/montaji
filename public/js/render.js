@@ -245,5 +245,5 @@ const Render = (() => {
     for (const tx of state.texts) drawText(ctx, tx, W, H, t, opts.selText === tx.id);
   }
 
-  return { FILTERS, FONTS, frame };
+  return { FILTERS, FONTS, filterCss, frame };
 })();

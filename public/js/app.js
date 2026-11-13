@@ -664,11 +664,15 @@
     } else if (kind === 'clip') {
       const isVid = obj.type === 'video';
       h = `<h2>${isVid ? 'مقطع فيديو' : 'صورة'}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`;
-      if (!isVid) h += slider('out', 'مدة العرض', 0.5, 15, 0.1, +Math.min(15, obj.out).toFixed(1), 'ث');
+      if (!isVid) {
+        h += `<button class="btn small wide" data-act="imgEdit"><svg class="ic"><use href="#i-wand"/></svg>تعديل الصورة: قص، إزالة الخلفية…</button>`;
+        h += slider('out', 'مدة العرض', 0.5, 15, 0.1, +Math.min(15, obj.out).toFixed(1), 'ث');
+      }
       else {
         h += `<h3>السرعة</h3>` + chips('speed', [[0.5, '0.5×'], [1, 'عادية'], [1.5, '1.5×'], [2, '2×']], obj.speed, true);
         h += slider('volume', 'صوت المقطع', 0, 100, 1, Math.round(obj.volume * 100), '%', 0.01);
         h += check('muted', 'كتم صوت المقطع', obj.muted);
+        h += `<button class="btn small wide" data-act="audExtract"><svg class="ic"><use href="#i-wave"/></svg>استخراج الصوت: تنزيله أو فصله كموسيقى</button>`;
       }
       h += `<h3>الانتقال عند الدخول</h3>` + chips('transition', [['none', 'بدون'], ['fade', 'تلاشٍ'], ['slide', 'انزلاق'], ['zoom', 'تكبير'], ['wipe', 'مسح'], ['black', 'إظلام']], obj.transition);
       if (obj.transition !== 'none') h += slider('trLen', 'طول الانتقال', 0.1, 1.5, 0.05, +(obj.trLen > 0 ? obj.trLen : 0.6).toFixed(2), 'ث');
@@ -765,6 +769,8 @@
     else if (a === 'dup') dupSel();
     else if (a === 'del') removeSel();
     else if (a === 'beatSync') beatSync(state.sel.id);
+    else if (a === 'imgEdit') { const obj = selObj(); if (obj) ImageStudio.openClip(obj); }
+    else if (a === 'audExtract') { const obj = selObj(); if (obj) AudioExtract.openClip(obj); }
     else if (a === 'trAll') {
       const obj = selObj();
       if (!obj) return;
@@ -936,22 +942,7 @@
       arp.forEach((f, i) => tone(f * 2, at + i * bar / 6, 0.5, 'triangle', 0.1, 0.012));
     }
     const buf = await oc.startRendering();
-    return wavBlob(buf);
-  }
-
-  function wavBlob(buf) {
-    const n = buf.length, ch = buf.numberOfChannels, sr = buf.sampleRate;
-    const ab = new ArrayBuffer(44 + n * ch * 2), dv = new DataView(ab);
-    const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
-    w(0, 'RIFF'); dv.setUint32(4, 36 + n * ch * 2, true); w(8, 'WAVEfmt ');
-    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
-    dv.setUint32(24, sr, true); dv.setUint32(28, sr * ch * 2, true);
-    dv.setUint16(32, ch * 2, true); dv.setUint16(34, 16, true);
-    w(36, 'data'); dv.setUint32(40, n * ch * 2, true);
-    const data = [...Array(ch)].map((_, i) => buf.getChannelData(i));
-    let o = 44;
-    for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) { dv.setInt16(o, clamp(data[c][i], -1, 1) * 32767, true); o += 2; }
-    return new Blob([ab], { type: 'audio/wav' });
+    return new Blob([AudioTools.wav(AudioTools.process(buf))], { type: 'audio/wav' });
   }
 
   async function loadSample() {
@@ -999,6 +990,7 @@
     const tag = (e.target.tagName || '').toLowerCase();
     const typing = tag === 'textarea' || tag === 'select' || (tag === 'input' && !['range', 'checkbox', 'color'].includes(e.target.type));
     if (!ex.modal.hidden) { if (e.key === 'Escape') closeExport(); return; }
+    if (ImageStudio.isOpen() || AudioExtract.isOpen()) return; // للنوافذ الأدوات اختصاراتها
     if ((e.ctrlKey || e.metaKey) && !typing) {
       const k = e.key.toLowerCase();
       if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
@@ -1027,8 +1019,18 @@
     if (!hasFiles(e)) return;
     e.preventDefault();
     dragDepth = 0; els.dropOverlay.hidden = true;
-    addFiles(e.dataTransfer.files);
+    if (ImageStudio.isOpen()) ImageStudio.addFiles(e.dataTransfer.files);
+    else if (AudioExtract.isOpen()) AudioExtract.addFiles(e.dataTransfer.files);
+    else addFiles(e.dataTransfer.files);
   });
+
+  // قائمة «أدوات»: تُغلق عند اختيار عنصر أو النقر خارجها أو Escape
+  const tools = { btn: $('#btnTools'), menu: $('#toolsMenu') };
+  const toggleTools = on => { tools.menu.hidden = !on; tools.btn.setAttribute('aria-expanded', String(on)); };
+  tools.btn.onclick = () => toggleTools(tools.menu.hidden);
+  tools.menu.addEventListener('click', e => { if (e.target.closest('.menu-item')) toggleTools(false); });
+  window.addEventListener('pointerdown', e => { if (!tools.menu.hidden && !e.target.closest('.menu-wrap')) toggleTools(false); });
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && !tools.menu.hidden) { toggleTools(false); tools.btn.focus(); } }, true);
 
   window.addEventListener('resize', () => renderTimeline());
   window.addEventListener('beforeunload', e => { if (!isEmpty()) { e.preventDefault(); e.returnValue = ''; } });

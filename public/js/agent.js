@@ -367,6 +367,88 @@ const Agent = (() => {
       return { deleted: hits.length, ...brief() };
     },
 
+    edit_image(a) {
+      const c = pick('clip', [a.id])[0];
+      if (c.type !== 'image') fail('edit_image only works on image clips, and this clip is a video.');
+      const frac = (v, name) => clamp(num(v, name), 0, 1);
+      let cv = ImageTools.fromSource(c.el, c.w, c.h);
+      const out = {};
+      if (has(a.crop_x) || has(a.crop_y) || has(a.crop_width) || has(a.crop_height)) {
+        const x = has(a.crop_x) ? frac(a.crop_x, 'crop_x') : 0, y = has(a.crop_y) ? frac(a.crop_y, 'crop_y') : 0;
+        const w = has(a.crop_width) ? frac(a.crop_width, 'crop_width') : 1 - x, h = has(a.crop_height) ? frac(a.crop_height, 'crop_height') : 1 - y;
+        if (w * cv.width < 2 || h * cv.height < 2) fail('The crop area is empty. crop_x + crop_width and crop_y + crop_height must stay within 0 to 1.');
+        cv = ImageTools.crop(cv, x * cv.width, y * cv.height, w * cv.width, h * cv.height);
+      }
+      if (has(a.rotate)) cv = ImageTools.rotate(cv, +oneOf(a.rotate, ['90', '180', '270'], 'rotate'));
+      if (has(a.flip)) cv = ImageTools.flip(cv, oneOf(a.flip, ['horizontal', 'vertical'], 'flip') === 'horizontal');
+      if (bool(a.remove_background)) {
+        const r = ImageTools.removeBg(cv, { tolerance: has(a.tolerance) ? clamp(num(a.tolerance, 'tolerance'), 1, 100) : 22 });
+        cv = r.canvas;
+        out.background_removed_percent = Math.round(r.share * 100);
+        if (r.share < 0.02) out.note = 'Almost nothing was removed: the background is not a plain color. Try a higher tolerance, or tell the user this photo needs manual work in the image studio.';
+        else if (r.share > 0.97) out.note = 'Nearly the whole image was removed. Undo and retry with a lower tolerance.';
+      }
+      if (has(a.background_color)) {
+        const filled = ImageTools.canvas(cv.width, cv.height), g = filled.getContext('2d');
+        g.fillStyle = color(a.background_color, 'background_color');
+        g.fillRect(0, 0, filled.width, filled.height);
+        g.drawImage(cv, 0, 0);
+        cv = filled;
+      }
+      ImageStudio.setClipImage(c, cv);
+      return { id: c.id, width: c.w, height: c.h, ...out };
+    },
+
+    async extract_audio(a) {
+      const c = pick('clip', [a.id])[0];
+      if (c.type !== 'video') fail('extract_audio only works on video clips.');
+      let buf;
+      try { buf = await AudioExtract.decode(c.file); } catch (e) { fail('This video has no sound track.'); }
+      const start = has(a.start) ? clamp(num(a.start, 'start'), 0, buf.duration) : c.in;
+      const end = has(a.end) ? clamp(num(a.end, 'end'), 0, buf.duration) : Math.min(c.out, buf.duration);
+      if (end - start < 0.1) fail(`end must be after start, within 0 to ${r2(buf.duration)} s of the source video.`);
+      const pcm = AudioTools.process(buf, {
+        start, end, normalize: bool(a.normalize),
+        fadeIn: has(a.fade_in) ? clamp(num(a.fade_in, 'fade_in'), 0, 5) : 0,
+        fadeOut: has(a.fade_out) ? clamp(num(a.fade_out, 'fade_out'), 0, 5) : 0,
+      });
+      if (pcm.peak < 1e-3) fail('The sound of this part of the video is silent.');
+      const base = c.name.replace(/\.[^.\\/]+$/, '') || 'audio';
+      const out = { source_start: r2(start), source_end: r2(end), audio_duration: r2(pcm.duration) };
+      if (bool(a.download)) {
+        const r = await AudioTools.encode(pcm, has(a.format) ? oneOf(a.format, ['m4a', 'wav'], 'format') : 'm4a');
+        ImageTools.download(r.blob, `${base}.${r.ext}`);
+        Object.assign(out, { file: `${base}.${r.ext}`, size_kb: Math.round(r.bytes.length / 1024) });
+      }
+      if (!has(a.add_to_project) || bool(a.add_to_project)) {
+        const mute = !has(a.mute_clip) || bool(a.mute_clip);
+        const item = await AudioExtract.addToProject(pcm, `${base}.wav`, { clip: c, start }, mute);
+        Object.assign(out, { audio_id: item.id, audio_start: r2(item.start), clip_muted: c.muted });
+        if (c.speed !== 1) out.note = 'The clip plays at a different speed, so its extracted sound was placed at the clip start but will not stay in sync. Set the clip speed to 1 for exact sync.';
+      }
+      return { ...out, ...brief() };
+    },
+
+    async save_image(a) {
+      layout();
+      if (view.total <= 0) fail('The project is empty.');
+      const format = has(a.format) ? oneOf(a.format, ['jpeg', 'png', 'webp'], 'format') : 'jpeg';
+      const res = has(a.resolution) ? +oneOf(a.resolution, ['720', '1080', '1440', '2160'], 'resolution') : 1080;
+      const quality = (has(a.quality) ? clamp(num(a.quality, 'quality'), 10, 100) : 92) / 100;
+      const back = view.t;
+      S.pause();
+      if (has(a.time)) S.setTime(num(a.time, 'time'));
+      await settle();
+      const [W, H] = outputSize(state.ratio, res), t = view.t;
+      const cv = ImageTools.canvas(W, H);
+      Render.frame(cv.getContext('2d'), W, H, t);
+      S.setTime(back);
+      const r = ImageTools.encode(cv, format, quality);
+      const file = `montaji-${t.toFixed(1)}s.${r.ext}`;
+      ImageTools.download(r.blob, file);
+      return { file, time: r2(t), width: W, height: H, size_kb: Math.round(r.bytes.length / 1024), note: 'The image was saved to the user\'s Downloads folder.' };
+    },
+
     async view_frame({ times }) {
       layout();
       const list = (Array.isArray(times) ? times : [times]).filter(has).slice(0, 4).map(t => clamp(num(t, 'times'), 0, view.total));
@@ -423,7 +505,7 @@ const Agent = (() => {
     },
   };
 
-  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'seek', 'export_video', 'undo', 'import_media']);
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {

@@ -37,6 +37,8 @@ npm test         # يشغّل الاختبارات
 | انتقال أو فلتر أو خط أو حركة نص | `public/js/render.js` |
 | التصدير والترميز | `public/js/export.js` |
 | كشف الإيقاع | `public/js/beats.js` |
+| تحويل الفيديو إلى صوت | `public/js/audiotools.js` للمعالجة و `public/js/extractaudio.js` للواجهة |
+| استوديو الصور (إزالة الخلفية، التحويل) | `public/js/imagetools.js` للمعالجة و `public/js/imagestudio.js` للواجهة |
 | أداة للمساعد | `public/js/tools.js` + `public/js/agent.js` |
 | سلوك المساعد وتعليماته | `public/js/chat.js` |
 | مزوّد ذكاء اصطناعي جديد | `server/config.js` (سطر في `PROVIDERS`) |

@@ -30,7 +30,10 @@
   <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
-  <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="M4 20L14.5 9.5M12.5 7.5l4 4M18 3v3M16.5 4.5h3M20 10v2M19 11h2M8 3v2M7 4h2"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 10v4M7 6v12M11 3v18M15 8v8M19 5v14M23 10v4"/></symbol>
+  <symbol id="i-camera"viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-logo"viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
 </svg>
 
 <header class="topbar">
@@ -49,6 +52,20 @@
     <button class="btn" id="btnAddText" title="إضافة نص فوق الفيديو">
       <svg class="ic"><use href="#i-text"/></svg><span>نص</span>
     </button>
+  </div>
+
+  <div class="menu-wrap">
+    <button class="btn" id="btnTools" title="أدوات الصور والصوت" aria-haspopup="menu" aria-expanded="false" aria-controls="toolsMenu">
+      <svg class="ic"><use href="#i-wand"/></svg><span>أدوات</span>
+    </button>
+    <div class="menu" id="toolsMenu" role="menu" hidden>
+      <button class="menu-item" role="menuitem" id="btnImages">
+        <svg class="ic"><use href="#i-wand"/></svg><span><b>استوديو الصور</b><small>قص، إزالة الخلفية، تحويل PNG و JPEG</small></span>
+      </button>
+      <button class="menu-item" role="menuitem" id="btnAudio">
+        <svg class="ic"><use href="#i-wave"/></svg><span><b>تحويل الفيديو إلى صوت</b><small>استخرج الموسيقى ونزّلها M4A أو WAV</small></span>
+      </button>
+    </div>
   </div>
 
   <div class="spacer"></div>
@@ -119,6 +136,7 @@
       <button class="btn icon" id="btnStart" title="العودة إلى البداية"><svg class="ic"><use href="#i-start"/></svg></button>
       <button class="btn icon play" id="btnPlay" title="تشغيل / إيقاف (مسافة)"><svg class="ic"><use id="playIcon" href="#i-play"/></svg></button>
       <span class="time" id="timeLabel" dir="ltr">0:00.0 / 0:00.0</span>
+      <button class="btn icon" id="btnSnap" title="حفظ الإطار الحالي كصورة"><svg class="ic"><use href="#i-camera"/></svg></button>
     </div>
   </section>
 
@@ -203,6 +221,54 @@
   </div>
 </div>
 
+<!-- استوديو الصور -->
+<div class="modal" id="imgModal" hidden>
+  <div class="dialog studio" role="dialog" aria-modal="true" aria-labelledby="imgTitle">
+    <header class="studio-head">
+      <svg class="ic"><use href="#i-wand"/></svg>
+      <h2 id="imgTitle">استوديو الصور</h2>
+      <span class="studio-name" id="imgName"></span>
+      <div class="spacer"></div>
+      <button class="btn small" id="imgOpen" title="فتح صور أخرى من جهازك"><svg class="ic"><use href="#i-plus"/></svg><span>فتح صور</span></button>
+      <button class="btn small icon" id="imgUndo" title="تراجع (Ctrl+Z)" disabled><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button class="btn small" id="imgReset" title="إلغاء كل التعديلات على هذه الصورة" disabled>الأصل</button>
+      <button class="btn small icon" id="imgClose" title="إغلاق (Esc)" aria-label="إغلاق"><svg class="ic"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="studio-body">
+      <div class="studio-stage" id="imgStage">
+        <canvas id="imgView" hidden></canvas>
+        <div class="empty-card" id="imgEmpty">
+          <svg class="ic big"><use href="#i-wand"/></svg>
+          <h1>افتح صورة لتبدأ</h1>
+          <p>اسحب الصور وأفلتها هنا، أو اخترها من جهازك. يمكنك فتح عدة صور لتحويلها دفعة واحدة.</p>
+          <div class="empty-actions"><button class="btn primary" id="imgPick">اختيار صور</button></div>
+        </div>
+        <div class="studio-busy" id="imgBusy" hidden>جارٍ المعالجة…</div>
+      </div>
+      <aside class="props studio-panel" id="imgPanel"></aside>
+    </div>
+    <div class="studio-strip" id="imgStrip" hidden></div>
+  </div>
+</div>
+<input type="file" id="fileImg" accept="image/*" multiple hidden>
+
+<!-- تحويل الفيديو إلى صوت -->
+<div class="modal" id="audModal" hidden>
+  <div class="dialog aud" role="dialog" aria-modal="true" aria-labelledby="audTitle">
+    <header class="studio-head">
+      <svg class="ic"><use href="#i-wave"/></svg>
+      <h2 id="audTitle">تحويل الفيديو إلى صوت</h2>
+      <span class="studio-name" id="audName"></span>
+      <div class="spacer"></div>
+      <button class="btn small" id="audOpen" title="فتح فيديو آخر من جهازك"><svg class="ic"><use href="#i-plus"/></svg><span>فتح فيديو</span></button>
+      <button class="btn small icon" id="audClose" title="إغلاق (Esc)" aria-label="إغلاق"><svg class="ic"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="aud-body" id="audBody"></div>
+    <div class="studio-busy" id="audBusy" hidden></div>
+  </div>
+</div>
+<input type="file" id="fileAud" accept="video/*,audio/*" hidden>
+
 <div class="drop-overlay" id="dropOverlay" hidden><div>أفلت الملفات هنا لإضافتها</div></div>
 <div id="toasts"></div>
 
@@ -211,7 +277,11 @@
 <script src="js/beats.js"></script>
 <script src="js/render.js"></script>
 <script src="js/export.js"></script>
+<script src="js/audiotools.js"></script>
 <script src="js/app.js"></script>
+<script src="js/imagetools.js"></script>
+<script src="js/imagestudio.js"></script>
+<script src="js/extractaudio.js"></script>
 <script src="js/tools.js"></script>
 <script src="js/agent.js"></script>
 <script src="js/chat.js"></script>
