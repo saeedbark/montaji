@@ -1,0 +1,103 @@
+# Montaji — مونتاجي
+
+[العربية](README.md) · **English**
+
+A simple, Arabic-first video editor that runs in your browser, on your own machine, with a built-in AI assistant: describe the edit you want and watch it happen on the timeline. Open source, no account, and no dependencies to install.
+
+- Import images, video clips and music by button or drag and drop
+- Reorder, trim and split clips, with undo and redo
+- Music with fades, animated text overlays
+- Transitions, filters, camera motion, and 16:9, 9:16, 1:1 and 4:5 frames
+- Automatic beat detection and beat-synced cuts
+- MP4 export up to 4K (WebCodecs, rendered locally)
+- **AI assistant** using your own API key (Gemini, OpenAI, Claude, OpenRouter, any OpenAI-compatible service, or local models through Ollama)
+- **MCP server** so external clients (Claude Code, Cursor, ...) can drive the editor
+
+The interface is in Arabic (RTL). Code comments are in Arabic; tool descriptions and protocol messages are in English.
+
+## Run it
+
+1. Install [Node.js](https://nodejs.org) 18 or newer.
+2. Get the code:
+
+   ```bash
+   git clone https://github.com/saeedbark/montaji.git
+   ```
+
+3. Start it. There is nothing to `npm install`.
+
+   ```bash
+   npm start
+   ```
+
+   On Windows you can double-click `start.bat`; on macOS and Linux run `./start.sh`.
+
+The editor opens at `http://localhost:5173`. Export needs a recent Chrome or Edge. Set `PORT` to use another port.
+
+## AI assistant
+
+On first run the server creates `.env` from `.env.example`. Put one API key in it and save; no restart is needed.
+
+| Provider | Variable |
+| --- | --- |
+| Google Gemini | `GEMINI_API_KEY` |
+| OpenAI | `OPENAI_API_KEY` |
+| Anthropic Claude | `ANTHROPIC_API_KEY` |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Any OpenAI-compatible service | `AI_PROVIDER=custom` with `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` |
+| Ollama (local, offline) | `AI_PROVIDER=ollama` with `AI_MODEL` |
+
+Use `AI_MODEL` to pick a model and `AI_PROVIDER` to choose between several keys.
+
+**Privacy.** Editing and export happen entirely on your machine. The key stays in `.env`: only the local server reads it, and it never reaches the browser. When you use the assistant, your messages, a description of the project (file names, durations, texts) and small thumbnails of your media are sent to the provider you chose. Set `AI_VISION=off` to stop sending thumbnails.
+
+## MCP server
+
+The same server speaks [MCP](https://modelcontextprotocol.io) at `http://localhost:5173/mcp`. Keep the editor tab open: tools run inside it.
+
+```bash
+claude mcp add --transport http montaji http://localhost:5173/mcp
+```
+
+```json
+{ "mcpServers": { "montaji": { "url": "http://localhost:5173/mcp" } } }
+```
+
+Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `view_frame` `seek` `undo` `export_video`
+
+## Project layout
+
+```
+server/      Local Node.js server, no dependencies
+  index.js     entry point and routing
+  config.js    .env parsing and AI providers
+  http.js      HTTP helpers and static files
+  chat.js      /api/chat proxy to the AI provider (the key stays here)
+  bridge.js    /api/bridge channel between the server and the editor tab
+  mcp.js       /mcp MCP server
+public/      Everything the browser loads
+  js/core.js     shared state and helpers
+  js/beats.js    beat detection
+  js/render.js   frame rendering and effects
+  js/export.js   MP4 export (WebCodecs)
+  js/app.js      editor UI and timeline
+  js/tools.js    tool definitions, shared by the chat and MCP
+  js/agent.js    tool implementations
+  js/chat.js     assistant panel and conversation loop
+test/        Tests (node --test)
+docs/        Architecture notes
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Arabic) for the data flow.
+
+## Contributing
+
+Issues and pull requests are welcome, in Arabic or English. Read [CONTRIBUTING.md](CONTRIBUTING.md) first, and report security problems privately as described in [SECURITY.md](SECURITY.md).
+
+```bash
+npm test
+```
+
+## License
+
+[MIT](LICENSE). Bundles [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (MIT).

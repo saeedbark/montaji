@@ -1,8 +1,15 @@
 # مفاتيح المساعد الذكي — لا تُرفع أبداً
 .env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+npm-debug.log*
 
 # Editor / OS
 .vscode/
+.idea/
 Thumbs.db
 desktop.ini
 .DS_Store

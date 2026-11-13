@@ -1,27 +1,44 @@
 # مونتاجي — Montaji
 
-محرر فيديو بسيط باللغة العربية يعمل داخل المتصفح وعلى جهازك، ومعه مساعد ذكي تطلب منه المونتاج بالكلام فينفّذه أمامك.
+[![CI](https://github.com/saeedbark/montaji/actions/workflows/ci.yml/badge.svg)](https://github.com/saeedbark/montaji/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Node](https://img.shields.io/badge/node-%E2%89%A5%2018-brightgreen)
+![Dependencies](https://img.shields.io/badge/dependencies-0-success)
+
+**العربية** · [English](README.en.md)
+
+محرر فيديو بسيط باللغة العربية يعمل داخل المتصفح وعلى جهازك، ومعه مساعد ذكي تطلب منه المونتاج بالكلام فينفّذه أمامك. مفتوح المصدر، بلا حساب، وبلا أي مكتبات للتثبيت.
 
 - رفع الصور ومقاطع الفيديو والموسيقى، بالزر أو بالسحب والإفلات
 - ترتيب المقاطع وقصّها وتقسيمها، مع تراجع وإعادة
 - موسيقى مع ظهور واختفاء تدريجي، ونصوص متحركة فوق الفيديو
 - انتقالات وفلاتر وحركة كاميرا، ومقاسات 16:9 و 9:16 و 1:1 و 4:5
+- مزامنة القص مع إيقاع الموسيقى تلقائياً
 - تصدير ملف MP4 بدقة تصل إلى 4K
-- **مساعد ذكي** يعمل بمفتاحك الخاص (Gemini أو OpenAI أو Claude أو غيرها)
+- **مساعد ذكي** يعمل بمفتاحك الخاص (Gemini أو OpenAI أو Claude أو غيرها، أو محلياً عبر Ollama)
 - **خادم MCP** يتيح لأي عميل خارجي (Claude Code، Cursor…) التحكم بالمحرر
 
 ## التشغيل
 
-1. ثبّت [Node.js](https://nodejs.org) بإصدار 18 أو أحدث. لا توجد أي مكتبات للتثبيت.
-2. انقر مرتين على `start.bat`، فيفتح المحرر على `http://localhost:5173`.
+1. ثبّت [Node.js](https://nodejs.org) بإصدار 18 أو أحدث.
+2. نزّل المشروع: زر **Code ← Download ZIP** في صفحة GitHub، أو:
 
-أو من الطرفية:
+   ```bash
+   git clone https://github.com/saeedbark/montaji.git
+   ```
 
-```bash
-node server.js
-```
+3. شغّله:
+   - **ويندوز:** انقر مرتين على `start.bat`
+   - **ماك / لينكس:** نفّذ `./start.sh`
+   - **أو من الطرفية على أي نظام:**
 
-التصدير يحتاج Google Chrome أو Microsoft Edge بإصدار حديث.
+     ```bash
+     npm start
+     ```
+
+يفتح المحرر على `http://localhost:5173`. لا حاجة إلى `npm install`، فالمشروع بلا مكتبات.
+
+التصدير يحتاج Google Chrome أو Microsoft Edge بإصدار حديث. لتغيير المنفذ شغّل الخادم بالمتغيّر `PORT`.
 
 ## المساعد الذكي
 
@@ -90,23 +107,54 @@ Cursor وغيره (ملف إعدادات MCP):
 
 ## الشرح
 
-- `guide.html`: دليل الاستخدام خطوة بخطوة
-- `شرح-الاستخدام.mp4`: شرح مصوّر قصير
+- دليل الاستخدام خطوة بخطوة: زر «؟» داخل المحرر، أو الملف `public/guide.html`
+- شرح مصوّر قصير: `public/media/guide.mp4`
 
-## الملفات
+## هيكل المشروع
 
-| الملف | الوظيفة |
-| --- | --- |
-| `server.js` | الخادم المحلي: ملفات المحرر، وسيط الشات، وخادم MCP |
-| `.env.example` | قالب ملف المفاتيح |
-| `index.html`, `style.css` | الواجهة |
-| `js/app.js` | منطق المحرر والخط الزمني |
-| `js/render.js` | رسم الإطارات والمؤثرات |
-| `js/beats.js` | كشف إيقاع الموسيقى (BPM والضربات) |
-| `js/export.js` | التصدير إلى MP4 (WebCodecs) |
-| `js/tools.js` | تعريف أدوات المساعد (مشترك بين الشات و MCP) |
-| `js/agent.js` | تنفيذ الأدوات على المشروع |
-| `js/chat.js` | لوحة المساعد وحلقة المحادثة |
-| `vendor/mp4-muxer.js` | مكتبة [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (رخصة MIT) |
+```
+montaji/
+├─ server/                 الخادم المحلي (Node.js بلا مكتبات)
+│  ├─ index.js             نقطة البدء والتوجيه
+│  ├─ config.js            ملف .env ومزوّدو الذكاء الاصطناعي
+│  ├─ http.js              أدوات HTTP وتقديم ملفات الواجهة
+│  ├─ chat.js              ‎/api/chat وسيط الشات (المفتاح يبقى هنا)
+│  ├─ bridge.js            ‎/api/bridge القناة بين الخادم وتبويب المحرر
+│  └─ mcp.js               ‎/mcp خادم MCP
+├─ public/                 كل ما يُحمَّل في المتصفح
+│  ├─ index.html           صفحة المحرر
+│  ├─ guide.html           دليل الاستخدام
+│  ├─ css/style.css
+│  ├─ js/
+│  │  ├─ core.js           الحالة المشتركة ودوال مساعدة
+│  │  ├─ beats.js          كشف إيقاع الموسيقى (BPM والضربات)
+│  │  ├─ render.js         رسم الإطارات والمؤثرات
+│  │  ├─ export.js         التصدير إلى MP4 (WebCodecs)
+│  │  ├─ app.js            واجهة المحرر والخط الزمني
+│  │  ├─ tools.js          تعريف أدوات المساعد (مشترك بين الشات و MCP)
+│  │  ├─ agent.js          تنفيذ الأدوات على المشروع
+│  │  └─ chat.js           لوحة المساعد وحلقة المحادثة
+│  ├─ vendor/              مكتبة mp4-muxer (رخصة MIT)
+│  └─ media/               فيديو الشرح
+├─ test/                   اختبارات (node --test)
+├─ docs/ARCHITECTURE.md    شرح البنية وتدفق البيانات
+└─ .github/                قوالب البلاغات وطلبات الدمج و CI
+```
 
-لإضافة أداة جديدة: عرّفها في `js/tools.js` ثم اكتب تنفيذها في `js/agent.js`، فتظهر تلقائياً في الشات وفي MCP.
+التفاصيل في [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## المساهمة
+
+المشروع مفتوح للجميع، والمساهمات مرحّب بها مهما كانت صغيرة.
+
+- وجدت خللاً أو عندك اقتراح؟ [افتح بلاغاً](https://github.com/saeedbark/montaji/issues/new/choose).
+- تريد المشاركة بالكود؟ اقرأ [دليل المساهمة](CONTRIBUTING.md)، وابدأ بالبلاغات الموسومة [`good first issue`](https://github.com/saeedbark/montaji/labels/good%20first%20issue).
+- ثغرة أمنية؟ لا تفتح بلاغاً علنياً؛ اتبع [سياسة الأمان](SECURITY.md).
+
+```bash
+npm test    # يشغّل الاختبارات، بلا أي تثبيت
+```
+
+## الرخصة
+
+[MIT](LICENSE). يتضمن المشروع مكتبة [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) برخصة MIT ([نص الرخصة](public/vendor/mp4-muxer.LICENSE.txt)).

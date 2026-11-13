@@ -1,0 +1,11 @@
+# نهايات أسطر موحّدة (LF) في المستودع أياً كان نظام المساهم
+* text=auto eol=lf
+*.bat text eol=crlf
+
+*.mp4 binary
+*.png binary
+*.jpg binary
+*.webp binary
+
+# مكتبة خارجية: لا تُحتسب في إحصاءات اللغة ولا تُعرض فروقها
+public/vendor/** linguist-vendored -diff

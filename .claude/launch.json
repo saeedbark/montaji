@@ -4,7 +4,7 @@
     {
       "name": "studio",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server.js"],
+      "runtimeArgs": ["server/index.js"],
       "port": 5173
     }
   ]

@@ -1,0 +1,33 @@
+name: "💡 اقتراح ميزة — Feature request"
+description: "فكرة لتحسين مونتاجي — An idea to improve Montaji"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        شكراً لاقتراحك. يمكنك الكتابة بالعربية أو الإنجليزية.
+        تذكّر مبادئ المشروع: يعمل محلياً، بلا مكتبات، وبواجهة عربية بسيطة.
+  - type: textarea
+    id: problem
+    attributes:
+      label: "ما المشكلة أو الحاجة؟ — What problem does this solve?"
+      description: "ماذا تحاول أن تفعل ولا تستطيع الآن؟"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "الحل المقترح — Proposed solution"
+      description: "كيف تتخيل أن تعمل الميزة من وجهة نظر المستخدم؟"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "بدائل فكرت فيها — Alternatives considered"
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: "المساهمة — Contribution"
+      options:
+        - label: "أرغب في تنفيذ هذه الميزة بنفسي — I would like to implement this myself"

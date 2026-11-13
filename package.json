@@ -1,0 +1,32 @@
+{
+  "name": "montaji",
+  "version": "1.0.0",
+  "description": "مونتاجي — محرر فيديو عربي يعمل في المتصفح وعلى جهازك، مع مساعد ذكي وخادم MCP. Arabic-first local video editor with an AI assistant and an MCP server.",
+  "private": true,
+  "license": "MIT",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saeedbark/montaji.git"
+  },
+  "bugs": {
+    "url": "https://github.com/saeedbark/montaji/issues"
+  },
+  "homepage": "https://github.com/saeedbark/montaji#readme",
+  "keywords": [
+    "video-editor",
+    "arabic",
+    "rtl",
+    "webcodecs",
+    "mcp",
+    "ai-assistant",
+    "local-first"
+  ]
+}
