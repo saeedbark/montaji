@@ -10,7 +10,7 @@ A simple, Arabic-first video editor that runs in your browser, on your own machi
 - Transitions, filters, camera motion, and 16:9, 9:16, 1:1 and 4:5 frames
 - Automatic beat detection and beat-synced cuts
 - MP4 export up to 4K (WebCodecs, rendered locally)
-- **Image studio**: crop, rotate, filters, color-based background removal, and PNG / JPEG / WebP conversion for one image or a whole batch (downloaded as a ZIP)
+- **Image studio**: crop, rotate, filters, color-based background removal, and PNG / JPEG / WebP conversion for one image or a whole batch (downloaded as a ZIP), and merging several images into one (side by side, stacked, or a grid)
 - **Video to audio**: pull the music or speech out of any video, trim it, then download it as M4A (AAC) or WAV or drop it on the music track; a clip's sound can be detached in sync with one click
 - **AI assistant** using your own API key (Gemini, OpenAI, Claude, OpenRouter, any OpenAI-compatible service, or local models through Ollama)
 - **MCP server** so external clients (Claude Code, Cursor, ...) can drive the editor
@@ -65,7 +65,7 @@ claude mcp add --transport http montaji http://localhost:5173/mcp
 { "mcpServers": { "montaji": { "url": "http://localhost:5173/mcp" } } }
 ```
 
-Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `edit_image` `extract_audio` `save_image` `view_frame` `seek` `undo` `export_video`
+Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `save_image` `view_frame` `seek` `undo` `export_video`
 
 ## Project layout
 

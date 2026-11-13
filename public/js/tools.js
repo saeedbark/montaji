@@ -155,6 +155,22 @@ const MONTAJI_TOOLS = (() => {
       }, ['id']),
     },
     {
+      name: 'merge_images',
+      description: 'Combine several IMAGE clips into one picture: side by side, stacked, or a grid collage. The new image clip takes the place of the first listed clip. Good for before/after shots, product variants, or a collage slide.',
+      parameters: obj({
+        ids: ids('Image clip ids in the order they should appear, at least 2. The first is placed on the right for row and grid (Arabic reading order) unless right_to_left is false.'),
+        layout: pick(['row', 'column', 'grid'], 'row: side by side with equal height. column: stacked with equal width. grid: equal cells. Default row.'),
+        columns: num('Grid only: number of columns. Default: the nearest square.'),
+        fit: pick(['cover', 'contain'], 'Grid only: cover fills each cell by cropping the edges, contain shows the whole image. Default cover.'),
+        gap: num('Space between images as a percent of the image size, 0 to 20. Default 2.'),
+        padding: num('Frame around the whole picture as a percent of the image size, 0 to 20. Default 0.'),
+        radius: num('Corner rounding of each image, 0 to 25. Default 0.'),
+        background_color: str('Color behind and between the images as #rrggbb. Default #ffffff.'),
+        right_to_left: bool('Place the first image on the right. Default true.'),
+        replace: bool('Remove the original clips after merging. Default true.'),
+      }, ['ids']),
+    },
+    {
       name: 'extract_audio',
       description: 'Extract the sound of a VIDEO clip as music. By default it is added to the music track right under the clip (so it stays in sync) and the clip itself is muted, which lets you move, trim, fade or loop the sound separately. It can also save the sound as an audio file for the user.',
       parameters: obj({

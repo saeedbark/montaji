@@ -300,6 +300,9 @@ body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
 .strip-item .dot { position: absolute; bottom: 4px; inset-inline-start: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgba(0,0,0,.5); }
 .strip-x { position: absolute; top: 2px; inset-inline-end: 2px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.72); color: #fff; font: 14px/1 inherit; cursor: pointer; opacity: 0; }
 .strip-item:hover .strip-x, .strip-x:focus-visible { opacity: 1; }
+.strip-item .num { position: absolute; bottom: 3px; inset-inline-start: 3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font: 700 11px/18px inherit; font-style: normal; text-align: center; }
+.strip-item.dragging { opacity: .4; }
+.strip-item.drop { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
 
 /* ---------- قائمة الأدوات ---------- */
 .menu-wrap { position: relative; }
@@ -348,7 +351,7 @@ body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
   body { display: block; height: auto; overflow: auto; }
   .workspace, body.chat-on .workspace { grid-template-columns: minmax(0, 1fr); }
   .stage { height: 52vh; min-height: 300px; }
-  #btnChat span, #btnTools span, #imgOpen span, #audOpen span { display: none; }
+  #btnChat span, #btnTools span, #imgOpen span, #imgMerge span, #audOpen span { display: none; }
   .aud-grid { grid-template-columns: minmax(0, 1fr); }
   .studio-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 46%; }
   .studio-panel { max-height: none; }

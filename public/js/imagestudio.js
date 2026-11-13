@@ -10,7 +10,7 @@ const ImageStudio = (() => {
   const el = {
     modal: $('#imgModal'), stage: $('#imgStage'), view: $('#imgView'), empty: $('#imgEmpty'), busy: $('#imgBusy'),
     panel: $('#imgPanel'), strip: $('#imgStrip'), name: $('#imgName'), file: $('#fileImg'),
-    undo: $('#imgUndo'), reset: $('#imgReset'),
+    undo: $('#imgUndo'), reset: $('#imgReset'), merge: $('#imgMerge'),
   };
   const vctx = el.view.getContext('2d');
   const MAX_UNDO = 6; // كل خطوة تراجع نسخة كاملة من الصورة، فالعدد محدود حفاظاً على الذاكرة
@@ -29,7 +29,13 @@ const ImageStudio = (() => {
     out: { format: 'jpeg', quality: 90, matte: '#ffffff' },
     clipId: null,  // معرّف مقطع من المشروع يُعدَّل هنا
     stash: null,   // صور المستخدم المفتوحة، تُحفظ جانباً أثناء تعديل مقطع
+    // وضع الدمج: كل الصور المفتوحة تصير صورة واحدة بترتيب الشريط
+    merge: { on: false, layout: 'row', columns: 0, fit: 'cover', dir: 'rtl', gap: 2, padding: 0, radius: 0, bg: '#ffffff', transparent: false },
+    wantMerge: false, // طُلب الدمج قبل فتح صورتين
   };
+  // للمعاينة نسخة مصغّرة من كل صورة مع أبعادها الأصلية: id ← { w, h, small }
+  const mergeCache = new Map();
+  const PREVIEW_SIDE = 1000;
 
   const cur = () => st.items[st.cur] || null;
   const isOpen = () => !el.modal.hidden;
@@ -60,23 +66,31 @@ const ImageStudio = (() => {
   }
 
   /* ================= الرسم ================= */
-  function draw() {
-    const it = cur(), ready = !!(it && it.cv);
-    el.empty.hidden = !!it;
-    el.view.hidden = !ready;
-    if (!ready) return;
-    const W = it.cv.width, H = it.cv.height;
+  /** يضبط لوحة العرض لصورة بأبعاد W×H داخل المساحة المتاحة، ويعيد أبعادها بالبكسل أو null */
+  function fitView(W, H) {
     const aw = el.stage.clientWidth - 32, ah = el.stage.clientHeight - 32;
-    if (aw <= 0 || ah <= 0) return;
+    if (aw <= 0 || ah <= 0) return null;
     const k = Math.min(aw / W, ah / H, 4);
     const dw = Math.max(1, Math.round(W * k)), dh = Math.max(1, Math.round(H * k));
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const pw = Math.round(dw * dpr), ph = Math.round(dh * dpr);
     if (el.view.width !== pw || el.view.height !== ph) { el.view.width = pw; el.view.height = ph; }
     el.view.style.width = dw + 'px'; el.view.style.height = dh + 'px';
+    vctx.clearRect(0, 0, pw, ph);
+    return { pw, ph, dpr };
+  }
+
+  function draw() {
+    if (st.merge.on) return drawMerge();
+    const it = cur(), ready = !!(it && it.cv);
+    el.empty.hidden = !!it;
+    el.view.hidden = !ready;
+    if (!ready) return;
+    const v = fitView(it.cv.width, it.cv.height);
+    if (!v) return;
+    const { pw, ph, dpr } = v;
     el.view.dataset.mode = st.cropping ? 'crop' : st.tab === 'bg' && st.bg.how === 'pick' ? 'pick' : '';
 
-    vctx.clearRect(0, 0, pw, ph);
     if (it.fill) { vctx.fillStyle = it.fill; vctx.fillRect(0, 0, pw, ph); }
     vctx.filter = Render.filterCss(it) || 'none';
     vctx.imageSmoothingQuality = 'high';
@@ -104,20 +118,164 @@ const ImageStudio = (() => {
     if (out) out.textContent = `${Math.round(c.w * it.cv.width)}×${Math.round(c.h * it.cv.height)}`;
   }
 
+  /* ================= دمج الصور ================= */
+  function mergeOpts(maxSide) {
+    const m = st.merge;
+    return {
+      layout: m.layout, columns: m.columns || undefined, fit: m.fit, rtl: m.dir === 'rtl',
+      gap: m.gap, padding: m.padding, radius: m.radius, background: m.transparent ? null : m.bg, maxSide,
+    };
+  }
+  const mergeReady = () => st.items.every(it => mergeCache.has(it.id));
+  const mergeSizes = () => st.items.map(it => mergeCache.get(it.id));
+
+  let mergeLoading = false;
+  /** يقرأ كل الصور مرة واحدة ويحفظ نسخة مصغّرة منها للمعاينة (الصور الكاملة لا تبقى كلها في الذاكرة) */
+  async function loadMergeSources() {
+    if (mergeLoading) return;
+    mergeLoading = true;
+    await busy(true);
+    for (const it of [...st.items]) {
+      if (mergeCache.has(it.id)) continue;
+      try {
+        const full = finalCanvas(it, it.cv || await ImageTools.load(it.src));
+        const k = Math.min(1, PREVIEW_SIDE / Math.max(full.width, full.height));
+        mergeCache.set(it.id, { w: full.width, h: full.height, f: k, small: k < 1 ? ImageTools.resize(full, full.width * k, full.height * k) : full });
+      } catch (e) {
+        console.error(e);
+        S.toast(`تعذّر فتح الصورة: ${it.name}`, 'err');
+        st.items.splice(st.items.indexOf(it), 1);
+      }
+    }
+    mergeLoading = false;
+    busy(false);
+    if (st.merge.on && st.items.length < 2) return exitMerge('بقيت صورة واحدة فقط — افتح صوراً أخرى للدمج');
+    refresh();
+  }
+
+  function drawMerge() {
+    el.empty.hidden = true;
+    if (!mergeReady()) { el.view.hidden = true; loadMergeSources(); return; }
+    const L = ImageTools.mergeLayout(mergeSizes(), mergeOpts(1600));
+    el.view.hidden = false;
+    el.view.dataset.mode = '';
+    const v = fitView(L.width, L.height);
+    if (!v) return;
+    vctx.save();
+    vctx.scale(v.pw / L.width, v.ph / L.height);
+    if (st.merge.transparent) vctx.clearRect(0, 0, L.width, L.height);
+    else { vctx.fillStyle = st.merge.bg; vctx.fillRect(0, 0, L.width, L.height); }
+    vctx.imageSmoothingQuality = 'high';
+    // التخطيط بأبعاد الصور الأصلية مصغّراً إلى 1600؛ النسخ المصغّرة تحتاج تحويل إحداثيات القص إليها
+    L.cells.forEach((c, i) => { const s = mergeSizes()[i]; ImageTools.drawCell(vctx, c, s.small, s.f); });
+    vctx.restore();
+  }
+
+  function enterMerge() {
+    if (st.clipId) leaveClip();
+    if (st.items.length < 2) {
+      st.wantMerge = true;
+      S.toast('اختر صورتين أو أكثر لدمجها');
+      el.file.click();
+      return refresh();
+    }
+    st.wantMerge = false;
+    st.cropping = false;
+    st.merge.on = true;
+    st.merge.columns = 0;
+    mergeCache.clear(); // قد تكون الصور عُدّلت منذ آخر دمج
+    refresh();
+  }
+
+  function exitMerge(msg) {
+    st.merge.on = false;
+    mergeCache.clear();
+    if (msg) S.toast(msg, 'err');
+    refresh();
+  }
+
+  /** ينشئ الصورة المدمجة بالدقة الكاملة: كل صورة تُقرأ وتُرسم ثم تُترك، فلا تجتمع كل الصور الكبيرة في الذاكرة */
+  async function createMerged() {
+    if (!mergeReady()) return;
+    const opts = mergeOpts(), L = ImageTools.mergeLayout(mergeSizes(), opts);
+    const out = ImageTools.mergeCanvas(L, opts.background), g = out.getContext('2d');
+    el.busy.hidden = false;
+    try {
+      for (let i = 0; i < st.items.length; i++) {
+        const it = st.items[i];
+        el.busy.textContent = `جارٍ الدمج ${i + 1} من ${st.items.length}…`;
+        await pause(20);
+        ImageTools.drawCell(g, L.cells[i], finalCanvas(it, it.cv || await ImageTools.load(it.src)));
+      }
+    } catch (e) {
+      console.error(e);
+      el.busy.hidden = true; el.busy.textContent = 'جارٍ المعالجة…';
+      return S.toast('تعذّر دمج الصور: ' + (e.message || e), 'err');
+    }
+    el.busy.hidden = true; el.busy.textContent = 'جارٍ المعالجة…';
+    const n = st.items.length;
+    st.merge.on = false;
+    mergeCache.clear();
+    st.items.push(newItem(`دمج-${n}-صور.png`, out));
+    st.tab = 'save';
+    if (opts.background == null) st.out.format = 'png'; // الخلفية الشفافة تضيع في JPEG
+    await setCur(st.items.length - 1);
+    S.toast(`تم دمج ${n} صور في صورة واحدة (${L.width}×${L.height})`, 'ok');
+  }
+
+  function mergePanel() {
+    const m = st.merge, n = st.items.length;
+    const cols = m.columns || Math.ceil(Math.sqrt(n));
+    let h = `<h2>دمج الصور</h2>
+      <p class="sub wrap">تُدمج الصور المفتوحة (${n}) بترتيب الشريط أسفل النافذة. اسحب الصور فيه لتغيير ترتيبها، واضغط × لاستبعاد صورة.</p>
+      <h3>التخطيط</h3>` + chips('layout', [['row', 'جنباً إلى جنب'], ['column', 'فوق بعض'], ['grid', 'شبكة']], m.layout);
+    if (m.layout === 'grid') {
+      h += slider('columns', 'الأعمدة', 1, Math.min(n, 8), 1, cols)
+        + chips('fit', [['cover', 'ملء الخانات'], ['contain', 'الصور كاملة']], m.fit);
+    }
+    if (m.layout !== 'column') h += `<h3>اتجاه الترتيب</h3>` + chips('dir', [['rtl', 'من اليمين'], ['ltr', 'من اليسار']], m.dir);
+    h += `<h3>المسافات</h3>`
+      + slider('gap', 'بين الصور', 0, 20, 0.5, m.gap)
+      + slider('padding', 'الإطار', 0, 20, 0.5, m.padding)
+      + slider('radius', 'استدارة', 0, 25, 1, m.radius)
+      + `<h3>الخلفية</h3>` + chips('bgMode', [['color', 'لون'], ['none', 'شفافة']], m.transparent ? 'none' : 'color')
+      + (m.transparent ? '' : `<label class="row"><span>اللون</span><input type="color" data-k="mbg" value="${m.bg}"><span></span></label>`)
+      + `<p class="ex-summary" id="mergeInfo"></p>
+        <div class="save-actions">
+          <button class="btn primary" data-act="mergeDone"><svg class="ic"><use href="#i-grid"/></svg>إنشاء الصورة المدمجة</button>
+          <button class="btn" data-act="mergeCancel">إلغاء</button>
+        </div>`;
+    return h;
+  }
+
+  function mergeInfo() {
+    const box = $('#mergeInfo');
+    if (!box || !mergeReady()) return;
+    const L = ImageTools.mergeLayout(mergeSizes(), mergeOpts());
+    box.innerHTML = `حجم الصورة الناتجة <b dir="ltr">${L.width}×${L.height}</b>` + (L.scale < 0.999 ? '<br>صُغّرت كي لا تتجاوز 8192 بكسل' : '');
+  }
+
   /* ================= اللوحة الجانبية ================= */
-  const chips = (k, opts, on, cls = 'chips') =>
+  const chips =(k, opts, on, cls = 'chips') =>
     `<div class="${cls}" data-k="${k}">${opts.map(([v, l]) => `<button type="button" class="chip${String(v) === String(on) ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
   const slider = (k, label, min, max, step, val, unit = '') =>
     `<label class="row"><span>${label}</span><input type="range" data-k="${k}" data-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${val}"><output>${val}${unit}</output></label>`;
 
   function renderPanel() {
     const it = cur(), top = el.panel.scrollTop;
+    // الدمج يقرأ صوره بنفسه، فلا يحتاج أن تكون الصورة الحالية محمّلة
+    if (st.merge.on && st.items.length) {
+      el.panel.innerHTML = mergePanel();
+      el.panel.scrollTop = top;
+      return mergeInfo();
+    }
     if (!it || !it.cv) {
       el.panel.innerHTML = `<h2>ماذا يفعل الاستوديو؟</h2>
         <ol class="guide">
           <li><b>تعديل الصورة</b><br>قص، تدوير، قلب، تغيير الحجم، وفلاتر وألوان.</li>
           <li><b>إزالة الخلفية</b><br>تلقائياً من الحواف، أو بالنقر على اللون المراد حذفه.</li>
           <li><b>تحويل الصيغة</b><br>بين PNG و JPEG و WebP، لصورة واحدة أو لعدة صور دفعة واحدة.</li>
+          <li><b>دمج الصور</b><br>افتح صورتين أو أكثر واجمعها في صورة واحدة: جنباً إلى جنب، فوق بعض، أو شبكة.</li>
         </ol>
         <p class="sub wrap">كل شيء يجري على جهازك؛ صورك لا تُرفع إلى أي مكان.</p>`;
       return;
@@ -173,7 +331,8 @@ const ImageStudio = (() => {
         + `<p class="ex-summary" id="imgInfo"><span dir="ltr">${W}×${H}</span> · جارٍ حساب الحجم…</p>
           <div class="save-actions">
             <button class="btn primary" data-act="download"><svg class="ic"><use href="#i-download"/></svg>تنزيل الصورة</button>`
-        + (st.items.length > 1 ? `<button class="btn" data-act="downloadAll">تحويل كل الصور (${st.items.length}) في ملف ZIP</button>` : '')
+        + (st.items.length > 1 ? `<button class="btn" data-act="downloadAll">تحويل كل الصور (${st.items.length}) في ملف ZIP</button>
+            <button class="btn" data-act="mergeStart"><svg class="ic"><use href="#i-grid"/></svg>دمج الصور (${st.items.length}) في صورة واحدة</button>` : '')
         + (st.clipId ? `<button class="btn" data-act="applyClip">تطبيق على المقطع في المشروع</button>`
           : `<button class="btn" data-act="addProject">إضافة إلى مشروع الفيديو</button>`)
         + `</div>`;
@@ -206,17 +365,19 @@ const ImageStudio = (() => {
   function renderStrip() {
     el.strip.hidden = st.items.length < 2;
     el.strip.innerHTML = st.items.map((it, i) =>
-      `<div class="strip-item${i === st.cur ? ' on' : ''}" data-i="${i}" title="${esc(it.name)}">
-        <img src="${it.thumb}" alt="">${it.edited ? '<i class="dot" title="معدَّلة"></i>' : ''}
+      `<div class="strip-item${i === st.cur && !st.merge.on ? ' on' : ''}" data-i="${i}" title="${esc(it.name)} — اسحبها لتغيير الترتيب" draggable="true">
+        <img src="${it.thumb}" alt="" draggable="false">${st.merge.on ? `<i class="num">${i + 1}</i>` : it.edited ? '<i class="dot" title="معدَّلة"></i>' : ''}
         <button type="button" class="strip-x" data-x="${i}" title="إزالة من القائمة" aria-label="إزالة">×</button>
       </div>`).join('');
   }
 
   function refresh() {
     const it = cur();
-    el.name.textContent = it ? it.name : '';
-    el.undo.disabled = !(it && it.undo.length);
-    el.reset.disabled = !(it && it.edited);
+    const m = st.merge.on;
+    el.name.textContent = m ? `دمج ${st.items.length} صور` : it ? it.name : '';
+    el.undo.disabled = m || !(it && it.undo.length);
+    el.reset.disabled = m || !(it && it.edited);
+    el.merge.disabled = m || !!st.clipId || st.items.length < 2;
     draw();
     renderPanel();
     renderStrip();
@@ -254,6 +415,7 @@ const ImageStudio = (() => {
     const first = st.items.length;
     for (const f of imgs) st.items.push(newItem(f.name, f));
     await setCur(first);
+    if (st.wantMerge && st.items.length >= 2) enterMerge(); // فُتحت الصور بعد طلب «دمج الصور»
   }
 
   function show() {
@@ -296,7 +458,15 @@ const ImageStudio = (() => {
   function close() {
     el.modal.hidden = true;
     st.cropping = false;
+    st.wantMerge = false;
+    if (st.merge.on) { st.merge.on = false; mergeCache.clear(); }
     if (st.clipId) leaveClip();
+  }
+
+  /** يفتح الاستوديو مباشرة على دمج الصور (من قائمة «أدوات») */
+  function openMerge() {
+    show();
+    enterMerge();
   }
 
   /* ================= التعديلات ================= */
@@ -544,7 +714,12 @@ const ImageStudio = (() => {
       if (out) out.textContent = t.value + (t.dataset.unit || '');
     }
     const v = t.type === 'checkbox' ? t.checked : t.type === 'range' || t.type === 'number' ? +t.value : t.value;
-    if (k === 'bright' || k === 'contrast' || k === 'sat') { it[k] = v; it.edited = true; el.reset.disabled = false; draw(); }
+    if (st.merge.on) {
+      if (k === 'mbg') st.merge.bg = v; else st.merge[k] = v;
+      draw(); mergeInfo();
+      return;
+    }
+    if (k === 'bright'|| k === 'contrast' || k === 'sat') { it[k] = v; it.edited = true; el.reset.disabled = false; draw(); }
     else if (k === 'tolerance' || k === 'feather' || k === 'contiguous') { st.bg[k] = v; retune(); }
     else if (k === 'fill') { it.fill = st.fillColor = v; it.edited = true; draw(); }
     else if (k === 'quality' || k === 'matte') { st.out[k] = v; scheduleInfo(); }
@@ -575,17 +750,27 @@ const ImageStudio = (() => {
     downloadAll,
     applyClip,
     addProject,
+    mergeStart: enterMerge,
+    mergeDone: createMerged,
+    mergeCancel: () => exitMerge(),
   };
+
+  const MERGE_CHIPS = { layout: 'layout', fit: 'fit', dir: 'dir' };
 
   el.panel.addEventListener('click', e => {
     const it = cur();
-    if (!it || !it.cv) return;
+    if (!it || (!it.cv && !st.merge.on)) return;
     const act = e.target.closest('[data-act]');
     if (act) return acts[act.dataset.act] && acts[act.dataset.act](act);
     const chip = e.target.closest('.chip');
     if (!chip) return;
     const k = chip.parentElement.dataset.k, v = chip.dataset.v;
-    if (k === 'tab') { st.tab = v; st.cropping = false; }
+    if (st.merge.on) {
+      if (MERGE_CHIPS[k]) st.merge[k] = v;
+      else if (k === 'bgMode') st.merge.transparent = v === 'none';
+      return refresh();
+    }
+    if (k === 'tab'){ st.tab = v; st.cropping = false; }
     else if (k === 'aspect') { st.aspect = v; st.crop = defaultCrop(); }
     else if (k === 'how') st.bg.how = v;
     else if (k === 'fillMode') { it.fill = v === 'color' ? st.fillColor : null; it.edited = true; }
@@ -599,15 +784,55 @@ const ImageStudio = (() => {
     if (x) {
       const i = +x.dataset.x;
       st.items.splice(i, 1);
+      if (st.merge.on && st.items.length < 2) { st.cur = Math.min(st.cur, st.items.length - 1); return exitMerge('بقيت صورة واحدة — لا يوجد ما يُدمج'); }
       if (i < st.cur) { st.cur--; return refresh(); }
       if (i === st.cur) { st.cur = -1; return st.items.length ? setCur(Math.min(i, st.items.length - 1)) : refresh(); }
       return refresh();
     }
+    if (st.merge.on) return; // في الدمج الشريط للترتيب والاستبعاد فقط
     const item = e.target.closest('[data-i]');
     if (item && +item.dataset.i !== st.cur) setCur(+item.dataset.i);
   });
 
+  /* ---------- إعادة ترتيب الصور بالسحب في الشريط ---------- */
+  let dragFrom = -1;
+  const dropTarget = e => e.target.closest && e.target.closest('.strip-item');
+  el.strip.addEventListener('dragstart', e => {
+    const item = dropTarget(e);
+    if (!item) return;
+    dragFrom = +item.dataset.i;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(dragFrom)); // يلزم فايرفوكس كي يبدأ السحب
+    item.classList.add('dragging');
+  });
+  el.strip.addEventListener('dragover', e => {
+    if (dragFrom < 0) return;
+    e.preventDefault();
+    const t = dropTarget(e);
+    el.strip.querySelectorAll('.drop').forEach(n => n !== t && n.classList.remove('drop'));
+    if (t && +t.dataset.i !== dragFrom) t.classList.add('drop');
+  });
+  el.strip.addEventListener('drop', e => {
+    if (dragFrom < 0) return;
+    e.preventDefault();
+    e.stopPropagation(); // لا يصل إلى مُستقبِل الملفات في الصفحة
+    const t = dropTarget(e), to = t ? +t.dataset.i : -1;
+    if (to >= 0 && to !== dragFrom) {
+      const keep = cur(), [moved] = st.items.splice(dragFrom, 1);
+      st.items.splice(to, 0, moved);
+      st.cur = st.items.indexOf(keep);
+    }
+    dragFrom = -1;
+    refresh();
+  });
+  el.strip.addEventListener('dragend', () => {
+    dragFrom = -1;
+    el.strip.querySelectorAll('.drop, .dragging').forEach(n => n.classList.remove('drop', 'dragging'));
+  });
+
   $('#btnImages').onclick = () => open();
+  $('#btnMerge').onclick = openMerge;
+  el.merge.onclick = enterMerge;
   $('#btnSnap').onclick = snapshot;
   $('#imgOpen').onclick = () => el.file.click();
   $('#imgPick').onclick = () => el.file.click();
@@ -621,7 +846,7 @@ const ImageStudio = (() => {
     if (!isOpen()) return;
     const tag = (e.target.tagName || '').toLowerCase();
     const typing = tag === 'input' && e.target.type === 'number';
-    if (e.key === 'Escape') { if (st.cropping) acts.cropCancel(); else close(); }
+    if (e.key === 'Escape') { if (st.cropping) acts.cropCancel(); else if (st.merge.on) exitMerge(); else close(); }
     else if (e.key === 'Enter' && st.cropping) applyCrop();
     else if (e.key === 'Enter' && typing) acts.resize();
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); undo(); }
@@ -629,5 +854,5 @@ const ImageStudio = (() => {
 
   new ResizeObserver(() => { if (isOpen()) draw(); }).observe(el.stage);
 
-  return { open, openClip, openCanvas, addFiles, close, isOpen, snapshot, setClipImage };
+  return { open, openClip, openCanvas, openMerge, addFiles, close, isOpen, snapshot, setClipImage };
 })();

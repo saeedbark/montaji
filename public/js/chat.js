@@ -117,6 +117,7 @@ Project model
     delete_items: () => 'حذف عناصر',
     edit_image: a => (a.remove_background ? 'إزالة خلفية الصورة' : 'تعديل الصورة'),
     save_image: () => 'حفظ صورة من الفيديو',
+    merge_images: () => 'دمج الصور في صورة واحدة',
     extract_audio: a => (a.add_to_project === false ? 'حفظ صوت الفيديو' : 'استخراج صوت الفيديو'),
     view_frame: () => 'معاينة النتيجة',
     seek: () => 'تحريك المؤشر',

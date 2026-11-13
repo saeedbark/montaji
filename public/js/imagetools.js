@@ -159,6 +159,104 @@ const ImageTools = (() => {
     return { removed, share: n ? removed / n : 0 };
   }
 
+  /* ================= دمج الصور ================= */
+  const MERGE_SIDE = 8192, MERGE_PIXELS = 40e6;
+  const LAYOUTS = ['row', 'column', 'grid'];
+
+  /**
+   * تخطيط دمج عدة صور في صورة واحدة. sizes: [{ w, h }] بترتيب الدمج.
+   * النتيجة { width, height, cells: [{ x, y, w, h, sx, sy, sw, sh, r }] } — sx..sh الجزء المأخوذ من الصورة، r نصف قطر الزوايا.
+   *   layout   'row' أفقي بارتفاع موحّد | 'column' عمودي بعرض موحّد | 'grid' شبكة خانات متساوية
+   *   columns  أعمدة الشبكة (الافتراضي أقرب مربع)
+   *   fit      في الشبكة: 'cover' تملأ الخانة بقص الأطراف | 'contain' الصورة كاملة داخل الخانة
+   *   gap, padding, radius  نسب مئوية من حجم الصورة الموحّد، فتبقى النسبة ثابتة مهما كبرت الصور
+   *   rtl      الصورة الأولى في اليمين (ترتيب القراءة العربية)
+   *   maxSide  أقصى ضلع للناتج (يُصغَّر كل شيء بالنسبة نفسها)
+   */
+  function mergeLayout(sizes, o = {}) {
+    const n = sizes.length;
+    if (!n) return { width: 0, height: 0, cells: [] };
+    const layout = LAYOUTS.includes(o.layout) ? o.layout : 'row';
+    const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+    const pct = (v, ref) => lim(+v || 0, 0, 100) * ref / 100;
+    const cells = [];
+    let W, H, ref;
+
+    if (layout === 'row' || layout === 'column') {
+      const row = layout === 'row';
+      ref = mean(sizes.map(s => (row ? s.h : s.w))); // الارتفاع (أو العرض) الموحّد
+      const g = pct(o.gap, ref), p = pct(o.padding, ref);
+      let at = p;
+      for (const s of sizes) {
+        const len = row ? s.w * ref / s.h : s.h * ref / s.w;
+        cells.push(row ? { x: at, y: p, w: len, h: ref } : { x: p, y: at, w: ref, h: len });
+        cells[cells.length - 1].src = { sx: 0, sy: 0, sw: s.w, sh: s.h };
+        at += len + g;
+      }
+      const main = at - g + p, cross = ref + 2 * p;
+      W = row ? main : cross; H = row ? cross : main;
+    } else {
+      const cols = Math.round(lim(+o.columns || Math.ceil(Math.sqrt(n)), 1, n)), rows = Math.ceil(n / cols);
+      // الخانة بنسبة الصورة الوسيطة ومساحة متوسط الصور، فلا تُكبَّر الصور ولا تُصغَّر كثيراً
+      const ar = sizes.map(s => s.w / s.h).sort((a, b) => a - b)[Math.floor(n / 2)];
+      // أبعاد صحيحة كي تتساوى الخانات بالبكسل بعد التقريب
+      const cw = Math.max(1, Math.round(Math.sqrt(mean(sizes.map(s => s.w * s.h)) * ar))), ch = Math.max(1, Math.round(cw / ar));
+      ref = Math.min(cw, ch);
+      const g = Math.round(pct(o.gap, ref)), p = Math.round(pct(o.padding, ref));
+      W = cols * cw + (cols - 1) * g + 2 * p;
+      H = rows * ch + (rows - 1) * g + 2 * p;
+      sizes.forEach((s, i) => {
+        const r = Math.floor(i / cols), c = i % cols;
+        const inRow = r === rows - 1 ? n - r * cols : cols; // الصف الأخير الناقص يتوسّط
+        const x = p + Math.round((cols - inRow) * (cw + g) / 2) + c * (cw + g), y = p + r * (ch + g);
+        if (o.fit === 'contain') {
+          const k = Math.min(cw / s.w, ch / s.h), w = Math.max(1, Math.round(s.w * k)), h = Math.max(1, Math.round(s.h * k));
+          cells.push({ x: x + Math.round((cw - w) / 2), y: y + Math.round((ch - h) / 2), w, h, src: { sx: 0, sy: 0, sw: s.w, sh: s.h } });
+        } else {
+          const k = Math.max(cw / s.w, ch / s.h), sw = cw / k, sh = ch / k;
+          cells.push({ x, y, w: cw, h: ch, src: { sx: (s.w - sw) / 2, sy: (s.h - sh) / 2, sw, sh } });
+        }
+      });
+    }
+
+    if (o.rtl) for (const c of cells) c.x = W - c.x - c.w;
+    const k = Math.min(1, (+o.maxSide || MERGE_SIDE) / Math.max(W, H), Math.sqrt(MERGE_PIXELS / (W * H)));
+    const R = v => Math.round(v * k);
+    const radius = lim(+o.radius || 0, 0, 50) / 100;
+    return {
+      width: Math.max(1, R(W)), height: Math.max(1, R(H)), scale: k,
+      // الحواف تُقرَّب من طرفيها كي لا تظهر فجوة بكسل بين صورتين متلاصقتين
+      cells: cells.map(c => {
+        const x = R(c.x), y = R(c.y), w = Math.max(1, R(c.x + c.w) - x), h = Math.max(1, R(c.y + c.h) - y);
+        return { x, y, w, h, ...c.src, r: Math.round(radius * Math.min(w, h)) };
+      }),
+    };
+  }
+
+  /** لوحة فارغة بحجم التخطيط، بخلفية ملوّنة أو شفافة */
+  function mergeCanvas(L, background) {
+    const out = canvas(L.width, L.height), g = out.getContext('2d');
+    if (background) { g.fillStyle = background; g.fillRect(0, 0, out.width, out.height); }
+    g.imageSmoothingQuality = 'high';
+    return out;
+  }
+
+  /** يرسم صورة في خانتها. f = نسبة حجم src إلى الصورة التي حُسب عليها التخطيط (للمعاينة بنسخ مصغّرة) */
+  function drawCell(g, c, src, f = 1) {
+    g.save();
+    if (c.r > 0) { g.beginPath(); g.roundRect(c.x, c.y, c.w, c.h, c.r); g.clip(); }
+    g.drawImage(src, c.sx * f, c.sy * f, c.sw * f, c.sh * f, c.x, c.y, c.w, c.h);
+    g.restore();
+  }
+
+  /** يدمج الصور (Canvas أو صور) دفعة واحدة. background: لون، أو لا شيء لخلفية شفافة */
+  function merge(sources, o = {}) {
+    const L = mergeLayout(sources.map(s => ({ w: s.naturalWidth || s.width, h: s.naturalHeight || s.height })), o);
+    const out = mergeCanvas(L, o.background), g = out.getContext('2d');
+    L.cells.forEach((c, i) => drawCell(g, c, sources[i]));
+    return out;
+  }
+
   /* ================= ZIP (تخزين بلا ضغط — الصور مضغوطة أصلاً) ================= */
   const CRC = (() => {
     const t = new Uint32Array(256);
@@ -339,7 +437,7 @@ const ImageTools = (() => {
   }
 
   return {
-    FORMATS, removeBackground, borderColors, crc32, zip,
+    FORMATS, LAYOUTS, removeBackground, borderColors, mergeLayout, mergeCanvas, drawCell, merge, crc32, zip,
     canvas, fromSource, load, rotate, flip, crop, resize, removeBg, thumb, encode, sizeOf, download,
   };
 })();

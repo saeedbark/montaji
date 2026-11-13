@@ -91,6 +91,72 @@ test('الصورة بلا خلفية واضحة لا تُمسّ', () => {
   assert.ok(r.share < 0.05, `share = ${r.share}`);
 });
 
+/* ---------- دمج الصور ---------- */
+const covers = (L, i) => { const c = L.cells[i]; return [c.x, c.y, c.w, c.h]; };
+const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`);
+
+test('الدمج الأفقي يوحّد الارتفاع ويحفظ نسب الصور', () => {
+  const L = ImageTools.mergeLayout([{ w: 400, h: 200 }, { w: 300, h: 600 }], { layout: 'row' });
+  // الارتفاع الموحّد = متوسط الارتفاعين
+  assert.equal(L.height, 400);
+  assert.deepEqual(covers(L, 0), [0, 0, 800, 400]);
+  assert.deepEqual(covers(L, 1), [800, 0, 200, 400]);
+  assert.equal(L.width, 1000);
+  assert.deepEqual([L.cells[1].sw, L.cells[1].sh], [300, 600], 'الصورة كاملة بلا قص');
+});
+
+test('الترتيب من اليمين يعكس المواضع فقط', () => {
+  const sizes = [{ w: 400, h: 200 }, { w: 300, h: 600 }];
+  const L = ImageTools.mergeLayout(sizes, { layout: 'row', rtl: true });
+  assert.deepEqual(covers(L, 0), [200, 0, 800, 400], 'الأولى في اليمين');
+  assert.deepEqual(covers(L, 1), [0, 0, 200, 400]);
+});
+
+test('الدمج العمودي مع مسافة وإطار بنسبة من العرض الموحّد', () => {
+  const L = ImageTools.mergeLayout([{ w: 100, h: 50 }, { w: 100, h: 100 }], { layout: 'column', gap: 10, padding: 5 });
+  // العرض 100 ← مسافة 10 وإطار 5
+  assert.deepEqual(covers(L, 0), [5, 5, 100, 50]);
+  assert.deepEqual(covers(L, 1), [5, 65, 100, 100]);
+  assert.deepEqual([L.width, L.height], [110, 170]);
+});
+
+test('الشبكة: خانات متساوية، الملء يقص من الوسط، والصف الأخير الناقص يتوسّط', () => {
+  const sizes = [{ w: 200, h: 100 }, { w: 200, h: 100 }, { w: 100, h: 100 }];
+  const L = ImageTools.mergeLayout(sizes, { layout: 'grid', columns: 2 });
+  assert.equal(L.cells.length, 3);
+  const [a, b, c] = L.cells;
+  assert.equal(a.w, b.w); assert.equal(a.w, c.w); assert.equal(a.h, c.h);
+  assert.ok(Math.abs(a.w / a.h - 2) < 0.02, 'الخانة بنسبة الصورة الوسيطة');
+  assert.equal(b.x, a.x + a.w, 'متلاصقتان بلا مسافة');
+  assert.ok(Math.abs(c.x - (L.width - c.w) / 2) <= 0.5, 'الصف الأخير في المنتصف');
+  // الصورة المربعة في خانة عريضة: يُقص أعلاها وأسفلها بالتساوي
+  assert.equal(c.sw, 100); assert.equal(c.sx, 0);
+  assert.ok(Math.abs(c.sh - 50) < 1, String(c.sh));
+  near(c.sy, (100 - c.sh) / 2);
+});
+
+test('الشبكة مع «الصور كاملة» لا تقص وتضع الصورة في وسط خانتها', () => {
+  const L = ImageTools.mergeLayout([{ w: 200, h: 100 }, { w: 100, h: 100 }], { layout: 'grid', columns: 2, fit: 'contain' });
+  const [a, b] = L.cells;
+  assert.deepEqual([b.sx, b.sy, b.sw, b.sh], [0, 0, 100, 100]);
+  assert.equal(b.w, b.h, 'نسبة الصورة محفوظة');
+  assert.equal(b.y, (a.h - b.h) / 2 + a.y);
+});
+
+test('الناتج الكبير يُصغَّر كله بالنسبة نفسها حتى 8192 بكسل', () => {
+  const L = ImageTools.mergeLayout(Array(6).fill({ w: 4000, h: 3000 }), { layout: 'row', gap: 5 });
+  assert.ok(L.width <= 8192 && L.height <= 8192, `${L.width}×${L.height}`);
+  assert.ok(L.scale < 1);
+  const p = ImageTools.mergeLayout([{ w: 4000, h: 3000 }, { w: 4000, h: 3000 }], { layout: 'row', maxSide: 1000 });
+  assert.equal(p.width, 1000);
+  assert.equal(p.cells[1].x + p.cells[1].w, 1000, 'لا فجوة عند الحافة بعد التقريب');
+});
+
+test('بلا صور أو بتخطيط غير معروف', () => {
+  assert.deepEqual(ImageTools.mergeLayout([]), { width: 0, height: 0, cells: [] });
+  assert.equal(ImageTools.mergeLayout([{ w: 10, h: 10 }, { w: 10, h: 10 }], { layout: 'diagonal' }).width, 20, 'يعود إلى الأفقي');
+});
+
 test('crc32 يطابق القيمة المرجعية', () => {
   assert.equal(ImageTools.crc32(new TextEncoder().encode('123456789')), 0xCBF43926);
   assert.equal(ImageTools.crc32(new Uint8Array(0)), 0);

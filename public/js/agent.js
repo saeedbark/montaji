@@ -399,6 +399,34 @@ const Agent = (() => {
       return { id: c.id, width: c.w, height: c.h, ...out };
     },
 
+    async merge_images(a) {
+      const list = pick('clip', a.ids).filter((c, i, arr) => arr.indexOf(c) === i);
+      if (list.length < 2) fail('ids needs at least 2 different image clips.');
+      const vid = list.find(c => c.type !== 'image');
+      if (vid) fail(`Clip "${vid.id}" is a video; merge_images only takes image clips.`);
+      const pct = (k, max, def) => (has(a[k]) ? clamp(num(a[k], k), 0, max) : def);
+      const cv = ImageTools.merge(list.map(c => c.el), {
+        layout: has(a.layout) ? oneOf(a.layout, ImageTools.LAYOUTS, 'layout') : 'row',
+        columns: has(a.columns) ? Math.round(clamp(num(a.columns, 'columns'), 1, list.length)) : undefined,
+        fit: has(a.fit) ? oneOf(a.fit, ['cover', 'contain'], 'fit') : 'cover',
+        gap: pct('gap', 20, 2), padding: pct('padding', 20, 0), radius: pct('radius', 25, 0),
+        background: has(a.background_color) ? color(a.background_color, 'background_color') : '#ffffff',
+        rtl: !has(a.right_to_left) || bool(a.right_to_left),
+      });
+      const first = list[0];
+      const before = new Set(state.clips.map(c => c.id));
+      // PNG بلا فقدان؛ addFiles يبني المقطع بالطريقة المعتادة ثم ننقله مكان أول صورة
+      await S.addFiles([new File([ImageTools.encode(cv, 'png').blob], `دمج-${list.length}-صور.png`, { type: 'image/png' })]);
+      const clip = state.clips.find(c => !before.has(c.id)) || fail('Could not add the merged image.');
+      state.clips = state.clips.filter(c => c !== clip);
+      state.clips.splice(state.clips.indexOf(first), 0, clip);
+      Object.assign(clip, { out: first.out, transition: first.transition, trLen: first.trLen, motion: first.motion });
+      const replace = !has(a.replace) || bool(a.replace);
+      if (replace) state.clips = state.clips.filter(c => !list.includes(c));
+      layout();
+      return { id: clip.id, width: clip.w, height: clip.h, start: r2(clip._start), replaced: replace ? list.map(c => c.id) : [], ...brief() };
+    },
+
     async extract_audio(a) {
       const c = pick('clip', [a.id])[0];
       if (c.type !== 'video') fail('extract_audio only works on video clips.');

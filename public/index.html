@@ -32,8 +32,9 @@
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="M4 20L14.5 9.5M12.5 7.5l4 4M18 3v3M16.5 4.5h3M20 10v2M19 11h2M8 3v2M7 4h2"/></symbol>
   <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 10v4M7 6v12M11 3v18M15 8v8M19 5v14M23 10v4"/></symbol>
-  <symbol id="i-camera"viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
-  <symbol id="i-logo"viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
 </svg>
 
 <header class="topbar">
@@ -61,6 +62,9 @@
     <div class="menu" id="toolsMenu" role="menu" hidden>
       <button class="menu-item" role="menuitem" id="btnImages">
         <svg class="ic"><use href="#i-wand"/></svg><span><b>استوديو الصور</b><small>قص، إزالة الخلفية، تحويل PNG و JPEG</small></span>
+      </button>
+      <button class="menu-item" role="menuitem" id="btnMerge">
+        <svg class="ic"><use href="#i-grid"/></svg><span><b>دمج الصور</b><small>اجمع عدة صور في صورة واحدة</small></span>
       </button>
       <button class="menu-item" role="menuitem" id="btnAudio">
         <svg class="ic"><use href="#i-wave"/></svg><span><b>تحويل الفيديو إلى صوت</b><small>استخرج الموسيقى ونزّلها M4A أو WAV</small></span>
@@ -230,6 +234,7 @@
       <span class="studio-name" id="imgName"></span>
       <div class="spacer"></div>
       <button class="btn small" id="imgOpen" title="فتح صور أخرى من جهازك"><svg class="ic"><use href="#i-plus"/></svg><span>فتح صور</span></button>
+      <button class="btn small" id="imgMerge" title="دمج الصور المفتوحة في صورة واحدة" disabled><svg class="ic"><use href="#i-grid"/></svg><span>دمج</span></button>
       <button class="btn small icon" id="imgUndo" title="تراجع (Ctrl+Z)" disabled><svg class="ic"><use href="#i-undo"/></svg></button>
       <button class="btn small" id="imgReset" title="إلغاء كل التعديلات على هذه الصورة" disabled>الأصل</button>
       <button class="btn small icon" id="imgClose" title="إغلاق (Esc)" aria-label="إغلاق"><svg class="ic"><use href="#i-close"/></svg></button>
