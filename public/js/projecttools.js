@@ -149,10 +149,15 @@ const ProjectTools = (() => {
     const raw = blob.slice(at, at + e.csize);
     if (e.method === 0) return raw;
     // أرشيف أعاد المستخدم ضغطه ببرنامج ZIP
-    if (e.method === 8 && typeof DecompressionStream !== 'undefined') {
+    if (e.method === 8 && canInflate()) {
       return new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
     }
     throw new Error('طريقة ضغط غير مدعومة في ملف المشروع');
+  }
+
+  /** هل تفك بيئة التشغيل ضغط deflate؟ كل المتصفحات الحديثة نعم، و Node قبل 20.12 لا يعرف صيغة deflate-raw */
+  function canInflate() {
+    try { return typeof DecompressionStream !== 'undefined' && !!new DecompressionStream('deflate-raw'); } catch (e) { return false; }
   }
 
   /* ================= من المشروع إلى JSON ================= */
@@ -300,7 +305,7 @@ const ProjectTools = (() => {
     return (n || 'مشروع') + '.' + EXT;
   }
 
-  return { VERSION, EXT, crc32, crcUpdate, crcOfBlob, zipParts, readZip, zipData, serialize, normalize, entryName, fileName, ENUMS };
+  return { VERSION, EXT, crc32, crcUpdate, crcOfBlob, zipParts, readZip, zipData, canInflate, serialize, normalize, entryName, fileName, ENUMS };
 })();
 
 if (typeof module !== 'undefined') module.exports = ProjectTools;

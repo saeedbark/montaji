@@ -47,7 +47,7 @@ test('ZIP64 يُكتب ويُقرأ (مشاريع أكبر من 4 غيغاباي
   assert.ok(got.every(b => b === 9));
 });
 
-test('يقرأ أرشيفاً أعيد ضغطه ببرنامج ZIP (deflate)', async () => {
+test('يقرأ أرشيفاً أعيد ضغطه ببرنامج ZIP (deflate)', { skip: !PT.canInflate() && 'هذا الإصدار من Node لا يعرف deflate-raw (المتصفحات تعرفه)' }, async () => {
   // نضع بيانات deflate مكان الملف، ثم نقرأ المدخل كما يصفه فهرس برنامج ضغط (الطريقة 8)
   const text = bytes('montaji '.repeat(200));
   const packed = new Uint8Array(zlib.deflateRawSync(text));
@@ -56,6 +56,17 @@ test('يقرأ أرشيفاً أعيد ضغطه ببرنامج ZIP (deflate)', a
   assert.equal(e.method, 0);
   const got = new Uint8Array(await (await PT.zipData(blob, { ...e, method: 8 })).arrayBuffer());
   assert.deepEqual([...got], [...text]);
+});
+
+test('بلا دعم deflate يُرفض الأرشيف المضغوط برسالة واضحة لا بخطأ غامض', async () => {
+  const saved = globalThis.DecompressionStream;
+  globalThis.DecompressionStream = class { constructor(f) { if (f === 'deflate-raw') throw new TypeError('unsupported'); } };
+  try {
+    assert.equal(PT.canInflate(), false);
+    const blob = archive([entry('project.json', bytes('{}'))]);
+    const [e] = await PT.readZip(blob);
+    await assert.rejects(PT.zipData(blob, { ...e, method: 8 }), /طريقة ضغط غير مدعومة/);
+  } finally { globalThis.DecompressionStream = saved; }
 });
 
 test('الملفات التالفة تُرفض برسالة واضحة', async () => {
