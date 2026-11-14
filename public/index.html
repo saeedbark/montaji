@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>مونتاجي</title>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -40,6 +40,7 @@
   <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
   <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l4 4v12H5zM8 4v5h7V4M8 20v-6h8v6"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
   <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
 </svg>
 
@@ -171,11 +172,20 @@
     </div>
   </section>
 
-  <aside class="props" id="props"></aside>
+  <aside class="side" id="side" aria-label="الخصائص">
+    <header class="side-head">
+      <svg class="ic"><use href="#i-sliders"/></svg>
+      <b>الخصائص</b>
+      <div class="spacer"></div>
+      <button class="btn small icon" id="propsClose" title="إخفاء الخصائص" aria-label="إخفاء الخصائص"><svg class="ic"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="props" id="props"></div>
+  </aside>
 </main>
 
 <section class="timeline">
   <div class="tl-toolbar">
+    <button class="btn small sheet-only" id="btnProps" title="خصائص العنصر المحدد" aria-expanded="false" aria-controls="side"><svg class="ic"><use href="#i-sliders"/></svg><span>خصائص</span></button>
     <button class="btn small" id="btnSplit" title="تقسيم عند المؤشر (S)"><svg class="ic"><use href="#i-split"/></svg><span>تقسيم</span></button>
     <button class="btn small" id="btnDup" title="تكرار العنصر المحدد"><svg class="ic"><use href="#i-copy"/></svg><span>تكرار</span></button>
     <button class="btn small" id="btnDel" title="حذف العنصر المحدد (Delete)"><svg class="ic"><use href="#i-trash"/></svg><span>حذف</span></button>

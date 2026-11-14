@@ -12,9 +12,23 @@
     time: $('#timeLabel'), playIcon: $('#playIcon'), zoom: $('#zoom'), ratio: $('#ratio'),
     fileMedia: $('#fileMedia'), fileMusic: $('#fileMusic'), toasts: $('#toasts'), busy: $('#busy'),
     btnUndo: $('#btnUndo'), btnRedo: $('#btnRedo'), dropOverlay: $('#dropOverlay'),
+    btnProps: $('#btnProps'),
   };
   const pctx = els.canvas.getContext('2d');
-  const LABEL_W = 76;
+  // عرض أسماء المسارات يحدده CSS (‎--label-w‎) ويضيق على الهاتف
+  let LABEL_W = 76;
+  const readLabelW = () => { LABEL_W = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--label-w')) || 76; };
+  readLabelW();
+
+  /* على الهاتف لوحة الخصائص درج سفلي يُفتح عند الطلب (انظر «الهاتف» في style.css) */
+  const sheetMode = window.matchMedia('(max-width: 640px)');
+  function setSheet(on) {
+    on = !!on && sheetMode.matches;
+    document.body.classList.toggle('props-open', on);
+    els.btnProps.setAttribute('aria-expanded', String(on));
+  }
+  const sheetOpen = () => document.body.classList.contains('props-open');
+  sheetMode.addEventListener('change', () => setSheet(false));
   let dirty = true;
   let lastTs = 0;
 
@@ -99,6 +113,7 @@
   function applyRatio() {
     const [w, h] = outputSize(state.ratio, 720);
     els.canvas.width = w; els.canvas.height = h;
+    els.wrap.style.setProperty('--ar', w / h); // تملأ به المعاينة مساحتها (style.css)
     dirty = true;
   }
 
@@ -330,6 +345,7 @@
     state.sel = { kind: 'text', id: tx.id };
     touch();
     renderProps();
+    setSheet(true);
     const ta = $('textarea', els.props);
     if (ta) { ta.focus(); ta.select(); }
   }
@@ -346,6 +362,7 @@
     state.sel = { kind: 'effect', id: fx.id };
     touch();
     renderProps();
+    setSheet(true);
   }
 
   /* ================= مزامنة التشغيل ================= */
@@ -584,6 +601,8 @@
     }
     e.preventDefault();
     const kind = itemEl.dataset.kind, id = itemEl.dataset.id;
+    // على الهاتف: اللمسة الأولى تحدد العنصر، ولمسه ثانيةً دون سحب يفتح خصائصه
+    const again = !!state.sel && state.sel.kind === kind && state.sel.id === id;
     select({ kind, id });
     const obj = selObj();
     if (!obj) return;
@@ -611,7 +630,7 @@
         els.dropMark.style.left = (LABEL_W + markT * view.pps) + 'px';
       }, () => {
         els.dropMark.hidden = true;
-        if (!moved) return;
+        if (!moved) { if (again) setSheet(true); return; }
         if (target >= 0 && target !== from) {
           state.clips.splice(from, 1);
           state.clips.splice(target, 0, obj);
@@ -661,7 +680,7 @@
         }
       }
       live();
-    }, () => { if (moved) { touch(); renderProps(); } });
+    }, () => { if (moved) { touch(); renderProps(); } else if (again) setSheet(true); });
   });
 
   /* ================= عمليات التحرير ================= */
@@ -861,7 +880,11 @@
     }
     els.props.innerHTML = h;
     els.props.scrollTop = 0;
+    els.btnProps.classList.toggle('on', !!obj);
+    if (!obj && hadSel) setSheet(false); // حُذف العنصر أو أُلغي تحديده: لا يبقى الدرج مفتوحاً على لا شيء
+    hadSel = !!obj;
   }
+  let hadSel = false;
 
   let beatChoice = 2; // عدد الضربات لكل مقطع في زر المزامنة
 
@@ -1188,6 +1211,8 @@
   $('#btnDup').onclick = dupSel;
   $('#btnDel').onclick = () => (selObj() ? removeSel() : toast('حدّد عنصراً أولاً لحذفه'));
   $('#btnFit').onclick = fitTimeline;
+  els.btnProps.onclick = () => setSheet(!sheetOpen());
+  $('#propsClose').onclick = () => setSheet(false);
   els.btnUndo.onclick = undo;
   els.btnRedo.onclick = redo;
   els.zoom.oninput = () => { view.pps = +els.zoom.value; renderTimeline(); };
@@ -1252,7 +1277,7 @@
     for (const m of menus) if (!m.menu.hidden) { toggleMenu(m, false); m.btn.focus(); }
   }, true);
 
-  window.addEventListener('resize', () => renderTimeline());
+  window.addEventListener('resize', () => { readLabelW(); renderTimeline(); });
   window.addEventListener('beforeunload', e => { if (!isEmpty()) { e.preventDefault(); e.returnValue = ''; } });
 
   /* ================= البدء ================= */
