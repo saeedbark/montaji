@@ -703,6 +703,7 @@
         h += slider('volume', 'صوت المقطع', 0, 100, 1, Math.round(obj.volume * 100), '%', 0.01);
         h += check('muted', 'كتم صوت المقطع', obj.muted);
         h += `<button class="btn small wide" data-act="audExtract"><svg class="ic"><use href="#i-wave"/></svg>استخراج الصوت: تنزيله أو فصله كموسيقى</button>`;
+        h += `<button class="btn small wide" data-act="vidSplit"><svg class="ic"><use href="#i-split"/></svg>تقسيم الفيديو إلى ملفات منفصلة</button>`;
       }
       h += `<h3>الانتقال عند الدخول</h3>` + chips('transition', [['none', 'بدون'], ['fade', 'تلاشٍ'], ['slide', 'انزلاق'], ['zoom', 'تكبير'], ['wipe', 'مسح'], ['black', 'إظلام']], obj.transition);
       if (obj.transition !== 'none') h += slider('trLen', 'طول الانتقال', 0.1, 1.5, 0.05, +(obj.trLen > 0 ? obj.trLen : 0.6).toFixed(2), 'ث');
@@ -825,6 +826,7 @@
     else if (a === 'beatSync') beatSync(state.sel.id);
     else if (a === 'imgEdit') { const obj = selObj(); if (obj) ImageStudio.openClip(obj); }
     else if (a === 'audExtract') { const obj = selObj(); if (obj) AudioExtract.openClip(obj); }
+    else if (a === 'vidSplit') { const obj = selObj(); if (obj) VideoSplit.openClip(obj); }
     else if (a === 'fxUnlink') { const obj = selObj(); if (obj) { obj.at = null; touch(); renderProps(); } }
     else if (a === 'fxAllCuts') {
       const obj = selObj();
@@ -1101,7 +1103,7 @@
     const tag = (e.target.tagName || '').toLowerCase();
     const typing = tag === 'textarea' || tag === 'select' || (tag === 'input' && !['range', 'checkbox', 'color'].includes(e.target.type));
     if (!ex.modal.hidden) { if (e.key === 'Escape') closeExport(); return; }
-    if (ImageStudio.isOpen() || AudioExtract.isOpen()) return; // للنوافذ الأدوات اختصاراتها
+    if (ImageStudio.isOpen() || AudioExtract.isOpen() || VideoSplit.isOpen()) return; // للنوافذ الأدوات اختصاراتها
     if ((e.ctrlKey || e.metaKey) && !typing) {
       const k = e.key.toLowerCase();
       if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
@@ -1132,6 +1134,7 @@
     dragDepth = 0; els.dropOverlay.hidden = true;
     if (ImageStudio.isOpen()) ImageStudio.addFiles(e.dataTransfer.files);
     else if (AudioExtract.isOpen()) AudioExtract.addFiles(e.dataTransfer.files);
+    else if (VideoSplit.isOpen()) VideoSplit.addFiles(e.dataTransfer.files);
     else addFiles(e.dataTransfer.files);
   });
 

@@ -76,6 +76,9 @@
       <button class="menu-item" role="menuitem" id="btnAudio">
         <svg class="ic"><use href="#i-wave"/></svg><span><b>تحويل الفيديو إلى صوت</b><small>استخرج الموسيقى ونزّلها M4A أو WAV</small></span>
       </button>
+      <button class="menu-item" role="menuitem" id="btnSplitVideo">
+        <svg class="ic"><use href="#i-split"/></svg><span><b>تقسيم الفيديو</b><small>قسّمه إلى أجزاء، كل جزء ملف MP4 مستقل</small></span>
+      </button>
     </div>
   </div>
 
@@ -281,6 +284,29 @@
 </div>
 <input type="file" id="fileAud" accept="video/*,audio/*" hidden>
 
+<!-- تقسيم الفيديو إلى ملفات -->
+<div class="modal" id="splitModal" hidden>
+  <div class="dialog aud" role="dialog" aria-modal="true" aria-labelledby="splitTitle">
+    <header class="studio-head">
+      <svg class="ic"><use href="#i-split"/></svg>
+      <h2 id="splitTitle">تقسيم الفيديو</h2>
+      <span class="studio-name" id="splitName"></span>
+      <div class="spacer"></div>
+      <button class="btn small" id="splitOpen" title="فتح فيديو آخر من جهازك"><svg class="ic"><use href="#i-plus"/></svg><span>فتح فيديو</span></button>
+      <button class="btn small icon" id="splitClose" title="إغلاق (Esc)" aria-label="إغلاق"><svg class="ic"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="aud-body" id="splitBody"></div>
+    <div class="studio-busy" id="splitBusy" hidden>
+      <div class="split-busy">
+        <span id="splitBusyText"></span>
+        <div class="bar" id="splitBar"><div class="bar-fill" id="splitBarFill"></div></div>
+        <button class="btn small" id="splitAbort">إيقاف</button>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="file" id="fileSplit" accept="video/*,.mkv,.mov,.m4v" hidden>
+
 <div class="drop-overlay" id="dropOverlay" hidden><div>أفلت الملفات هنا لإضافتها</div></div>
 <div id="toasts"></div>
 
@@ -289,11 +315,13 @@
 <script src="js/beats.js"></script>
 <script src="js/render.js"></script>
 <script src="js/export.js"></script>
+<script src="js/videotools.js"></script>
 <script src="js/audiotools.js"></script>
 <script src="js/app.js"></script>
 <script src="js/imagetools.js"></script>
 <script src="js/imagestudio.js"></script>
 <script src="js/extractaudio.js"></script>
+<script src="js/splitvideo.js"></script>
 <script src="js/tools.js"></script>
 <script src="js/agent.js"></script>
 <script src="js/chat.js"></script>

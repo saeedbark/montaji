@@ -121,6 +121,7 @@ Project model
     edit_image: a => (a.remove_background ? 'إزالة خلفية الصورة' : 'تعديل الصورة'),
     save_image: () => 'حفظ صورة من الفيديو',
     merge_images: () => 'دمج الصور في صورة واحدة',
+    split_video_file: () => 'تقسيم الفيديو إلى ملفات',
     extract_audio: a => (a.add_to_project === false ? 'حفظ صوت الفيديو' : 'استخراج صوت الفيديو'),
     view_frame: () => 'معاينة النتيجة',
     seek: () => 'تحريك المؤشر',

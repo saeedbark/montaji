@@ -52,7 +52,7 @@ async function mcpCall(params) {
       if (!files.length) throw new Error('paths is empty');
       args = { files };
     }
-    const r = await callBrowser(name, args, name === 'export_video' ? 30 * 60e3 : 5 * 60e3);
+    const r = await callBrowser(name, args, name === 'export_video' || name === 'split_video_file' ? 30 * 60e3 : 5 * 60e3);
     const content = [{ type: 'text', text: JSON.stringify(r.data) }];
     for (const u of r.images || []) {
       const m = /^data:(.+?);base64,(.*)$/.exec(u);
