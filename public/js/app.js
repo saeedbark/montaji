@@ -35,6 +35,7 @@
     clips: state.clips.map(c => ({ ...c })),
     audios: state.audios.map(a => ({ ...a })),
     texts: state.texts.map(x => ({ ...x })),
+    effects: state.effects.map(x => ({ ...x })),
   });
   function pushHist() {
     clearTimeout(hist.timer); hist.timer = null;
@@ -51,6 +52,7 @@
     state.clips = s.clips.map(c => ({ ...c }));
     state.audios = s.audios.map(a => ({ ...a }));
     state.texts = s.texts.map(x => ({ ...x }));
+    state.effects = (s.effects || []).map(x => ({ ...x }));
     if (!selObj()) state.sel = null;
     els.ratio.value = state.ratio;
     applyRatio();
@@ -69,10 +71,10 @@
   function selObj() {
     const s = state.sel;
     if (!s) return null;
-    const arr = s.kind === 'clip' ? state.clips : s.kind === 'audio' ? state.audios : state.texts;
+    const arr = s.kind === 'clip' ? state.clips : s.kind === 'audio' ? state.audios : s.kind === 'effect' ? state.effects : state.texts;
     return arr.find(o => o.id === s.id) || null;
   }
-  const isEmpty = () => !state.clips.length && !state.audios.length && !state.texts.length;
+  const isEmpty = () => !state.clips.length && !state.audios.length && !state.texts.length && !state.effects.length;
 
   /** إعادة حساب وعرض كل ما يتأثر بتغيّر المشروع (دون تسجيل في سجل التراجع) */
   function refresh() {
@@ -262,6 +264,20 @@
     if (ta) { ta.focus(); ta.select(); }
   }
 
+  /** تأثير جديد عند المؤشر: إن كان المؤشر قريباً من قطع يُوضع متمركزاً عليه ومربوطاً به */
+  function addEffect(type = 'zoomBlur') {
+    layout();
+    const def = Render.EFFECTS[type];
+    const fx = { id: uid(), type, start: 0, dur: def.dur, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.5, r: 0.3, w: 0.4, h: 0.2 };
+    const near = state.clips.slice(1).find(c => Math.abs(c._start - view.t) < 0.35);
+    if (near && def.shape === 'burst') fx.at = near.id;
+    else fx.start = clamp(view.t, 0, Math.max(0, view.total - 0.2));
+    state.effects.push(fx);
+    state.sel = { kind: 'effect', id: fx.id };
+    touch();
+    renderProps();
+  }
+
   /* ================= مزامنة التشغيل ================= */
   function softSeek(v, time) {
     const max = isFinite(v.duration) ? Math.max(0, v.duration - 0.03) : time;
@@ -362,7 +378,8 @@
     if (dirty) {
       dirty = false;
       const selText = !view.playing && state.sel && state.sel.kind === 'text' ? state.sel.id : null;
-      Render.frame(pctx, els.canvas.width, els.canvas.height, view.t, { selText });
+      const selFx = !view.playing && state.sel && state.sel.kind === 'effect' ? state.sel.id : null;
+      Render.frame(pctx, els.canvas.width, els.canvas.height, view.t, { selText, selFx });
     }
   }
 
@@ -383,6 +400,7 @@
     let maxEnd = total;
     for (const a of state.audios) maxEnd = Math.max(maxEnd, a.start + audioLen(a));
     for (const x of state.texts) maxEnd = Math.max(maxEnd, x.start + x.dur);
+    for (const x of state.effects) maxEnd = Math.max(maxEnd, x.start + x.dur);
     const W = Math.max(els.tlScroll.clientWidth - LABEL_W - 2, (maxEnd + 3) * pps);
     const sel = state.sel;
     const isSel = (kind, id) => (sel && sel.kind === kind && sel.id === id ? ' sel' : '');
@@ -409,6 +427,13 @@
         <span class="name">${esc(c.name)}</span><span class="dur">${len.toFixed(1)}ث</span><i class="h l"></i><i class="h r"></i></div>`;
     }).join('');
 
+    // التأثيرات
+    const EL = 26;
+    const eLanes = assignLanes(state.effects, x => x.dur);
+    const effects = state.effects.map(x =>
+      `<div class="item effect${x.at ? ' anchored' : ''}${isSel('effect', x.id)}" data-kind="effect" data-id="${x.id}" title="${x.at ? 'مربوط بالقطع: يتبعه عند تغيير التوقيت' : ''}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (EL + 4)}px;height:${EL}px">
+        <span class="name">${esc((Render.EFFECTS[x.type] || {}).label || x.type)}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
+
     // الموسيقى
     const aLanes = assignLanes(state.audios, audioLen);
     const audios = state.audios.map(a => {
@@ -425,6 +450,7 @@
       `<div class="tl-ruler"><div class="tl-label"></div><div class="tl-lane" style="width:${W}px">${ticks}</div></div>
        <div class="tl-track text"><div class="tl-label">النصوص</div><div class="tl-lane" style="width:${W}px;height:${tLanes * (TL + 4) - 4}px">${texts || '<span class="tl-hint">اضغط «نص» لإضافة عنوان أو تعليق</span>'}</div></div>
        <div class="tl-track main"><div class="tl-label">المقاطع</div><div class="tl-lane" style="width:${W}px">${clips || '<span class="tl-hint">ارفع صوراً أو مقاطع فيديو لتظهر هنا</span>'}</div></div>
+       <div class="tl-track effect"><div class="tl-label">التأثيرات</div><div class="tl-lane" style="width:${W}px;height:${eLanes * (EL + 4) - 4}px">${effects || '<span class="tl-hint">اضغط «تأثير» لإضافة تكبير ضبابي أو وميض أو أبيض وأسود</span>'}</div></div>
        <div class="tl-track audio"><div class="tl-label">الموسيقى</div><div class="tl-lane" style="width:${W}px;height:${aLanes * (AL + 4) - 4}px">${audios || '<span class="tl-hint">اضغط «موسيقى» لإضافة مقطع صوتي</span>'}</div></div>
        ${total > 0 ? `<div class="tl-end" style="left:${LABEL_W + total * pps}px;right:0"></div>` : ''}`;
     els.tlInner.style.width = (LABEL_W + W) + 'px';
@@ -550,7 +576,8 @@
         } else {
           obj.out = clamp(o.out + dx, o.in + MIN_LEN, o.srcDur);
         }
-      } else { // text
+      } else { // نص أو تأثير
+        if (kind === 'effect') obj.at = null; // تحريكه يدوياً يفك ربطه بالقطع
         if (!handle) {
           let s = Math.max(0, o.start + dx);
           const sn = snapTime(s);
@@ -574,6 +601,7 @@
     const k = state.sel.kind;
     if (k === 'clip') { if (obj.type === 'video') obj.el.pause(); state.clips = state.clips.filter(c => c !== obj); }
     else if (k === 'audio') { obj.el.pause(); state.audios = state.audios.filter(a => a !== obj); }
+    else if (k === 'effect') state.effects = state.effects.filter(x => x !== obj);
     else state.texts = state.texts.filter(x => x !== obj);
     state.sel = null;
     touch();
@@ -594,6 +622,7 @@
     const n = cloneItem(k, obj);
     if (k === 'clip') state.clips.splice(state.clips.indexOf(obj) + 1, 0, n);
     else if (k === 'audio') { n.start = obj.start + audioLen(obj); state.audios.push(n); }
+    else if (k === 'effect') { n.at = null; n.start = obj.start + obj.dur; state.effects.push(n); }
     else { n.start = obj.start + obj.dur; state.texts.push(n); }
     state.sel = { kind: k, id: n.id };
     touch();
@@ -623,8 +652,9 @@
       n.in = cut; n.start = t; n.fadeIn = 0; obj.out = cut; obj.fadeOut = 0;
       state.audios.push(n);
     } else {
+      if (kind === 'effect') { obj.at = null; n.at = null; }
       n.start = t; n.dur = obj.start + obj.dur - t; obj.dur = t - obj.start;
-      state.texts.push(n);
+      (kind === 'effect' ? state.effects : state.texts).push(n);
     }
     state.sel = { kind, id: n.id };
     touch();
@@ -678,7 +708,7 @@
       if (obj.transition !== 'none') h += slider('trLen', 'طول الانتقال', 0.1, 1.5, 0.05, +(obj.trLen > 0 ? obj.trLen : 0.6).toFixed(2), 'ث');
       h += `<button class="link-btn" data-act="trAll">تطبيق هذا الانتقال على كل المقاطع</button>`;
       if (state.audios.length) h += check('pulse', 'نبضة مع إيقاع الموسيقى', obj.pulse);
-      h += `<h3>حركة الكاميرا</h3>` + chips('motion', [['none', 'ثابت'], ['zoomIn', 'تقريب'], ['zoomOut', 'تبعيد'], ['panRight', 'يمين'], ['panLeft', 'يسار']], obj.motion);
+      h += `<h3>حركة الكاميرا</h3>` + chips('motion', [['none', 'ثابت'], ['zoomIn', 'تقريب'], ['zoomOut', 'تبعيد'], ['panRight', 'يمين'], ['panLeft', 'يسار'], ['panUp', 'لأعلى'], ['panDown', 'لأسفل'], ['handheld', 'كاميرا محمولة']], obj.motion);
       h += `<h3>ملاءمة الإطار</h3>` + chips('fit', [['blur', 'خلفية ضبابية'], ['contain', 'حواف سوداء'], ['cover', 'ملء الإطار']], obj.fit);
       h += `<h3>الفلتر</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), obj.filter);
       h += `<h3>تعديل الألوان</h3>`
@@ -698,6 +728,28 @@
           + chips('beatN', [[0, 'الضربات القوية فقط'], [1, 'كل ضربة'], [2, 'كل ضربتين'], [4, 'كل 4 ضربات']], beatChoice, true)
           + `<button class="btn small primary" data-act="beatSync" style="width:100%;margin-top:8px">مزامنة القص مع الإيقاع</button>`;
       }
+      h += actions();
+    } else if (kind === 'effect') {
+      const def = Render.EFFECTS[obj.type] || {};
+      const cut = obj.at && state.clips.find(c => c.id === obj.at);
+      h = `<h2>تأثير</h2><p class="sub">${esc(def.label || obj.type)}</p>`
+        + `<h3>النوع</h3>` + chips('type', Object.entries(Render.EFFECTS).map(([k, f]) => [k, f.label]), obj.type)
+        + slider('amount', 'الشدّة', 0, 100, 1, Math.round((obj.amount != null ? obj.amount : 1) * 100), '%', 0.01);
+      if (!(cut && obj.atMode === 'clip')) h += slider('dur', 'المدة', 0.1, 10, 0.05, +Math.min(10, obj.dur).toFixed(2), 'ث');
+      if (def.region) {
+        h += `<h3>${def.rect ? 'الجزء المضاء' : 'مكان المنتج'}</h3><p class="sub" style="white-space:normal">${def.rect ? 'اسحب المستطيل في المعاينة فوق الجزء الذي يومض.' : 'اسحب الدائرة في المعاينة فوق المنتج.'}</p>`
+          + slider('fxX', 'أفقياً', 0, 100, 1, Math.round((obj.x != null ? obj.x : 0.5) * 100), '%', 0.01)
+          + slider('fxY', 'عمودياً', 0, 100, 1, Math.round((obj.y != null ? obj.y : 0.5) * 100), '%', 0.01)
+          + (def.rect
+            ? slider('fxW', 'العرض', 2, 100, 1, Math.round((obj.w > 0 ? obj.w : 0.4) * 100), '%', 0.01)
+              + slider('fxH', 'الارتفاع', 2, 100, 1, Math.round((obj.h > 0 ? obj.h : 0.2) * 100), '%', 0.01)
+            : slider('fxR', 'الحجم', 5, 100, 1, Math.round((obj.r > 0 ? obj.r : 0.3) * 100), '%', 0.01));
+      }
+      if (cut) {
+        h += `<p class="sub" style="white-space:normal;margin-top:10px">${obj.atMode === 'clip' ? 'يغطي المقطع' : 'متمركز على القطع عند دخول المقطع'} «${esc(cut.name)}» ويتبعه إن تغيّر التوقيت.</p>`
+          + `<button class="link-btn" data-act="fxUnlink">فك الربط وتثبيته في مكانه</button>`;
+      }
+      h += `<button class="btn small wide" data-act="fxAllCuts" style="margin-top:10px"><svg class="ic"><use href="#i-spark"/></svg>ضعه على كل القطوع</button>`;
       h += actions();
     } else {
       h = `<h2>نص</h2><p class="sub">اسحب النص داخل المعاينة لتحريكه</p>`
@@ -734,10 +786,12 @@
   function setProp(obj, k, v) {
     if (k === 'beatN') { beatChoice = v; return; }
     if (k === 'pos') { obj.y = { top: 0.15, mid: 0.5, bottom: 0.82 }[v]; obj.x = 0.5; }
+    else if (/^fx[XYRWH]$/.test(k)) obj[{ fxX: 'x', fxY: 'y', fxR: 'r', fxW: 'w', fxH: 'h' }[k]] = v;
     else if (k === 'out' && state.sel.kind === 'clip') obj.out = Math.max(MIN_LEN, v);
+    else if (k === 'dur') obj.dur = Math.max(state.sel.kind === 'effect' ? 0.1 : MIN_LEN, v);
     else obj[k] = v;
     touch();
-    if (k === 'transition') renderProps(); // يظهر/يختفي شريط طول الانتقال
+    if (k === 'transition' || (k === 'type' && state.sel.kind === 'effect')) renderProps(); // يتغيّر ما يظهر في اللوحة
   }
 
   els.props.addEventListener('input', e => {
@@ -771,6 +825,31 @@
     else if (a === 'beatSync') beatSync(state.sel.id);
     else if (a === 'imgEdit') { const obj = selObj(); if (obj) ImageStudio.openClip(obj); }
     else if (a === 'audExtract') { const obj = selObj(); if (obj) AudioExtract.openClip(obj); }
+    else if (a === 'fxUnlink') { const obj = selObj(); if (obj) { obj.at = null; touch(); renderProps(); } }
+    else if (a === 'fxAllCuts') {
+      const obj = selObj();
+      if (!obj) return;
+      if (state.clips.length < 2) return toast('لا توجد قطوع: أضف مقطعين على الأقل', 'err');
+      const dur = Math.min(obj.dur, 1.5);
+      const cuts = state.clips.slice(1);
+      // القطوع التي عليها تأثير من النوع نفسه، كي لا يتكرر تأثيران على قطع واحد
+      const taken = new Set(state.effects.filter(e => e !== obj && e.type === obj.type && e.at && e.atMode !== 'clip').map(e => e.at));
+      const onCut = obj.at && obj.atMode !== 'clip' && cuts.some(c => c.id === obj.at) && !taken.has(obj.at);
+      if (!onCut) {
+        const free = cuts.find(c => !taken.has(c.id));
+        if (!free) return toast('هذا التأثير موجود على كل القطوع مسبقاً', 'err');
+        obj.at = free.id; obj.atMode = 'cut';
+      }
+      obj.dur = dur;
+      taken.add(obj.at);
+      for (const c of cuts) {
+        if (taken.has(c.id)) continue;
+        state.effects.push({ ...obj, id: uid(), at: c.id, atMode: 'cut', dur });
+      }
+      touch();
+      renderProps();
+      toast(`تم وضع «${Render.EFFECTS[obj.type].label}» على كل القطوع (${cuts.length})`, 'ok');
+    }
     else if (a === 'trAll') {
       const obj = selObj();
       if (!obj) return;
@@ -786,6 +865,21 @@
     const nx = (e.clientX - r.left) / r.width, ny = (e.clientY - r.top) / r.height;
     const hit = [...state.texts].reverse().find(x => x._box && view.t >= x.start && view.t <= x.start + x.dur
       && nx >= x._box.x0 && nx <= x._box.x1 && ny >= x._box.y0 && ny <= x._box.y1);
+    // تأثير منتج محدد: النقر أو السحب في المعاينة يضع مركزه فوق المنتج. النص الظاهر تحت المؤشر له الأولوية
+    const fx = state.sel && state.sel.kind === 'effect' ? selObj() : null;
+    if (!hit && fx && (Render.EFFECTS[fx.type] || {}).region) {
+      e.preventDefault();
+      if (view.playing) pause();
+      const place = ev => {
+        const p = Render.unzoom(fx, (ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height, view.t);
+        fx.x = clamp(p.x, 0, 1);
+        fx.y = clamp(p.y, 0, 1);
+        dirty = true;
+      };
+      place(e);
+      dragSession(place, () => { commit(); renderProps(); });
+      return;
+    }
     if (!hit) return;
     e.preventDefault();
     if (view.playing) pause();
@@ -860,7 +954,7 @@
       ex.info.innerHTML = `الفيديو جاهز ✓ · <span dir="ltr">${r.W}×${r.H}</span> · ${r.fps} إطار/ث · ${(r.blob.size / 1048576).toFixed(1)} م.ب`
         + (r.audioDropped ? '<br>تنبيه: تعذّر ترميز الصوت على هذا المتصفح، فالملف بلا صوت.' : '');
       exShow('done');
-      return { ok: true, width: r.W, height: r.H, fps: r.fps, size_mb: +(r.blob.size / 1048576).toFixed(1), file: ex.link.download };
+      return { ok: true, width: r.W, height: r.H, fps: r.fps, size_mb: +(r.blob.size / 1048576).toFixed(1), file: ex.link.download, blob: r.blob };
     } catch (e) {
       if (e.name !== 'AbortError') { console.error(e); toast('فشل التصدير: ' + (e.message || e), 'err'); }
       exShow('form');
@@ -884,7 +978,23 @@
     if (o.quality) ex.q.value = o.quality;
     ex.video.pause();
     ex.modal.hidden = false;
-    return startExport();
+    const r = await startExport();
+    const { blob, ...out } = r;
+    // الحفظ في مجلد exports/ عبر الخادم المحلي: عميل MCP لا يستطيع الضغط على زر التنزيل
+    if (r.ok && o.saveAs) {
+      // فشل الحفظ لا يُلغي التصدير: الفيديو جاهز وزر التنزيل ظاهر، فنعيد النتيجة مع سبب الفشل
+      let res, j;
+      try {
+        res = await fetch('/api/export/save?name=' + encodeURIComponent(o.saveAs), { method: 'POST', headers: { 'Content-Type': 'video/mp4' }, body: blob });
+        j = await res.json().catch(() => ({}));
+      } catch (e) {
+        return { ...out, save_error: 'the local server could not be reached: ' + (e.message || e) };
+      }
+      if (!res.ok || !j.ok) return { ...out, save_error: j.error || `HTTP ${res.status}` };
+      out.saved_to = j.path;
+      toast('حُفظ الفيديو في مجلد exports', 'ok');
+    }
+    return out;
   }
 
   $('#btnExport').onclick = openExport;
@@ -972,6 +1082,7 @@
   $('#btnEmptyAdd').onclick = () => els.fileMedia.click();
   $('#btnAddMusic').onclick = () => els.fileMusic.click();
   $('#btnAddText').onclick = addText;
+  $('#btnAddEffect').onclick = () => addEffect();
   $('#btnSample').onclick = loadSample;
   els.fileMedia.onchange = e => { addFiles(e.target.files); e.target.value = ''; };
   els.fileMusic.onchange = e => { addFiles(e.target.files); e.target.value = ''; };
@@ -1045,6 +1156,6 @@
   // واجهة يستخدمها المساعد الذكي (js/agent.js) ووحدة التحكم
   window.studio = {
     state, view, addFiles, loadSample, setTime, play, pause,
-    refresh, commit, pushHist, undo, redo, select, renderProps, fitTimeline, setRatio, cloneItem, exportVideo, toast,
+    refresh, commit, pushHist, undo, redo, select, renderProps, fitTimeline, setRatio, cloneItem, exportVideo, toast, addEffect,
   };
 })();

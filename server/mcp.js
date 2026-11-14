@@ -30,7 +30,8 @@ const mcpTools = () => [
   IMPORT_TOOL,
 ];
 const MCP_INSTRUCTIONS = 'Montaji is a video editor running in the user\'s browser. These tools edit the project that is open there, live. '
-  + 'Start with get_project. The main track is a gapless sequence of clips (images and videos); texts and audio are placed freely by start time. '
+  + 'Start with get_project. The main track is a gapless sequence of clips (images and videos); texts, effects and audio are placed freely by start time. '
+  + 'Effects (add_effect) sit on their own track over the picture; burst effects such as zoomBlur go on the cuts (at_cuts) and stay there after re-timing. '
   + 'Add files with import_media, arrange and style them, then call export_video only if the user asks for the final file. '
   + 'When there is music, finish with sync_to_beat so every cut lands on a beat (again after any change to the clip order or count); '
   + 'on fast music use 2 beats per clip, short transitions and pulse.';

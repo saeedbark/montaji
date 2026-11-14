@@ -7,22 +7,33 @@ const fs = require('fs'), crypto = require('crypto');
 const { PORT } = require('./config');
 const { contentType } = require('./http');
 
-const tabs = new Set();          // اتصالات SSE المفتوحة (تبويب لكل اتصال)
+const tabs = new Map();          // اتصال SSE ← وقت تحميل صفحته (تبويب لكل اتصال)
 const pending = new Map();       // id النداء ← دالة تُكمل الوعد عند وصول النتيجة
 const mediaTokens = new Map();   // رمز لمرة واحدة ← مسار ملف على الجهاز
-let activeTab = null;            // آخر تبويب فُتح: هو الذي يستقبل النداءات
+let activeTab = null;            // أحدث صفحة حُمّلت: هي التي تستقبل النداءات
+
+// تبويب قديم يعيد اتصاله تلقائياً (EventSource) لا يأخذ مكان صفحة أحدث منه، فقد يحمل كوداً قديماً
+function pickActive() {
+  let best = null, bestAt = -1;
+  for (const [res, at] of tabs) if (at >= bestAt) { best = res; bestAt = at; }
+  activeTab = best;
+}
 
 function openBridge(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
   res.write(': connected\n\n');
-  tabs.add(res);
-  activeTab = res;
+  const loaded = +new URL(req.url, 'http://x').searchParams.get('loaded') || 0;
+  tabs.set(res, loaded);
+  pickActive();
+  const port = req.socket.remotePort;
+  console.log(`  editor tab connected   port ${port}  ${loaded ? 'page loaded ' + new Date(loaded).toLocaleTimeString() : 'old page (reload it)'}  tabs: ${tabs.size}`);
   req.on('close', () => {
     tabs.delete(res);
-    if (activeTab === res) activeTab = [...tabs].pop() || null;
+    pickActive();
+    console.log(`  editor tab closed      port ${port}  tabs: ${tabs.size}`);
   });
 }
-setInterval(() => { for (const t of tabs) t.write(': ping\n\n'); }, 25000).unref();
+setInterval(() => { for (const t of tabs.keys()) t.write(': ping\n\n'); }, 25000).unref();
 
 /** ينفّذ أداة داخل تبويب المحرر ويعيد نتيجتها { data, images?, error? } */
 function callBrowser(name, args, timeoutMs) {

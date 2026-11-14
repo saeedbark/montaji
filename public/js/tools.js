@@ -16,7 +16,7 @@ const MONTAJI_TOOLS = (() => {
     y: num('Vertical center, 0 (top) to 1 (bottom). Overrides position.'),
     size: num('Font size as a percent of frame HEIGHT, 3 to 22, so it depends on the ratio. Titles: ~10 on 16:9, ~8 on 1:1, ~7 on 4:5, ~5.5 on 9:16. Captions: ~6 on 16:9, ~4.5 on 1:1, ~4 on 4:5, ~3.5 on 9:16.'),
     color: str('Text color as #rrggbb.'),
-    font: pick(['segoe', 'tahoma', 'arial', 'times', 'courier'], 'Font family.'),
+    font: pick(['segoe', 'tahoma', 'arial', 'times', 'courier', 'elegant'], 'Font family. elegant is a thin italic serif for luxury and product ads (Latin text).'),
     bold: bool('Bold weight.'),
     stroke: bool('Draw an outline around the letters.'),
     stroke_color: str('Outline color as #rrggbb.'),
@@ -24,6 +24,18 @@ const MONTAJI_TOOLS = (() => {
     background_color: str('Box color as #rrggbb.'),
     shadow: bool('Soft drop shadow.'),
     animation: pick(['none', 'fade', 'rise', 'pop'], 'Entrance and exit animation.'),
+  };
+
+  const EFFECT_TYPES = ['zoomBlur', 'whip', 'flash', 'shake', 'rgb', 'bw', 'sharp', 'vignette', 'darken', 'zoomTo', 'spotlight', 'shine', 'glow', 'sparkle', 'areaFlash', 'backlight'];
+  const EFFECT_HELP = 'zoomBlur: radial zoom blur burst. whip: fast horizontal motion blur. flash: white flash. shake: camera shake. rgb: color split glitch. bw: black and white. sharp: crisper, punchier colors (the "4K" look). vignette: dark edges. darken: dim the picture. '
+    + 'On the product (need x, y, size): zoomTo: the camera pushes in and brings the product to the center. spotlight: darkens everything around the product. shine: a light band sweeps across the product. glow: soft light bloom on the product. sparkle: little twinkling stars around it. '
+    + 'On a rectangle of the picture (need x, y, width, height): areaFlash: that part lights up for an instant on the beat (a counter, a podium, a price badge). backlight: the whole part flashes with warm light, with a glowing halo spilling around its edges.';
+  const productSpot = {
+    x: num('Product effects: horizontal center of the product in the frame, 0 (left) to 1 (right). Default 0.5.'),
+    y: num('Product effects: vertical center of the product in the frame, 0 (top) to 1 (bottom). Default 0.5.'),
+    size: num('Product effects: radius of the product area as a percent of the frame width, 5 to 100. Default 30.'),
+    width: num('areaFlash and backlight: rectangle width as a percent of the frame width, 2 to 100. Default 40.'),
+    height: num('areaFlash and backlight: rectangle height as a percent of the frame height, 2 to 100. Default 20.'),
   };
 
   return [
@@ -51,7 +63,7 @@ const MONTAJI_TOOLS = (() => {
         transition: pick(['none', 'fade', 'slide', 'zoom', 'wipe', 'black'], 'Transition played when this clip enters. Has no visible effect on the first clip.'),
         transition_duration: num('Transition length in seconds, 0.1 to 1.5 (default 0.6). Use 0.15 to 0.3 on fast music so the cut still hits the beat.'),
         pulse: bool('Quick zoom bump on every music beat, strongest on bar starts. Great for energetic music.'),
-        motion: pick(['none', 'zoomIn', 'zoomOut', 'panRight', 'panLeft'], 'Slow camera move over the clip (Ken Burns).'),
+        motion: pick(['none', 'zoomIn', 'zoomOut', 'panRight', 'panLeft', 'panUp', 'panDown', 'handheld'], 'Camera move over the clip. zoom/pan: slow Ken Burns. panUp/panDown scroll vertically; with fit cover on a tall image (pictures merged in a column) they travel over the whole image. handheld: gentle drifting hand-held camera that makes a still photo feel filmed.'),
         fit: pick(['blur', 'contain', 'cover'], 'How media that does not match the frame is fitted: blurred background, black bars, or crop to fill.'),
         filter: pick(['none', 'vivid', 'warm', 'cool', 'bw', 'vintage', 'soft'], 'Color look.'),
         brightness: num('50 to 150, 100 is unchanged.'),
@@ -129,13 +141,43 @@ const MONTAJI_TOOLS = (() => {
       }),
     },
     {
+      name: 'add_effect',
+      description: 'Add a visual effect on the effects track, applied over the picture (below the texts), like the effects track in CapCut. '
+        + 'Burst effects (zoom_blur style: zoomBlur, whip, flash, shake, rgb) peak in their middle, so put them ON the cuts with at_cuts to make punchy beat transitions. '
+        + 'Hold effects (bw, sharp, vignette) stay constant: bw over the first clips then a cut to color is a strong reveal. darken fades the picture down, good under a closing logo or handle. '
+        + 'Effects placed with at_cuts or clip_ids are anchored to their clip and follow it when sync_to_beat or reordering changes the timing. '
+        + 'Product effects (zoomTo, spotlight, shine, glow, sparkle) act on one spot of the frame: give x, y (the product center in the composed frame, check it with view_frame) and size. Use them on the product itself to make it the hero of the shot.',
+      parameters: obj({
+        type: pick(EFFECT_TYPES, EFFECT_HELP),
+        start: num('Project time in seconds when the effect starts. Not needed with at_cuts or clip_ids.'),
+        duration: num('Seconds. Defaults: zoomBlur 0.4, whip 0.35, flash 0.25, shake 0.4, rgb 0.3, bw 2, sharp 3, vignette 3, darken 1.2, zoomTo 1.2, spotlight 1.5, shine 0.9, glow 1.5, sparkle 1.5. On fast music keep bursts at 0.25 to 0.4.'),
+        intensity: num('Strength, 0 to 100. Default 100.'),
+        ...productSpot,
+        at_cuts: bool('Add one effect centered on every cut of the main track (anchored to the cuts).'),
+        every: num('With at_cuts: only every Nth cut (2 = every other cut). Default 1.'),
+        clip_ids: ids('Cover each of these clips for its whole length (anchored), e.g. bw on the opening clips.'),
+      }, ['type']),
+    },
+    {
+      name: 'update_effects',
+      description: 'Change effects on the effects track. Only the fields you pass are changed. Setting start detaches an anchored effect from its clip.',
+      parameters: obj({
+        ids: ids('Effect ids, or ["all"].'),
+        type: pick(EFFECT_TYPES, 'Effect kind.'),
+        start: num('Project time in seconds.'),
+        duration: num('Seconds.'),
+        intensity: num('Strength, 0 to 100.'),
+        ...productSpot,
+      }, ['ids']),
+    },
+    {
       name: 'duplicate_item',
-      description: 'Duplicate a clip, audio item or text. The copy is placed right after the original.',
+      description: 'Duplicate a clip, audio item, text or effect. The copy is placed right after the original.',
       parameters: obj({ id: str('Id of the item to copy.') }, ['id']),
     },
     {
       name: 'delete_items',
-      description: 'Remove clips, audio items or texts from the project.',
+      description: 'Remove clips, audio items, texts or effects from the project.',
       parameters: obj({ ids: ids('Ids of the items to remove.') }, ['ids']),
     },
     {
@@ -218,6 +260,7 @@ const MONTAJI_TOOLS = (() => {
         resolution: pick(['720', '1080', '1440', '2160'], 'Short side in pixels. Default 1080.'),
         fps: pick(['24', '30', '60'], 'Frames per second. Default 30.'),
         quality: pick(['normal', 'high', 'ultra'], 'Bitrate level. Default high.'),
+        save_as: str('Also save the MP4 in the "exports" folder of the Montaji project on this computer, under this file name (no folders). Never overwrites: a number is added if the name exists.'),
       }),
     },
   ];

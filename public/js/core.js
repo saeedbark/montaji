@@ -6,7 +6,8 @@ const state = {
   clips: [],   // المسار الرئيسي: صور ومقاطع فيديو متتابعة
   audios: [],  // الموسيقى والأصوات
   texts: [],   // النصوص فوق الفيديو
-  sel: null,   // { kind: 'clip' | 'audio' | 'text', id }
+  effects: [], // التأثيرات فوق الصورة (تكبير ضبابي، وميض، أبيض وأسود…)، توضع بحرية بزمن البداية
+  sel: null,   // { kind: 'clip' | 'audio' | 'text' | 'effect', id }
 };
 
 const view = { pps: 60, t: 0, total: 0, playing: false, exporting: false };
@@ -33,13 +34,32 @@ const trDur = c => (c.transition && c.transition !== 'none') ? Math.min(c.trLen 
 function layout() {
   let t = 0;
   for (const c of state.clips) { c._start = t; t += clipLen(c); }
+  anchorEffects();
   let total = t;
   if (!state.clips.length) {
     for (const a of state.audios) total = Math.max(total, a.start + audioLen(a));
     for (const x of state.texts) total = Math.max(total, x.start + x.dur);
+    for (const e of state.effects) total = Math.max(total, e.start + e.dur);
   }
   view.total = total;
   return total;
+}
+
+/**
+ * التأثير المربوط بمقطع (at = معرّف المقطع) يتبعه حين يتغيّر التوقيت (مزامنة الإيقاع، إعادة الترتيب):
+ * atMode 'cut' = متمركز على لحظة القطع عند دخول المقطع، 'clip' = يغطي المقطع كله.
+ * يُفك الربط إن حُذف المقطع، ويبقى التأثير في آخر موضع له.
+ * إن صار المقطع أولاً فلا قطع عنده: يبقى التأثير في آخر موضع له ويظل مربوطاً، فيعود إلى القطع إن رجع المقطع.
+ */
+function anchorEffects() {
+  const first = state.clips[0];
+  for (const e of state.effects) {
+    if (!e.at) continue;
+    const c = state.clips.find(k => k.id === e.at);
+    if (!c) { e.at = null; continue; }
+    if (e.atMode === 'clip') { e.start = c._start; e.dur = Math.max(MIN_LEN, clipLen(c)); }
+    else if (c !== first) e.start = Math.max(0, c._start - e.dur / 2);
+  }
 }
 
 function clipIndexAt(t) {
