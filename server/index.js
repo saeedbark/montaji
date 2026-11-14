@@ -13,7 +13,7 @@ const { json, readBody, trusted, serveStatic } = require('./http');
 const { chat } = require('./chat');
 const { openBridge, resolveResult, serveMedia } = require('./bridge');
 const { mcp } = require('./mcp');
-const { saveExport } = require('./exports');
+const { saveExport, saveProject } = require('./exports');
 
 /* ================= التوجيه ================= */
 const server = http.createServer(async (req, res) => {
@@ -28,6 +28,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/bridge' && req.method === 'GET') return openBridge(req, res);
     if (p.startsWith('/api/media/') && req.method === 'GET') return serveMedia(res, p.slice(11));
     if (p === '/api/export/save' && req.method === 'POST') return await saveExport(req, res, new URL(req.url, 'http://x').searchParams);
+    if (p === '/api/project/save' && req.method === 'POST') return await saveProject(req, res, new URL(req.url, 'http://x').searchParams);
     if (req.method === 'POST' && /json/.test(req.headers['content-type'] || '')) {
       if (p === '/api/chat') return await chat(req, res);
       if (p === '/api/bridge/result') {

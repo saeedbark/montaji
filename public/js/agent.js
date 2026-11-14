@@ -64,6 +64,7 @@ const Agent = (() => {
   function project() {
     layout();
     return {
+      ...(state.name ? { name: state.name } : {}),
       ratio: state.ratio, duration: r2(view.total), playhead: r2(view.t),
       clips: state.clips.map(clipInfo), audios: state.audios.map(audioInfo), texts: state.texts.map(textInfo),
       effects: state.effects.map(effectInfo),
@@ -588,6 +589,23 @@ const Agent = (() => {
       };
     },
 
+    async save_project(a) {
+      if (S.isEmpty()) fail('The project is empty, there is nothing to save.');
+      const r = await ProjectIO.save({ saveAs: has(a.save_as) ? String(a.save_as) : null });
+      if (!r.ok) fail(r.error);
+      return { ...r, note: r.saved_to ? 'The project file was saved on disk at saved_to. Reopen it later with open_project.' : 'The project file was downloaded to the user\'s Downloads folder.' };
+    },
+
+    // عبر MCP فقط: الخادم يمنح ملف المشروع رابطاً مؤقتاً لأن المتصفح لا يقرأ ملفات الجهاز بمسارها
+    async open_project({ url, name }) {
+      flush(); // تعديلات المساعد المعلّقة تُسجَّل قبل الاستبدال، فيعيدها التراجع كما هي
+      const res = await fetch(url);
+      if (!res.ok) fail('Could not read the project file.');
+      const r = await ProjectIO.open(new File([await res.blob()], String(name || 'project.montaji')));
+      if (!r.ok) fail(r.error);
+      return { opened: r.name, ...(r.skipped.length ? { skipped: r.skipped, note: 'The media of the skipped items could not be loaded, so they were left out.' } : {}), ...project() };
+    },
+
     // عبر MCP فقط: الخادم يحوّل المسارات المحلية إلى روابط مؤقتة
     async import_media({ files }) {
       const before = new Set([...state.clips, ...state.audios].map(o => o.id));
@@ -608,7 +626,8 @@ const Agent = (() => {
     },
   };
 
-  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media']);
+  // أدوات لا تعدّل المشروع، أو تسجّل خطوتها في سجل التراجع بنفسها (فتح مشروع، إضافة ملفات)
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {

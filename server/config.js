@@ -12,6 +12,8 @@ const ENV_FILE = process.env.MONTAJI_ENV_FILE || path.join(ROOT, '.env');
 const ENV_TEMPLATE = path.join(ROOT, '.env.example');
 // الفيديوهات التي يطلب المساعد حفظها (export_video مع save_as). MONTAJI_EXPORT_DIR للاختبارات
 const EXPORT_DIR = process.env.MONTAJI_EXPORT_DIR || path.join(ROOT, 'exports');
+// ملفات المشاريع التي يطلب المساعد حفظها (save_project مع save_as). MONTAJI_PROJECT_DIR للاختبارات
+const PROJECT_DIR = process.env.MONTAJI_PROJECT_DIR || path.join(ROOT, 'projects');
 const VERSION = require('../package.json').version;
 
 /** يحوّل نص ملف .env إلى كائن { KEY: value } */
@@ -71,4 +73,4 @@ function publicConfig() {
   return p.error ? { ...base, ready: false, error: p.error } : { ...base, ready: true, provider: p.id, label: p.label, model: p.model, vision: p.vision };
 }
 
-module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, VERSION, PROVIDERS, parseEnv, readEnv, provider, publicConfig };
+module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, VERSION, PROVIDERS, parseEnv, readEnv, provider, publicConfig };

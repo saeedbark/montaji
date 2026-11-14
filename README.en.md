@@ -10,6 +10,7 @@ A simple, Arabic-first video editor that runs in your browser, on your own machi
 - Transitions, filters, camera motion, and 16:9, 9:16, 1:1 and 4:5 frames
 - Automatic beat detection and beat-synced cuts
 - MP4 export up to 4K (WebCodecs, rendered locally)
+- **Save and open projects**: one `.montaji` file holds the timeline and its media files, so a project reopens exactly as it was, on this computer or another. It is a plain uncompressed ZIP (`project.json` plus a `media/` folder). Project menu, `Ctrl+S` / `Ctrl+O`, or drop the file on the editor
 - **Image studio**: crop, rotate, filters, color-based background removal, and PNG / JPEG / WebP conversion for one image or a whole batch (downloaded as a ZIP), and merging several images into one (side by side, stacked, or a grid)
 - **Video to audio**: pull the music or speech out of any video, trim it, then download it as M4A (AAC) or WAV or drop it on the music track; a clip's sound can be detached in sync with one click
 - **Split video**: cut a video into separate MP4 files every N seconds (e.g. 30 s parts for WhatsApp or Instagram stories), into N equal parts, or at chosen times. MP4/MOV files are copied without re-encoding, so it is fast and lossless; each cut moves back to the nearest keyframe (or turn on exact cuts to re-encode). The parts can also go straight onto the timeline as clips
@@ -66,7 +67,7 @@ claude mcp add --transport http montaji http://localhost:4747/mcp
 { "mcpServers": { "montaji": { "url": "http://localhost:4747/mcp" } } }
 ```
 
-Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `export_video`
+Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `save_project` `open_project` `export_video`
 
 ## Project layout
 
@@ -84,8 +85,10 @@ public/      Everything the browser loads
   js/render.js   frame rendering and effects
   js/export.js   MP4 export (WebCodecs)
   js/audiotools.js   audio processing: trim, normalize, fades, WAV and M4A encoding
+  js/projecttools.js project file (.montaji): ZIP writing and reading, validation
   js/app.js      editor UI and timeline
   js/imagetools.js   image processing: background removal, conversion, ZIP
+  js/projectio.js    saving and opening projects
   js/imagestudio.js  image studio UI
   js/extractaudio.js video-to-audio dialog
   js/videotools.js   MP4 parsing and lossless part copying
