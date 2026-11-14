@@ -31,6 +31,7 @@
   /* ================= التراجع والإعادة ================= */
   const hist = { stack: [], idx: -1, timer: null };
   const snap = () => ({
+    name: state.name,
     ratio: state.ratio,
     clips: state.clips.map(c => ({ ...c })),
     audios: state.audios.map(a => ({ ...a })),
@@ -48,6 +49,7 @@
   function commit() { clearTimeout(hist.timer); hist.timer = setTimeout(pushHist, 350); }
   function restore(s) {
     pauseAllMedia();
+    state.name = s.name || '';
     state.ratio = s.ratio;
     state.clips = s.clips.map(c => ({ ...c }));
     state.audios = s.audios.map(a => ({ ...a }));
@@ -86,6 +88,9 @@
     updateTransport();
     els.empty.hidden = !isEmpty();
     dirty = true;
+    document.title = state.name ? `${state.name} — مونتاجي` : 'مونتاجي';
+    const info = $('#projInfo');
+    if (info) info.innerHTML = projectInfo();
     document.dispatchEvent(new Event('studio:change'));
   }
   function touch() { refresh(); commit(); }
@@ -162,7 +167,8 @@
     return cv.toDataURL('image/png');
   }
 
-  async function addImage(file) {
+  // دوال make تبني العنصر من ملفه دون وضعه في المشروع: يستعملها الاستيراد وفتح مشروع محفوظ
+  async function makeImage(file) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     await new Promise((res, rej) => {
@@ -170,28 +176,28 @@
       img.onerror = () => rej(new Error('تعذّر قراءة الصورة'));
       img.src = url;
     });
-    state.clips.push({
+    return {
       id: uid(), type: 'image', name: file.name, url, file, el: img,
       w: img.naturalWidth, h: img.naturalHeight, srcDur: Infinity,
       in: 0, out: 4, speed: 1, volume: 1, muted: true, thumb: url, ...lookDefaults(),
-    });
+    };
   }
 
-  async function addVideo(file) {
+  async function makeVideo(file) {
     const url = URL.createObjectURL(file);
     const v = await loadVideo(url);
-    if (!v.videoWidth) { URL.revokeObjectURL(url); return addAudio(file); } // ملف صوتي داخل حاوية فيديو
+    if (!v.videoWidth) { URL.revokeObjectURL(url); return makeAudio(file); } // ملف صوتي داخل حاوية فيديو
     const dur = await videoDuration(v);
     const thumb = await videoThumb(v, Math.min(0.5, dur / 3));
     await seekExact(v, 0);
-    state.clips.push({
+    return {
       id: uid(), type: 'video', name: file.name, url, file, el: v,
       w: v.videoWidth, h: v.videoHeight, srcDur: dur,
       in: 0, out: dur, speed: 1, volume: 1, muted: false, thumb, ...lookDefaults(),
-    });
+    };
   }
 
-  async function addAudio(file) {
+  async function makeAudio(file) {
     const buf = await decodeAudioFile(file);
     const url = URL.createObjectURL(file);
     const el = new Audio(url);
@@ -203,9 +209,11 @@
       start, in: 0, out: buf.duration, volume: 0.8, fadeIn: 0, fadeOut: 1.5, wave: waveform(buf),
     };
     Beats.ensure(item); // الإيقاع يُحسب مرة واحدة عند الإضافة
-    state.audios.push(item);
     return item;
   }
+  const makers = { image: makeImage, video: makeVideo, audio: makeAudio };
+  // العنصر الذي له buf صوت (ولو جاء من حاوية فيديو)، وغيره مقطع على المسار الرئيسي
+  const isAudioItem = it => !!it.buf;
 
   const kindOf = f => {
     const t = f.type || '';
@@ -222,16 +230,18 @@
   async function addFiles(fileList) {
     const files = [...fileList];
     if (!files.length) return;
+    // ملف مشروع محفوظ (بالسحب والإفلات مثلاً): يُفتح مكان المشروع الحالي
+    const saved = files.find(f => ProjectIO.isProjectFile(f));
+    if (saved) return ProjectIO.open(saved);
     const wasEmpty = isEmpty();
     els.busy.hidden = false;
     let added = 0;
     for (const f of files) {
       try {
         const k = kindOf(f);
-        if (k === 'image') await addImage(f);
-        else if (k === 'video') await addVideo(f);
-        else if (k === 'audio') await addAudio(f);
-        else { toast(`نوع الملف غير مدعوم: ${f.name}`, 'err'); continue; }
+        if (!k) { toast(`نوع الملف غير مدعوم: ${f.name}`, 'err'); continue; }
+        const it = await makers[k](f);
+        (isAudioItem(it) ? state.audios : state.clips).push(it);
         added++;
         refresh();
       } catch (e) {
@@ -245,6 +255,66 @@
       if (wasEmpty || view.total * view.pps > els.tlScroll.clientWidth * 3) fitTimeline();
       renderProps();
     }
+  }
+
+  /**
+   * يستبدل المشروع الحالي بمشروع محفوظ، خطوةَ تراجع واحدة (Ctrl+Z يعيد ما كان مفتوحاً).
+   * data من ProjectTools.normalize، و files: معرّف الوسيط ← File.
+   * الملف المشترك بين عدة مقاطع (بعد تقسيم أو تكرار) يُقرأ مرة واحدة ثم يُنسخ عنصره.
+   * ← أسماء العناصر التي تعذّر تحميل ملفها فتُركت
+   */
+  async function loadProject(data, files, onProgress) {
+    if (view.exporting) throw new Error('انتظر انتهاء التصدير أولاً');
+    const templates = new Map(), skipped = new Set();
+    const wanted = new Set([...data.clips, ...data.audios].map(o => o.media));
+    let done = 0;
+    const build = async (rec, kind) => {
+      let it = null, tpl = templates.get(rec.media);
+      if (tpl === undefined) {
+        const f = files.get(rec.media);
+        try { if (f) it = await makers[kind === 'audio' ? 'audio' : rec.type](f); } catch (e) { console.error(e); }
+        if (it && isAudioItem(it) !== (kind === 'audio')) it = null; // ملف لم يعد من النوع المحفوظ
+        templates.set(rec.media, it && { ...it });
+        if (onProgress) onProgress(++done, wanted.size);
+      } else if (tpl) it = cloneItem(kind, tpl);
+      if (!it) { skipped.add(rec.name || rec.media); return null; }
+      const { media, type, ...props } = rec;
+      return Object.assign(it, props);
+    };
+
+    const clips = [], audios = [];
+    for (const rec of data.clips) {
+      const c = await build(rec, 'clip');
+      if (!c) continue;
+      if (c.type === 'video') {
+        c.in = clamp(c.in, 0, Math.max(0, c.srcDur - MIN_LEN));
+        c.out = clamp(c.out, c.in + MIN_LEN * c.speed, c.srcDur);
+      } else { c.in = 0; c.out = clamp(c.out, MIN_LEN, 120); }
+      clips.push(c);
+    }
+    for (const rec of data.audios) {
+      const a = await build(rec, 'audio');
+      if (!a) continue;
+      a.in = clamp(a.in, 0, Math.max(0, a.srcDur - MIN_LEN));
+      a.out = clamp(a.out, a.in + MIN_LEN, a.srcDur);
+      audios.push(a);
+    }
+
+    if (view.playing) pause();
+    pauseAllMedia();
+    state.name = data.name || '';
+    state.clips = clips;
+    state.audios = audios;
+    state.texts = data.texts.map(x => ({ ...x }));
+    state.effects = data.effects.map(x => ({ ...x }));
+    state.sel = null;
+    setRatio(data.ratio);
+    view.t = 0;
+    refresh();
+    pushHist();
+    fitTimeline();
+    renderProps();
+    return [...skipped];
   }
 
   function addText() {
@@ -675,12 +745,33 @@
       <button class="btn small danger" data-act="del"><svg class="ic"><use href="#i-trash"/></svg>حذف</button>
     </div>`;
 
+  /** تفاصيل المشروع في لوحة الخصائص حين لا يكون عنصر محدداً. تُحدَّث مع كل تغيير */
+  function projectInfo() {
+    if (isEmpty()) return '';
+    const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
+    const [W, H] = outputSize(state.ratio, 1080);
+    const vids = state.clips.filter(c => c.type === 'video').length, imgs = state.clips.length - vids;
+    return `<h2>تفاصيل المشروع</h2><p class="sub" title="${esc(state.name)}">${state.name ? esc(state.name) : 'مشروع لم يُحفظ بعد'}</p>
+      <dl class="proj-info">
+        ${row('المدة', `<span dir="ltr">${fmtTime(view.total)}</span>`)}
+        ${row('المقاس', `<span dir="ltr">${state.ratio} · ${W}×${H}</span>`)}
+        ${row('المقاطع', `${state.clips.length}${state.clips.length ? ` <small>(${vids} فيديو · ${imgs} صورة)</small>` : ''}`)}
+        ${row('النصوص', state.texts.length)}
+        ${row('التأثيرات', state.effects.length)}
+        ${row('الموسيقى', state.audios.length)}
+      </dl>
+      <div class="actions proj-actions">
+        <button class="btn small" data-act="projSave"><svg class="ic"><use href="#i-save"/></svg>حفظ المشروع</button>
+        <button class="btn small" data-act="projOpen"><svg class="ic"><use href="#i-folder"/></svg>فتح مشروع</button>
+      </div>`;
+  }
+
   function renderProps() {
     const obj = selObj();
     const kind = obj && state.sel.kind;
     let h = '';
     if (!obj) {
-      h = `<h2>كيف أبدأ؟</h2>
+      h = `<div id="projInfo">${projectInfo()}</div><h2>كيف أبدأ؟</h2>
         <ol class="guide">
           <li><b>ارفع ملفاتك</b><br>صور ومقاطع فيديو — تُضاف تلقائياً بالترتيب.</li>
           <li><b>رتّب وقُصّ</b><br>اسحب المقطع لتغيير مكانه، واسحب حافته لتقصيره.</li>
@@ -689,7 +780,8 @@
         </ol>
         <div class="keys">
           <kbd>مسافة</kbd> تشغيل/إيقاف · <kbd>S</kbd> تقسيم · <kbd>Delete</kbd> حذف<br>
-          <kbd>Ctrl+Z</kbd> تراجع · <kbd>←</kbd> <kbd>→</kbd> تحريك المؤشر
+          <kbd>Ctrl+Z</kbd> تراجع · <kbd>←</kbd> <kbd>→</kbd> تحريك المؤشر<br>
+          <kbd>Ctrl+S</kbd> حفظ المشروع · <kbd>Ctrl+O</kbd> فتح مشروع
         </div>`;
     } else if (kind === 'clip') {
       const isVid = obj.type === 'video';
@@ -827,6 +919,8 @@
     else if (a === 'imgEdit') { const obj = selObj(); if (obj) ImageStudio.openClip(obj); }
     else if (a === 'audExtract') { const obj = selObj(); if (obj) AudioExtract.openClip(obj); }
     else if (a === 'vidSplit') { const obj = selObj(); if (obj) VideoSplit.openClip(obj); }
+    else if (a === 'projSave') ProjectIO.save();
+    else if (a === 'projOpen') ProjectIO.pick();
     else if (a === 'fxUnlink') { const obj = selObj(); if (obj) { obj.at = null; touch(); renderProps(); } }
     else if (a === 'fxAllCuts') {
       const obj = selObj();
@@ -1102,8 +1196,15 @@
   window.addEventListener('keydown', e => {
     const tag = (e.target.tagName || '').toLowerCase();
     const typing = tag === 'textarea' || tag === 'select' || (tag === 'input' && !['range', 'checkbox', 'color'].includes(e.target.type));
+    if (ProjectIO.isBusy()) { if (e.ctrlKey || e.metaKey) e.preventDefault(); return; }
     if (!ex.modal.hidden) { if (e.key === 'Escape') closeExport(); return; }
     if (ImageStudio.isOpen() || AudioExtract.isOpen() || VideoSplit.isOpen()) return; // للنوافذ الأدوات اختصاراتها
+    // حفظ وفتح المشروع يعملان حتى أثناء الكتابة، كي لا يفتح المتصفح نافذة «حفظ الصفحة»
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyS' || e.code === 'KeyO')) {
+      e.preventDefault();
+      if (e.code === 'KeyS') ProjectIO.save(); else ProjectIO.pick();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && !typing) {
       const k = e.key.toLowerCase();
       if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
@@ -1138,13 +1239,18 @@
     else addFiles(e.dataTransfer.files);
   });
 
-  // قائمة «أدوات»: تُغلق عند اختيار عنصر أو النقر خارجها أو Escape
-  const tools = { btn: $('#btnTools'), menu: $('#toolsMenu') };
-  const toggleTools = on => { tools.menu.hidden = !on; tools.btn.setAttribute('aria-expanded', String(on)); };
-  tools.btn.onclick = () => toggleTools(tools.menu.hidden);
-  tools.menu.addEventListener('click', e => { if (e.target.closest('.menu-item')) toggleTools(false); });
-  window.addEventListener('pointerdown', e => { if (!tools.menu.hidden && !e.target.closest('.menu-wrap')) toggleTools(false); });
-  window.addEventListener('keydown', e => { if (e.key === 'Escape' && !tools.menu.hidden) { toggleTools(false); tools.btn.focus(); } }, true);
+  // القوائم المنسدلة («مشروع» و«أدوات»): تُغلق عند اختيار عنصر أو النقر خارجها أو Escape
+  const menus = [...document.querySelectorAll('.menu-wrap')].map(w => ({ wrap: w, btn: $('.btn', w), menu: $('.menu', w) }));
+  const toggleMenu = (m, on) => { m.menu.hidden = !on; m.btn.setAttribute('aria-expanded', String(on)); };
+  for (const m of menus) {
+    m.btn.onclick = () => { const on = m.menu.hidden; menus.forEach(o => toggleMenu(o, o === m && on)); };
+    m.menu.addEventListener('click', e => { if (e.target.closest('.menu-item')) toggleMenu(m, false); });
+  }
+  window.addEventListener('pointerdown', e => { for (const m of menus) if (!m.menu.hidden && !m.wrap.contains(e.target)) toggleMenu(m, false); });
+  window.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    for (const m of menus) if (!m.menu.hidden) { toggleMenu(m, false); m.btn.focus(); }
+  }, true);
 
   window.addEventListener('resize', () => renderTimeline());
   window.addEventListener('beforeunload', e => { if (!isEmpty()) { e.preventDefault(); e.returnValue = ''; } });
@@ -1158,7 +1264,7 @@
 
   // واجهة يستخدمها المساعد الذكي (js/agent.js) ووحدة التحكم
   window.studio = {
-    state, view, addFiles, loadSample, setTime, play, pause,
+    state, view, addFiles, loadProject, isEmpty, loadSample, setTime, play, pause,
     refresh, commit, pushHist, undo, redo, select, renderProps, fitTimeline, setRatio, cloneItem, exportVideo, toast, addEffect,
   };
 })();

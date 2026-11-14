@@ -3,7 +3,7 @@
    أي عميل خارجي (Claude Code, Cursor...) يتحكم بالمحرر المفتوح في المتصفح عبر الجسر */
 
 const fs = require('fs'), path = require('path');
-const { PUBLIC_DIR, VERSION } = require('./config');
+const { PUBLIC_DIR, PROJECT_DIR, VERSION } = require('./config');
 const { MEDIA_EXT, json, readBody } = require('./http');
 const { callBrowser, registerMedia } = require('./bridge');
 
@@ -25,16 +25,27 @@ const IMPORT_TOOL = {
   description: 'Add image, video or audio files from this computer to the project by absolute path. Images and videos are appended to the main track in the given order; audio goes to the music track. Returns the new item ids.',
   inputSchema: { type: 'object', properties: { paths: { type: 'array', items: { type: 'string' }, description: 'Absolute file paths.' } }, required: ['paths'] },
 };
+// مثلها: ملف المشروع يُقرأ من القرص بمساره
+const OPEN_TOOL = {
+  name: 'open_project',
+  description: 'Open (import) a saved Montaji project file (.montaji) from this computer. It REPLACES the project open in the editor, as one undo step, and returns the opened project with every clip, text, effect and audio item. Only call it when the user asks to open a project.',
+  inputSchema: { type: 'object', properties: { path: { type: 'string', description: 'Absolute path of the .montaji file. A bare file name is looked up in the "projects" folder of the Montaji app, where save_project (save_as) puts its files.' } }, required: ['path'] },
+};
 const mcpTools = () => [
   ...loadTools().map(t => ({ name: t.name, description: t.description, inputSchema: t.parameters })),
   IMPORT_TOOL,
+  OPEN_TOOL,
 ];
 const MCP_INSTRUCTIONS = 'Montaji is a video editor running in the user\'s browser. These tools edit the project that is open there, live. '
   + 'Start with get_project. The main track is a gapless sequence of clips (images and videos); texts, effects and audio are placed freely by start time. '
   + 'Effects (add_effect) sit on their own track over the picture; burst effects such as zoomBlur go on the cuts (at_cuts) and stay there after re-timing. '
   + 'Add files with import_media, arrange and style them, then call export_video only if the user asks for the final file. '
+  + 'save_project stores the whole project (timeline and media) in one .montaji file and open_project loads one back. '
   + 'When there is music, finish with sync_to_beat so every cut lands on a beat (again after any change to the clip order or count); '
   + 'on fast music use 2 beats per clip, short transitions and pulse.';
+
+// أدوات تقرأ أو تكتب ملفات كبيرة: مهلتها أطول
+const LONG_TOOLS = ['export_video', 'split_video_file', 'save_project', 'open_project'];
 
 async function mcpCall(params) {
   const name = params && params.name;
@@ -52,7 +63,15 @@ async function mcpCall(params) {
       if (!files.length) throw new Error('paths is empty');
       args = { files };
     }
-    const r = await callBrowser(name, args, name === 'export_video' || name === 'split_video_file' ? 30 * 60e3 : 5 * 60e3);
+    if (name === 'open_project') {
+      let p = String(args.path || '').trim();
+      if (!p) throw new Error('path is required');
+      if (!p.toLowerCase().endsWith('.montaji')) p += '.montaji';
+      const abs = path.isAbsolute(p) ? path.resolve(p) : path.join(PROJECT_DIR, path.basename(p));
+      if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) throw new Error('Project file not found: ' + abs);
+      args = { url: registerMedia(abs), name: path.basename(abs) };
+    }
+    const r = await callBrowser(name, args, LONG_TOOLS.includes(name) ? 30 * 60e3 : 5 * 60e3);
     const content = [{ type: 'text', text: JSON.stringify(r.data) }];
     for (const u of r.images || []) {
       const m = /^data:(.+?);base64,(.*)$/.exec(u);

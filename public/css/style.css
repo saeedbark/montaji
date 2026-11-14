@@ -130,6 +130,12 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 .props .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .link-btn { background: none; border: 0; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; padding: 6px 0 0; }
 .link-btn:hover { text-decoration: underline; }
+.proj-info { margin: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.proj-info > div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 10px; background: var(--panel-2); font-size: 13px; }
+.proj-info dt { color: var(--muted); }
+.proj-info dd { margin: 0; font-variant-numeric: tabular-nums; text-align: end; }
+.proj-info small { color: var(--muted); font-size: 11.5px; }
+.props .proj-actions { margin: 10px 0 18px; padding: 0 0 16px; border-top: 0; border-bottom: 1px solid var(--line); }
 .guide { margin: 10px 0 0; padding: 0; list-style: none; counter-reset: g; }
 .guide li { counter-increment: g; position: relative; padding: 9px 40px 9px 0; border-bottom: 1px solid var(--line); color: #c5cad6; }
 .guide li:last-child { border-bottom: 0; }

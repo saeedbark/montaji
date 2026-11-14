@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# ملفات المشاريع التي يحفظها save_project: فيها وسائط المستخدم
+projects/
+
 # Node
 node_modules/
 npm-debug.log*

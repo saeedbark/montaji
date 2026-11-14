@@ -49,7 +49,7 @@ describe('الخادم', () => {
     const envFile = path.join(tmp, '.env');
     fs.writeFileSync(envFile, 'SECRET_MARKER=do-not-leak\n');
     // نمسح مفاتيح البيئة كي لا تؤثر إعدادات جهاز المطوّر في النتيجة
-    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports') };
+    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports'), MONTAJI_PROJECT_DIR: path.join(tmp, 'projects') };
     for (const k of Object.keys(env)) if (/^(AI_|GEMINI_|GOOGLE_API|OPENAI_|ANTHROPIC_|OPENROUTER_)/.test(k)) delete env[k];
     child = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     await new Promise((resolve, reject) => {
@@ -87,6 +87,34 @@ describe('الخادم', () => {
     assert.equal(fs.readdirSync(path.join(tmp, 'exports')).filter(f => f.endsWith('.part')).length, 0);
     assert.equal((await save('x', { 'Content-Type': 'text/plain' })).status, 415);
     assert.equal((await save('x', { Origin: 'https://evil.example' })).status, 403);
+  });
+
+  test('حفظ المشروع يبقى داخل مجلد projects بامتداد montaji', async () => {
+    const save = (name, headers = {}) => request('/api/project/save?name=' + encodeURIComponent(name), {
+      method: 'POST', headers: { 'Content-Type': 'application/zip', ...headers }, body: 'fake-project',
+    });
+    const a = await save('../../رحلة الصيف');
+    assert.equal(a.status, 200);
+    assert.equal(path.dirname(a.data.path), path.join(tmp, 'projects'));
+    assert.equal(path.basename(a.data.path), 'رحلة الصيف.montaji');
+    assert.equal(fs.readFileSync(a.data.path, 'utf8'), 'fake-project');
+    assert.equal(path.basename((await save('رحلة الصيف.MONTAJI')).data.path), 'رحلة الصيف (2).montaji');
+    assert.equal(path.basename((await save('')).data.path), 'project.montaji');
+    assert.equal((await save('x', { 'Content-Type': 'video/mp4' })).status, 415);
+    assert.equal((await save('x', { Origin: 'https://evil.example' })).status, 403);
+    assert.equal(fs.existsSync(path.join(tmp, 'exports', 'x.mp4')), false);
+  });
+
+  test('open_project عبر MCP: يرفض ملفاً غير موجود ويبحث عن الاسم المجرد في مجلد projects', async () => {
+    const missing = await rpc('tools/call', { name: 'open_project', arguments: { path: 'no-such-project' } });
+    assert.equal(missing.data.result.isError, true);
+    assert.ok(missing.data.result.content[0].text.includes(path.join(tmp, 'projects', 'no-such-project.montaji')));
+    // الملف موجود لكن المحرر غير مفتوح في هذا الاختبار: الخطأ يطلب فتحه، لا «الملف غير موجود»
+    fs.mkdirSync(path.join(tmp, 'projects'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'projects', 'saved.montaji'), 'x');
+    const found = await rpc('tools/call', { name: 'open_project', arguments: { path: 'saved' } });
+    assert.equal(found.data.result.isError, true);
+    assert.match(found.data.result.content[0].text, /editor is not open/);
   });
 
   test('يقدّم الواجهة من public/', async () => {

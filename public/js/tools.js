@@ -268,6 +268,13 @@ const MONTAJI_TOOLS = (() => {
       parameters: obj({ steps: num('How many steps to undo. Default 1.') }),
     },
     {
+      name: 'save_project',
+      description: 'Save the whole project as one .montaji file: the timeline (clips, trims, texts, effects, music settings) together with its media files, so it can be reopened later exactly as it is. Only call it when the user asks to save the project. This is not a video: use export_video for the final MP4.',
+      parameters: obj({
+        save_as: str('Save the file in the "projects" folder of the Montaji app on this computer under this name (no folders). Never overwrites: a number is added if the name exists. Without it the file goes to the user\'s Downloads folder.'),
+      }),
+    },
+    {
       name: 'export_video',
       description: 'Render the project to an MP4 file. This can take minutes; when it finishes the editor shows a download button to the user. Only call it when the user asks to export.',
       parameters: obj({
