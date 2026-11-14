@@ -22,6 +22,16 @@
 
 خارج النطاق: برامج أخرى تعمل على الجهاز نفسه بصلاحيات المستخدم (تستطيع قراءة `.env` مباشرة)، وما يفعله عميل MCP وثق به المستخدم وربطه بنفسه.
 
+## للاستعمال المحلي فقط
+
+مونتاجي مصمَّم ليعمل على جهاز المستخدم وحده، **وليس خدمة تُستضاف للآخرين**. الخادم بلا تسجيل دخول ولا حد لعدد الطلبات، والحماية كلها قائمة على أنه لا يُرى إلا من الجهاز نفسه:
+
+- يستمع على `127.0.0.1` فقط، ويرفض أي `Host` أو `Origin` غير العنوان المحلي.
+- **لا تفتحه للإنترنت أو للشبكة** بأي طريقة: استضافة على خادم، نفق (ngrok، Cloudflare Tunnel…)، Reverse proxy، أو نشر منفذه من Docker أو الراوتر. من يصل إليه يستطيع استعمال مفتاح الذكاء الاصطناعي على حسابك، والتحكم بالمحرر عبر MCP، وكتابة ملفات في `exports/` و `projects/`.
+- المشاكل الناتجة عن تشغيله بهذه الطرق، أو بعد تعديل عنوان الاستماع أو فحص المصدر، **خارج نطاق هذه السياسة**.
+
+**Local use only.** Montaji is not meant to be hosted for others. The server has no authentication or rate limiting and relies on being reachable only from the same machine. Do not expose it through hosting, tunnels, reverse proxies or published ports; anyone who reaches it can spend your AI key, drive the editor over MCP and write into `exports/` and `projects/`. Reports that depend on such a setup, or on changing the listen address or the origin check, are out of scope.
+
 ## الإصدارات المدعومة
 
 الإصلاحات الأمنية تُطبَّق على آخر إصدار في الفرع `main`.

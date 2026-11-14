@@ -38,6 +38,10 @@ The interface is in Arabic (RTL). Code comments are in Arabic; tool descriptions
 
 The editor opens at `http://localhost:4747`. Export needs a recent Chrome or Edge. Set `PORT` to use another port.
 
+> [!WARNING]
+> **Montaji is for use on your own machine only. Do not run it on a public server or expose it to the internet** (hosting, a tunnel such as ngrok or Cloudflare Tunnel, a reverse proxy, or a port published from Docker or your router).
+> The server has no login: anyone who reaches it can use the assistant **on your API key** (and your bill), drive the editor over MCP, and write files into `exports/` and `projects/`. That is why it listens on `127.0.0.1` only and rejects any other host; do not change that.
+
 ## AI assistant
 
 On first run the server creates `.env` from `.env.example`. Put one API key in it and save; no restart is needed.
