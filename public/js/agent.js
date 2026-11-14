@@ -19,7 +19,7 @@ const Agent = (() => {
     return /^#[0-9a-f]{6}$/.test(s) ? s : fail(`${name} must be a color like #ffcc00`);
   };
 
-  const lists = { clip: () => state.clips, audio: () => state.audios, text: () => state.texts };
+  const lists = { clip: () => state.clips, audio: () => state.audios, text: () => state.texts, effect: () => state.effects };
   function find(id) {
     for (const kind in lists) {
       const obj = lists[kind]().find(o => o.id === id);
@@ -55,11 +55,18 @@ const Agent = (() => {
     color: x.color, font: x.font, bold: x.bold, stroke: x.stroke, stroke_color: x.strokeColor,
     background: x.bg, background_color: x.bgColor, shadow: x.shadow, animation: x.anim,
   });
+  const effectInfo = e => ({
+    id: e.id, type: e.type, start: r2(e.start), duration: r2(e.dur), intensity: Math.round((e.amount != null ? e.amount : 1) * 100),
+    ...((Render.EFFECTS[e.type] || {}).region ? { x: r2(e.x), y: r2(e.y),
+      ...(Render.EFFECTS[e.type].rect ? { width: Math.round(e.w * 100), height: Math.round(e.h * 100) } : { size: Math.round(e.r * 100) }) } : {}),
+    ...(e.at ? { anchored_to_clip: e.at, anchor: e.atMode === 'clip' ? 'whole_clip' : 'cut' } : {}),
+  });
   function project() {
     layout();
     return {
       ratio: state.ratio, duration: r2(view.total), playhead: r2(view.t),
       clips: state.clips.map(clipInfo), audios: state.audios.map(audioInfo), texts: state.texts.map(textInfo),
+      effects: state.effects.map(effectInfo),
     };
   }
   const brief = () => { layout(); return { duration: r2(view.total) }; };
@@ -100,12 +107,24 @@ const Agent = (() => {
     if (has(a.transition)) c.transition = oneOf(a.transition, ['none', 'fade', 'slide', 'zoom', 'wipe', 'black'], 'transition');
     if (has(a.transition_duration)) c.trLen = r2(clamp(num(a.transition_duration, 'transition_duration'), 0.1, 1.5));
     if (has(a.pulse)) c.pulse = bool(a.pulse);
-    if (has(a.motion)) c.motion = oneOf(a.motion, ['none', 'zoomIn', 'zoomOut', 'panRight', 'panLeft'], 'motion');
+    if (has(a.motion)) c.motion = oneOf(a.motion, ['none', 'zoomIn', 'zoomOut', 'panRight', 'panLeft', 'panUp', 'panDown', 'handheld'], 'motion');
     if (has(a.fit)) c.fit = oneOf(a.fit, ['blur', 'contain', 'cover'], 'fit');
     if (has(a.filter)) c.filter = oneOf(a.filter, Object.keys(Render.FILTERS), 'filter');
     if (has(a.brightness)) c.bright = Math.round(clamp(num(a.brightness, 'brightness'), 50, 150));
     if (has(a.contrast)) c.contrast = Math.round(clamp(num(a.contrast, 'contrast'), 50, 150));
     if (has(a.saturation)) c.sat = Math.round(clamp(num(a.saturation, 'saturation'), 0, 200));
+  }
+
+  function applyEffect(e, a) {
+    if (has(a.type)) e.type = oneOf(a.type, Object.keys(Render.EFFECTS), 'type');
+    if (has(a.duration)) e.dur = r2(clamp(num(a.duration, 'duration'), 0.1, 600));
+    if (has(a.start)) { e.start = Math.max(0, num(a.start, 'start')); e.at = null; }
+    if (has(a.intensity)) e.amount = clamp(num(a.intensity, 'intensity'), 0, 100) / 100;
+    if (has(a.x)) e.x = clamp(num(a.x, 'x'), 0, 1);
+    if (has(a.y)) e.y = clamp(num(a.y, 'y'), 0, 1);
+    if (has(a.size)) e.r = clamp(num(a.size, 'size'), 5, 100) / 100;
+    if (has(a.width)) e.w = clamp(num(a.width, 'width'), 2, 100) / 100;
+    if (has(a.height)) e.h = clamp(num(a.height, 'height'), 2, 100) / 100;
   }
 
   function applyAudio(o, a) {
@@ -207,10 +226,41 @@ const Agent = (() => {
         n.in = cut; n.start = t; n.fadeIn = 0; obj.out = cut; obj.fadeOut = 0;
         state.audios.push(n);
       } else {
+        if (kind === 'effect') { obj.at = null; n.at = null; }
         n.start = t; n.dur = obj.start + obj.dur - t; obj.dur = t - obj.start;
-        state.texts.push(n);
+        lists[kind]().push(n);
       }
       return { kind, first_part_id: obj.id, second_part_id: n.id };
+    },
+
+    add_effect(a) {
+      layout();
+      const type = oneOf(a.type, Object.keys(Render.EFFECTS), 'type');
+      const def = Render.EFFECTS[type];
+      const base = { type, start: 0, dur: def.dur, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.5, r: 0.3, w: 0.4, h: 0.2 };
+      applyEffect(base, { duration: a.duration, intensity: a.intensity, x: a.x, y: a.y, size: a.size, width: a.width, height: a.height });
+      const made = [];
+      const push = extra => { const e = { ...base, id: uid(), ...extra }; state.effects.push(e); made.push(e); };
+      if (bool(a.at_cuts)) {
+        const cuts = state.clips.slice(1);
+        if (!cuts.length) fail('There are no cuts yet: the main track needs at least 2 clips.');
+        const every = has(a.every) ? clamp(Math.round(num(a.every, 'every')), 1, 50) : 1;
+        cuts.forEach((c, i) => { if (i % every === 0) push({ at: c.id, atMode: 'cut' }); });
+      } else if (has(a.clip_ids)) {
+        for (const c of pick('clip', a.clip_ids)) push({ at: c.id, atMode: 'clip' });
+      } else {
+        if (!has(a.start)) fail('Give start (with duration), or at_cuts, or clip_ids.');
+        push({ start: Math.max(0, num(a.start, 'start')) });
+      }
+      layout();
+      return { added: made.map(effectInfo), ...brief() };
+    },
+
+    update_effects(a) {
+      const list = pick('effect', a.ids);
+      list.forEach(e => applyEffect(e, a));
+      layout();
+      return { updated: list.map(effectInfo) };
     },
 
     add_text(a) {
@@ -350,7 +400,7 @@ const Agent = (() => {
       const { kind, obj } = hit, n = S.cloneItem(kind, obj);
       if (kind === 'clip') state.clips.splice(state.clips.indexOf(obj) + 1, 0, n);
       else if (kind === 'audio') { n.start = obj.start + audioLen(obj); state.audios.push(n); }
-      else { n.start = obj.start + obj.dur; state.texts.push(n); }
+      else { if (kind === 'effect') n.at = null; n.start = obj.start + obj.dur; lists[kind]().push(n); }
       return { kind, id: n.id, ...brief() };
     },
 
@@ -362,6 +412,7 @@ const Agent = (() => {
         if (obj.el && obj.el.pause) obj.el.pause();
         if (kind === 'clip') state.clips = state.clips.filter(o => o !== obj);
         else if (kind === 'audio') state.audios = state.audios.filter(o => o !== obj);
+        else if (kind === 'effect') state.effects = state.effects.filter(o => o !== obj);
         else state.texts = state.texts.filter(o => o !== obj);
       }
       return { deleted: hits.length, ...brief() };
@@ -508,9 +559,15 @@ const Agent = (() => {
         res: has(a.resolution) ? oneOf(a.resolution, ['720', '1080', '1440', '2160'], 'resolution') : '1080',
         fps: has(a.fps) ? oneOf(a.fps, ['24', '30', '60'], 'fps') : '30',
         quality: has(a.quality) ? oneOf(a.quality, ['normal', 'high', 'ultra'], 'quality') : 'high',
+        saveAs: has(a.save_as) ? String(a.save_as) : null,
       });
       if (!r.ok) fail(r.error);
-      return { ...r, note: 'The export finished. A download button is now shown to the user in the editor.' };
+      return {
+        ...r,
+        note: r.saved_to ? 'The export finished and was saved on disk at saved_to.'
+          : r.save_error ? 'The export finished but saving it on disk failed (save_error). A download button is shown to the user in the editor.'
+          : 'The export finished. A download button is now shown to the user in the editor.',
+      };
     },
 
     // عبر MCP فقط: الخادم يحوّل المسارات المحلية إلى روابط مؤقتة

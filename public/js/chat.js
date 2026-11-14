@@ -31,6 +31,7 @@ Project model
 - Main track: clips (images and videos) play one after another with no gaps. Their order is the playing order, and each clip's start time follows from the clips before it. Total duration is the sum of the main-track clips.
 - Images last 4 s by default. Good pacing is 2.5 to 4 s per photo in a slideshow, shorter for energetic videos.
 - A transition belongs to the clip that enters and takes up to 0.6 s at its start. The first clip needs none.
+- Effects (zoom blur, whip, flash, shake, color split, black and white, sharpen, vignette, darken) sit on their own track over the picture. Put short burst effects on the cuts (add_effect with at_cuts) for energetic edits; they stay on the cuts after sync_to_beat.
 - Texts and audio sit on their own tracks and are placed freely by start time. Text position uses x and y from 0 to 1 (0.5 is the center). Keep text away from the frame edges; on 9:16 keep y between 0.12 and 0.85.
 - Text is drawn exactly as written and supports Arabic. Keep overlay text short. Size is a percent of frame HEIGHT, so the right value depends on the aspect ratio: follow the size guide at the end of this message.
 - Audio longer than the video is cut at the video's end automatically, so give music a fade-out. When video clips carry speech, lower the music to about 20 to 30.
@@ -110,6 +111,8 @@ Project model
     split: () => 'تقسيم',
     add_text: a => `إضافة نص: «${short(a.text)}»`,
     update_texts: () => 'تعديل النصوص',
+    add_effect: a => `إضافة تأثير: ${(Render.EFFECTS[a.type] || {}).label || a.type || ''}`,
+    update_effects: () => 'تعديل التأثيرات',
     update_audio: () => 'ضبط الصوت والموسيقى',
     analyze_audio: () => 'تحليل إيقاع الموسيقى',
     sync_to_beat: () => 'مزامنة القص مع الإيقاع',
@@ -316,8 +319,10 @@ Project model
   }
 
   /* ================= الجسر: نداءات عملاء MCP الخارجيين ================= */
+  // وقت تحميل الصفحة: الخادم يرسل النداءات إلى أحدث صفحة حُمّلت، لا إلى تبويب قديم أعاد الاتصال
+  const LOADED_AT = Date.now();
   function bridge() {
-    const es = new EventSource('/api/bridge');
+    const es = new EventSource('/api/bridge?loaded=' + LOADED_AT);
     es.onmessage = async ev => {
       let call;
       try { call = JSON.parse(ev.data); } catch (e) { return; }

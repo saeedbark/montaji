@@ -49,7 +49,7 @@ describe('الخادم', () => {
     const envFile = path.join(tmp, '.env');
     fs.writeFileSync(envFile, 'SECRET_MARKER=do-not-leak\n');
     // نمسح مفاتيح البيئة كي لا تؤثر إعدادات جهاز المطوّر في النتيجة
-    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile };
+    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports') };
     for (const k of Object.keys(env)) if (/^(AI_|GEMINI_|GOOGLE_API|OPENAI_|ANTHROPIC_|OPENROUTER_)/.test(k)) delete env[k];
     child = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     await new Promise((resolve, reject) => {
@@ -65,6 +65,28 @@ describe('الخادم', () => {
   after(() => {
     if (child) child.kill();
     if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test('حفظ التصدير يبقى داخل مجلد exports ولا يكتب فوق ملف', async () => {
+    const save = (name, headers = {}) => request('/api/export/save?name=' + encodeURIComponent(name), {
+      method: 'POST', headers: { 'Content-Type': 'video/mp4', ...headers }, body: 'fake-mp4',
+    });
+    const a = await save('..\\..\\evil');
+    assert.equal(a.status, 200);
+    assert.equal(path.dirname(a.data.path), path.join(tmp, 'exports'));
+    assert.equal(path.basename(a.data.path), 'evil.mp4');
+    const b = await save('../evil.mp4');
+    assert.equal(path.basename(b.data.path), 'evil (2).mp4');
+    assert.equal(fs.readFileSync(b.data.path, 'utf8'), 'fake-mp4');
+    // أسماء أجهزة ويندوز المحجوزة لا تُستعمل كما هي
+    assert.equal(path.basename((await save('CON')).data.path), '_CON.mp4');
+    assert.equal(path.basename((await save('nul.final')).data.path), '_nul.final.mp4');
+    // حفظان متزامنان بالاسم نفسه لا يكتب أحدهما فوق الآخر
+    const [c, d] = await Promise.all([save('same'), save('same')]);
+    assert.notEqual(c.data.path, d.data.path);
+    assert.equal(fs.readdirSync(path.join(tmp, 'exports')).filter(f => f.endsWith('.part')).length, 0);
+    assert.equal((await save('x', { 'Content-Type': 'text/plain' })).status, 415);
+    assert.equal((await save('x', { Origin: 'https://evil.example' })).status, 403);
   });
 
   test('يقدّم الواجهة من public/', async () => {
@@ -152,5 +174,27 @@ describe('الخادم', () => {
     const r = await rpc('tools/call', { name: 'get_project', arguments: {} });
     assert.equal(r.data.result.isError, true);
     assert.match(r.data.result.content[0].text, /editor is not open/i);
+  });
+
+  test('الجسر يرسل النداء إلى أحدث صفحة حُمّلت لا إلى تبويب قديم أعاد الاتصال', async () => {
+    // تبويب يفتح اتصال SSE ويجيب عن أول نداء يصله باسمه
+    const tab = (name, loaded) => new Promise(resolve => {
+      const req = http.get({ host: '127.0.0.1', port, path: `/api/bridge?loaded=${loaded}`, headers: { Host: `localhost:${port}` } }, res => {
+        res.setEncoding('utf8');
+        res.on('data', chunk => {
+          const m = /^data: (.*)$/m.exec(chunk);
+          if (!m) return;
+          const call = JSON.parse(m[1]);
+          request('/api/bridge/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { id: call.id, result: { data: { tab: name } } } });
+        });
+        resolve(req);
+      });
+    });
+    const fresh = await tab('fresh', 2000);
+    const stale = await tab('stale', 1000); // اتصل بعده لكن صفحته أقدم
+    try {
+      const r = await rpc('tools/call', { name: 'get_project', arguments: {} });
+      assert.equal(JSON.parse(r.data.result.content[0].text).tab, 'fresh');
+    } finally { fresh.destroy(); stale.destroy(); }
   });
 });
