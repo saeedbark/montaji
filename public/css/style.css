@@ -13,7 +13,12 @@
   --textc: #f2a93b;
   --fx: #d946ef;
   --radius: 10px;
-  --label-w: 76px;
+  --label-w: 76px;   /* عرض أسماء المسارات — يقرؤه app.js */
+  /* مقاسات مرنة: تتسع اللوحات والخط الزمني على الشاشات الكبيرة وتنكمش في النوافذ المنخفضة */
+  --side-w: clamp(310px, 18vw, 400px);  /* لوحة الخصائص */
+  --chat-w: clamp(340px, 20vw, 440px);  /* لوحة المساعد */
+  --tl-h: clamp(262px, 30vh, 330px);    /* ارتفاع الخط الزمني */
+  --sheet-h: min(56dvh, 480px); /* لوحة الخصائص حين تصير درجاً سفلياً على الهاتف */
   color-scheme: dark;
 }
 
@@ -31,7 +36,10 @@ body {
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
+/* على الهاتف: الارتفاع الفعلي الظاهر، كي لا يختفي الخط الزمني خلف شريط المتصفح */
+@supports (height: 100dvh) { body { height: 100dvh; } }
 
 .ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ic.big { width: 44px; height: 44px; stroke-width: 1.4; color: var(--accent); }
@@ -82,19 +90,22 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- مساحة العمل ---------- */
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 310px; min-height: 0; }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w); min-height: 0; }
 .stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.canvas-wrap { position: relative; flex: 1; min-height: 0; margin: 14px 14px 6px; }
+.canvas-wrap { position: relative; flex: 1; min-height: 0; margin: 14px 14px 6px; container-type: size; }
 #preview {
   position: absolute; inset: 0; margin: auto;
+  /* تملأ المساحة المتاحة محافظةً على مقاسها (‎--ar‎ من app.js) حتى إن كانت الشاشة أكبر من دقة المعاينة */
+  width: min(100cqw, calc(100cqh * var(--ar, 1.7778))); height: auto;
   max-width: 100%; max-height: 100%;
   background: #000; border-radius: 8px;
   box-shadow: 0 0 0 1px var(--line), 0 14px 40px rgba(0,0,0,.45);
   touch-action: none;
 }
-.empty { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); }
+/* margin:auto يوسّط البطاقة، وإن ضاقت المساحة عنها تُمرَّر من أعلاها دون أن يُقص شيء */
+.empty { position: absolute; inset: 0; display: flex; overflow-y: auto; background: var(--bg); }
 .empty-card {
-  width: min(480px, 100%); padding: 26px 24px; text-align: center;
+  width: min(480px, 100%); margin: auto; padding: 26px 24px; text-align: center;
   border: 1.5px dashed #3a4251; border-radius: 16px; background: var(--panel);
 }
 .empty-card h1 { margin: 8px 0 4px; font-size: 20px; }
@@ -108,6 +119,9 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 .time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 132px; text-align: center; font-size: 13px; }
 
 /* ---------- لوحة الخصائص ---------- */
+.side { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.side > .props { flex: 1; }
+.side-head, .sheet-only { display: none; }
 .props {
   background: var(--panel); border-inline-start: 1px solid var(--line);
   padding: 14px; overflow-y: auto; min-height: 0;
@@ -149,7 +163,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 kbd { background: var(--panel-3); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font: inherit; font-size: 11px; color: var(--text); }
 
 /* ---------- المساعد الذكي ---------- */
-body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
+body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) var(--side-w); }
 .btn[aria-pressed="true"] { border-color: var(--accent); color: #ffb3c1; }
 .chat { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-inline-end: 1px solid var(--line); }
 .chat-head { display: flex; align-items: center; gap: 7px; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--line); }
@@ -195,7 +209,7 @@ body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
 .chat-form .btn { flex: none; }
 
 /* ---------- الخط الزمني ---------- */
-.timeline { background: var(--panel); border-top: 1px solid var(--line); display: flex; flex-direction: column; height: 262px; min-height: 0; min-width: 0; }
+.timeline { background: var(--panel); border-top: 1px solid var(--line); display: flex; flex-direction: column; height: var(--tl-h); min-height: 0; min-width: 0; }
 .tl-toolbar { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-bottom: 1px solid var(--line); }
 .tl-toolbar .hint { color: var(--muted); font-size: 12px; margin-inline-end: 8px; }
 .zoom { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
@@ -211,7 +225,7 @@ body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
   color: var(--muted); font-size: 12px; direction: rtl;
 }
 .tl-lane { position: relative; flex: none; }
-.tl-ruler { height: 26px; border-bottom: 1px solid var(--line); cursor: pointer; position: sticky; top: 0; z-index: 6; background: var(--panel); }
+.tl-ruler { height: 26px; border-bottom: 1px solid var(--line); cursor: pointer; position: sticky; top: 0; z-index: 6; background: var(--panel); touch-action: pan-y; }
 .tl-ruler .tl-label { z-index: 7; }
 .tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid #343b49; padding: 3px 0 0 5px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none; }
 .tl-track { border-bottom: 1px solid #20252f; }
@@ -279,7 +293,7 @@ body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
 /* ---------- استوديو الصور ---------- */
 .btn.wide { width: 100%; }
 .props .btn.wide { margin: 4px 0 8px; }
-.dialog.studio { width: min(1180px, 100%); height: min(800px, 100%); padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.dialog.studio { width: min(max(1180px, 72vw), 100%); height: min(max(800px, 82vh), 100%); padding: 0; display: flex; flex-direction: column; overflow: hidden; }
 .studio-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .studio-head > .ic { color: var(--accent); }
 .studio-head h2 { margin: 0; font-size: 16px; white-space: nowrap; }
@@ -376,26 +390,156 @@ body.chat-on .workspace { grid-template-columns: 340px minmax(0, 1fr) 310px; }
 .split-busy .bar { width: 100%; }
 
 /* ---------- الشاشات الصغيرة ---------- */
-@media (max-width: 1120px) {
+/* الواجهة تبقى بارتفاع الشاشة في كل المقاسات: المعاينة والخط الزمني ظاهران معاً دائماً.
+   كلما ضاق العرض اختُصر الشريط العلوي درجة (تُخفى التسميات وتبقى الأيقونات)، ثم على الهاتف
+   تنزل أزرار الإضافة إلى صف ثانٍ وتصير الخصائص درجاً سفلياً والمساعد والأدوات بملء الشاشة. */
+
+/* اللمس: أهداف أكبر، وما كان يظهر بمرور المؤشر يظهر دائماً */
+@media (pointer: coarse) {
+  .btn.small { height: 34px; }
+  .btn.small.icon { width: 34px; }
+  .chip { padding: 7px 13px; }
+  .tabs .chip { padding: 8px 4px; }
+  .link-btn { padding: 10px 0 4px; }
+  input[type="range"] { min-height: 28px; }
+  input[type="checkbox"] { width: 20px; height: 20px; }
+  .item .h { width: 14px; }
+  .split-list li { padding-block: 9px; }
+}
+@media (hover: none) { .strip-x { opacity: 1; } }
+
+@media (max-width: 1380px) {
   .ratio > span { display: none; }
   .ratio select { max-width: 170px; }
+}
+@media (max-width: 1320px) {
+  .brand { margin-inline-end: 0; }
+  .brand span { display: none; }
+  .ratio select { max-width: 130px; }
+}
+@media (max-width: 1210px) {
+  #btnProject, #btnTools, #btnChat { width: 36px; padding: 0; }
+  #btnProject span, #btnTools span, #btnChat span { display: none; }
+}
+@media (max-width: 1120px) {
+  :root { --side-w: 290px; --chat-w: 340px; }
   /* المساعد يطفو فوق مساحة العمل بدل أن يضيّقها */
-  body.chat-on .workspace { grid-template-columns: minmax(0, 1fr) 310px; }
+  body.chat-on .workspace { grid-template-columns: minmax(0, 1fr) var(--side-w); }
   .workspace { position: relative; }
-  .chat { position: absolute; inset-block: 0; inset-inline-start: 0; width: min(340px, 100%); z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+  .chat { position: absolute; inset-block: 0; inset-inline-start: 0; width: min(var(--chat-w), 100%); z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+}
+@media (max-width: 1040px) {
+  .add-group .btn { width: 36px; padding: 0; }
+  .add-group .btn span { display: none; }
 }
 @media (max-width: 860px) {
-  body { display: block; height: auto; overflow: auto; }
-  .workspace, body.chat-on .workspace { grid-template-columns: minmax(0, 1fr); }
-  .stage { height: 52vh; min-height: 300px; }
-  #btnChat span, #btnTools span, #imgOpen span, #imgMerge span, #audOpen span, #splitOpen span { display: none; }
+  :root { --side-w: 264px; }
+  .topbar { padding: 8px 10px; gap: 6px; }
+  #btnExport { width: 36px; padding: 0; }
+  #btnExport span, #imgOpen span, #imgMerge span, #audOpen span, #splitOpen span { display: none; }
+  .ratio select { max-width: 120px; }
+  .tl-toolbar .hint { display: none; }
   .aud-grid { grid-template-columns: minmax(0, 1fr); }
   .studio-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 46%; }
-  .studio-panel { max-height: none; }
-  .props { border-inline-start: 0; border-top: 1px solid var(--line); max-height: 300px; }
-  .tl-toolbar .hint { display: none; }
-  .brand span, .ratio > span { display: none; }
-  .topbar { padding: 8px 10px; gap: 6px; }
-  .btn { padding: 0 10px; }
+  .studio-panel { max-height: none; border-inline-start: 0; border-top: 1px solid var(--line); }
+}
+
+/* ---------- الهاتف ---------- */
+@media (max-width: 640px) {
+  :root { --label-w: 58px; --tl-h: clamp(190px, 34dvh, 262px); }
+
+  /* الشريط العلوي: صف للمشروع والأدوات والتصدير، وتحته صف للإضافة والتراجع */
+  .topbar { position: relative; padding: 6px 10px; gap: 5px; }
+  .add-group { order: 10; flex: 1 1 calc(100% - 90px); min-width: 0; gap: 5px; }
+  .add-group .btn { flex: 1 1 0; width: auto; min-width: 0; height: 44px; flex-direction: column; gap: 0; padding: 0 2px; font-size: 11px; }
+  .add-group .btn span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
+  .hist { order: 11; gap: 5px; align-self: center; }
+  .busy { order: 12; flex-basis: 100%; text-align: center; }
+  .ratio select { max-width: 86px; padding-inline: 6px; text-overflow: ellipsis; }
+  /* القوائم بعرض الشاشة تحت الصف الأول، لا بعرض زرّها */
+  .menu-wrap { position: static; }
+  .menu { top: 46px; inset-inline: 8px; min-width: 0; }
+
+  /* مساحة العمل: المعاينة وحدها، والخصائص تطلع من الأسفل عند الطلب */
+  .workspace, body.chat-on .workspace { grid-template-columns: minmax(0, 1fr); }
+  .canvas-wrap { margin: 8px 8px 2px; }
+  .transport { padding: 4px 10px 6px; }
+  .empty-card { padding: 16px 14px; border-radius: 14px; }
+  .empty-card .ic.big { width: 34px; height: 34px; }
+  .empty-card h1 { margin: 4px 0 2px; font-size: 18px; }
+  .empty-card p { margin-bottom: 12px; font-size: 13px; }
+  .empty-card small { margin-top: 10px; }
+
+  .side {
+    position: fixed; inset-inline: 0; bottom: 0; z-index: 30; height: var(--sheet-h); overflow: hidden;
+    background: var(--panel); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+    box-shadow: 0 -14px 40px rgba(0,0,0,.55);
+    transform: translateY(105%); visibility: hidden; transition: transform .22s ease, visibility 0s .22s;
+  }
+  body.props-open .side { transform: none; visibility: visible; transition: transform .22s ease; }
+  .side-head { display: flex; align-items: center; gap: 8px; padding-block: 7px; padding-inline: 14px 10px; border-bottom: 1px solid var(--line); }
+  .side-head > .ic { color: var(--accent); }
+  .side > .props { border-inline-start: 0; padding-bottom: 24px; overscroll-behavior: contain; }
+  /* الدرج يغطي الخط الزمني وجزءاً من المعاينة: نرفع المعاينة فوقه لتبقى ظاهرة كاملة أثناء التعديل */
+  body.props-open .stage { padding-bottom: max(0px, calc(var(--sheet-h) - var(--tl-h))); }
+  .sheet-only { display: inline-flex; }
+  #btnProps.on { border-color: var(--accent); color: #ffb3c1; }
+
+  /* المساعد يملأ الشاشة */
+  .chat { position: fixed; inset: 0; width: 100%; z-index: 40; border: 0; box-shadow: none; }
+
+  /* الخط الزمني */
+  .tl-toolbar { padding: 6px 8px; gap: 5px; }
+  #btnSplit, #btnDup, #btnDel { width: 34px; padding: 0; }
+  #btnSplit span, #btnDup span, #btnDel span, .zoom > span { display: none; }
+  .zoom { flex: 0 1 96px; min-width: 56px; }
+  .zoom input { width: 100%; }
+  .tl-label { font-size: 11px; }
+
+  /* النوافذ: الأدوات بملء الشاشة */
+  .modal { padding: 10px; }
+  #imgModal, #audModal, #splitModal { padding: 0; }
+  .dialog { padding: 16px; }
+  .dialog.studio, .dialog.aud { width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; }
+  .dialog-actions { flex-wrap: wrap; }
+  .studio-head { padding: 8px 10px; gap: 6px; }
+  .studio-head > .ic, .studio-name { display: none; }
+  .studio-head h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+  .aud-body { padding: 12px 12px 14px; }
+  .aud-body .split-actions { bottom: -14px; margin: 14px -12px -14px; padding: 10px 12px; }
+  .split-stage { height: clamp(160px, 32dvh, 320px); }
+}
+@media (max-width: 350px) {
+  .brand { display: none; }
+  /* العرض بحسب طول التسمية كي لا تُقص «صور وفيديو» */
+  .add-group .btn { flex: 1 1 auto; font-size: 10px; }
+}
+
+/* ---------- الشاشات القصيرة (هاتف بالعرض، نافذة منخفضة) ---------- */
+@media (min-width: 641px) and (max-height: 700px) {
+  .canvas-wrap { margin: 10px 12px 4px; }
+  .transport { padding: 4px 14px 8px; }
+}
+/* نافذة منخفضة: يتنازل الخط الزمني للمعاينة (تُمرَّر مساراته عمودياً) */
+@media (min-width: 641px) and (max-height: 640px) {
+  :root { --tl-h: clamp(170px, 38vh, 262px); }
+}
+@media (max-height: 560px) {
+  :root { --sheet-h: 84dvh; }
+  .topbar { padding-block: 5px; }
+  /* أزرار التشغيل تنتقل بجانب المعاينة لتأخذ المعاينة الارتفاع كله */
+  .stage { flex-direction: row; }
+  .canvas-wrap { margin: 6px; }
+  .transport { flex-direction: column; gap: 5px; padding: 6px; padding-inline-start: 0; }
+  .time { width: 58px; min-width: 0; font-size: 11px; line-height: 1.3; white-space: normal; }
+  .tl-toolbar { padding-block: 4px; }
+}
+@media (max-width: 640px) and (max-height: 560px) {
+  :root { --tl-h: clamp(130px, 40dvh, 190px); }
+  .add-group { order: 0; flex: none; }
+  .add-group .btn { flex: none; width: 36px; height: 36px; }
+  .add-group .btn span { display: none; }
+  .hist { order: 0; }
+  body.props-open .stage { padding-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

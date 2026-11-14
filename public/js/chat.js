@@ -392,6 +392,7 @@ Project model
   let pref = null;
   try { pref = localStorage.getItem('montaji.chat'); } catch (e) { /* وضع خاص */ }
   loadConfig().then(c => { if (c) bridge(); });
-  if (pref === '1' || (pref === null && window.innerWidth >= 1180)) setOpen(true);
+  // على الهاتف يملأ المساعد الشاشة، فلا يُفتح تلقائياً فوق المحرر
+  if (window.innerWidth > 640 && (pref === '1' || (pref === null && window.innerWidth >= 1180))) setOpen(true);
   window.montajiChat = { send, get messages() { return msgs; } };
 })();
