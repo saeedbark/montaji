@@ -206,6 +206,7 @@ montaji/
 │  └─ media/               فيديو الشرح
 ├─ test/                   اختبارات (node --test)
 ├─ docs/ARCHITECTURE.md    شرح البنية وتدفق البيانات
+├─ docs/ROADMAP.md         خطة الميزات القادمة
 └─ .github/                قوالب البلاغات وطلبات الدمج و CI
 ```
 
@@ -217,6 +218,7 @@ montaji/
 
 - وجدت خللاً أو عندك اقتراح؟ [افتح بلاغاً](https://github.com/saeedbark/montaji/issues/new/choose).
 - تريد المشاركة بالكود؟ اقرأ [دليل المساهمة](CONTRIBUTING.md)، وابدأ بالبلاغات الموسومة [`good first issue`](https://github.com/saeedbark/montaji/labels/good%20first%20issue).
+- تبحث عن عمل أكبر؟ [خطة العمل القادمة](docs/ROADMAP.md) تشرح الميزات المخطط لها بالتفصيل: الترجمة التلقائية، المسارات المتعددة، والإطارات المفتاحية.
 - ثغرة أمنية؟ لا تفتح بلاغاً علنياً؛ اتبع [سياسة الأمان](SECURITY.md).
 
 ```bash

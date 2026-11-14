@@ -100,7 +100,7 @@ test/        Tests (node --test)
 docs/        Architecture notes
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Arabic) for the data flow.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Arabic) for the data flow, and [docs/ROADMAP.md](docs/ROADMAP.md) (Arabic) for the planned features: automatic captions, overlay tracks and keyframes.
 
 ## Contributing
 
