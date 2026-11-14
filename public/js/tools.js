@@ -239,6 +239,7 @@ const MONTAJI_TOOLS = (() => {
         start: num('Second in the SOURCE video where splitting starts. Default: the clip trim start.'),
         end: num('Second in the SOURCE video where splitting ends. Default: the clip trim end.'),
         keep_audio: bool('Keep the sound in the parts. Default true.'),
+        exact_cuts: bool('Re-encode so every cut lands exactly on the requested time instead of on a keyframe. Slower and recompresses the video. Default false.'),
       }, ['id']),
     },
     {

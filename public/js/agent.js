@@ -513,7 +513,7 @@ const Agent = (() => {
       if (c.type !== 'video') fail('split_video_file only works on video clips.');
       const given = ['every', 'parts', 'times'].filter(k => has(a[k]));
       if (given.length !== 1) fail('Give exactly one of every, parts or times.');
-      const o = { start: has(a.start) ? num(a.start, 'start') : c.in, end: has(a.end) ? num(a.end, 'end') : c.out, audio: !has(a.keep_audio) || bool(a.keep_audio) };
+      const o = { start: has(a.start) ? num(a.start, 'start') : c.in, end: has(a.end) ? num(a.end, 'end') : c.out, audio: !has(a.keep_audio) || bool(a.keep_audio), exact: bool(a.exact_cuts) };
       if (o.end - o.start < VideoTools.MIN_PART) fail('end must be after start.');
       if (has(a.every)) Object.assign(o, { mode: 'every', every: num(a.every, 'every') });
       else if (has(a.parts)) Object.assign(o, { mode: 'count', count: clamp(Math.round(num(a.parts, 'parts')), 2, 100) });

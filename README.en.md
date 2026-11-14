@@ -12,7 +12,7 @@ A simple, Arabic-first video editor that runs in your browser, on your own machi
 - MP4 export up to 4K (WebCodecs, rendered locally)
 - **Image studio**: crop, rotate, filters, color-based background removal, and PNG / JPEG / WebP conversion for one image or a whole batch (downloaded as a ZIP), and merging several images into one (side by side, stacked, or a grid)
 - **Video to audio**: pull the music or speech out of any video, trim it, then download it as M4A (AAC) or WAV or drop it on the music track; a clip's sound can be detached in sync with one click
-- **Split video**: cut a video into separate MP4 files every N seconds (e.g. 30 s parts for WhatsApp or Instagram stories), into N equal parts, or at chosen times. MP4/MOV files are copied without re-encoding, so it is fast and lossless; each cut moves back to the nearest keyframe
+- **Split video**: cut a video into separate MP4 files every N seconds (e.g. 30 s parts for WhatsApp or Instagram stories), into N equal parts, or at chosen times. MP4/MOV files are copied without re-encoding, so it is fast and lossless; each cut moves back to the nearest keyframe (or turn on exact cuts to re-encode). The parts can also go straight onto the timeline as clips
 - **AI assistant** using your own API key (Gemini, OpenAI, Claude, OpenRouter, any OpenAI-compatible service, or local models through Ollama)
 - **MCP server** so external clients (Claude Code, Cursor, ...) can drive the editor
 
