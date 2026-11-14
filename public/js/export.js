@@ -217,5 +217,5 @@ const Exporter = (() => {
     }
   }
 
-  return { run, supported, bitrateFor };
+  return { run, supported, bitrateFor, pickVideoConfig, pickAudioConfig };
 })();

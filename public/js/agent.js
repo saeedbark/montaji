@@ -508,6 +508,24 @@ const Agent = (() => {
       return { ...out, ...brief() };
     },
 
+    async split_video_file(a) {
+      const c = pick('clip', [a.id])[0];
+      if (c.type !== 'video') fail('split_video_file only works on video clips.');
+      const given = ['every', 'parts', 'times'].filter(k => has(a[k]));
+      if (given.length !== 1) fail('Give exactly one of every, parts or times.');
+      const o = { start: has(a.start) ? num(a.start, 'start') : c.in, end: has(a.end) ? num(a.end, 'end') : c.out, audio: !has(a.keep_audio) || bool(a.keep_audio) };
+      if (o.end - o.start < VideoTools.MIN_PART) fail('end must be after start.');
+      if (has(a.every)) Object.assign(o, { mode: 'every', every: num(a.every, 'every') });
+      else if (has(a.parts)) Object.assign(o, { mode: 'count', count: clamp(Math.round(num(a.parts, 'parts')), 2, 100) });
+      else {
+        if (!Array.isArray(a.times) || !a.times.length) fail('times must be a non-empty array of seconds.');
+        Object.assign(o, { mode: 'times', times: a.times.map(t => num(t, 'times')) });
+      }
+      const r = await VideoSplit.splitToFiles(c.file, o);
+      if (r.method === 'copy') r.note = 'Copied without re-encoding: each part starts on the keyframe at or before the requested cut, so part lengths can differ slightly from what was asked.';
+      return r;
+    },
+
     async save_image(a) {
       layout();
       if (view.total <= 0) fail('The project is empty.');
