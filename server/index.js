@@ -7,7 +7,7 @@
    bridge.js   /api/bridge  قناة بين الخادم وتبويب المحرر
    mcp.js      /mcp  خادم MCP: أي عميل خارجي يتحكم بالمحرر المفتوح في المتصفح */
 
-const http = require('http'), fs = require('fs');
+const http = require('http'), fs = require('fs'), { spawn } = require('child_process');
 const { PORT, ENV_FILE, ENV_TEMPLATE, provider, publicConfig } = require('./config');
 const { json, readBody, trusted, serveStatic } = require('./http');
 const { chat } = require('./chat');
@@ -15,6 +15,22 @@ const { openBridge, resolveResult, serveMedia } = require('./bridge');
 const { mcp } = require('./mcp');
 const { saveExport, saveProject, saveCaptions } = require('./exports');
 const { transcribe } = require('./stt');
+const { saveKey } = require('./settings');
+
+// --open: يفتح المحرر في المتصفح بعد أن يصبح الخادم جاهزاً (start.bat و start.command يمرّرانه)
+const OPEN = process.argv.includes('--open');
+const URL_ = `http://localhost:${PORT}`;
+
+/** يفتح الرابط في المتصفح الافتراضي. الفشل لا يوقف الخادم: الرابط مطبوع في النافذة */
+function openBrowser(url) {
+  const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
+    : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
+  try {
+    const c = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true });
+    c.on('error', () => {});
+    c.unref();
+  } catch (e) { /* لا متصفح */ }
+}
 
 /* ================= التوجيه ================= */
 const server = http.createServer(async (req, res) => {
@@ -34,6 +50,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/project/save' && req.method === 'POST') return await saveProject(req, res, new URL(req.url, 'http://x').searchParams);
     if (req.method === 'POST' && /json/.test(req.headers['content-type'] || '')) {
       if (p === '/api/chat') return await chat(req, res);
+      if (p === '/api/settings/key') return await saveKey(req, res);
       if (p === '/api/bridge/result') {
         const b = JSON.parse(await readBody(req, 48e6));
         resolveResult(b.id, b.result);
@@ -47,8 +64,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.on('error', e => {
-  if (e.code === 'EADDRINUSE') console.error(`المنفذ ${PORT} مستخدم — ربما المحرر يعمل مسبقاً. افتح http://localhost:${PORT}`);
-  else console.error(e);
+  if (e.code === 'EADDRINUSE') {
+    // غالباً المحرر يعمل في نافذة أخرى: مع --open نفتحه وننهي هذه النسخة بهدوء
+    console.error(`\n  Port ${PORT} is already in use - Montaji is probably already running.\n  Open ${URL_}\n`);
+    if (OPEN) { openBrowser(URL_); return setTimeout(() => process.exit(0), 500); }
+  } else console.error(e);
   process.exit(1);
 });
 
@@ -59,9 +79,12 @@ server.listen(PORT, '127.0.0.1', () => {
     try { fs.copyFileSync(ENV_TEMPLATE, ENV_FILE); } catch (e) { /* القالب مفقود */ }
   }
   const p = provider();
-  console.log(`\n  Montaji        http://localhost:${PORT}`);
-  console.log(`  MCP server     http://localhost:${PORT}/mcp`);
+  console.log(`\n  Montaji        ${URL_}`);
+  console.log(`  MCP server     ${URL_}/mcp`);
   console.log(p.error
-    ? `  AI chat        off - put your API key in ${ENV_FILE}\n`
-    : `  AI chat        ${p.id} / ${p.model}\n`);
+    ? '  AI chat        off - open the assistant in the editor and paste your API key'
+    : `  AI chat        ${p.id} / ${p.model}`);
+  console.log('\n  Keep this window open while you use Montaji.');
+  console.log('  Close it (or press Ctrl+C) to stop the editor.\n');
+  if (OPEN) openBrowser(URL_);
 });

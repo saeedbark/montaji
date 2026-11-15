@@ -24,20 +24,23 @@ The interface is in Arabic (RTL). Code comments are in Arabic; tool descriptions
 
 ## Run it
 
-1. Install [Node.js](https://nodejs.org) 18 or newer.
-2. Get the code:
+### First time, no programming needed
 
-   ```bash
-   git clone https://github.com/saeedbark/montaji.git
-   ```
+1. Install [Node.js](https://nodejs.org) once: download the **LTS** version and click through the installer.
+2. On the GitHub page click **Code → Download ZIP** and extract it.
+3. Double-click **`start.bat`** (Windows), **`start.command`** (macOS) or run `./start.sh` (Linux). The editor opens in your browser.
+4. **Keep the black window open** while you use the editor; closing it stops Montaji.
+5. To turn on the AI assistant, open **Assistant** in the editor and paste your API key there. No file editing needed.
 
-3. Start it. There is nothing to `npm install`.
+The first launch may show a warning because the scripts are not signed: on Windows choose **More info → Run anyway**; on macOS open **System Settings → Privacy & Security** and click **Open Anyway** next to `start.command`.
 
-   ```bash
-   npm start
-   ```
+### For developers
 
-   On Windows you can double-click `start.bat`; on macOS and Linux run `./start.sh`.
+```bash
+git clone https://github.com/saeedbark/montaji.git
+cd montaji
+npm start            # nothing to npm install; add -- --open to open the browser
+```
 
 The editor opens at `http://localhost:4747`. Export needs a recent Chrome or Edge. Set `PORT` to use another port.
 
@@ -47,7 +50,9 @@ The editor opens at `http://localhost:4747`. Export needs a recent Chrome or Edg
 
 ## AI assistant
 
-On first run the server creates `.env` from `.env.example`. Put one API key in it and save; no restart is needed.
+Open **Assistant** in the editor, pick a provider, paste your key and click save; the settings button in the assistant header changes it later or adds a Groq key for captions. The key is written to `.env` on your machine and never sent back to the browser.
+
+You can also edit `.env` yourself (created from `.env.example` on first run; on macOS press `Cmd+Shift+.` in Finder to see it). No restart is needed. Advanced options (model, Ollama, custom providers, `AI_VISION`) live only in that file.
 
 | Provider | Variable |
 | --- | --- |
@@ -84,6 +89,7 @@ server/      Local Node.js server, no dependencies
   config.js    .env parsing and AI providers
   http.js      HTTP helpers and static files
   chat.js      /api/chat proxy to the AI provider (the key stays here)
+  settings.js  /api/settings/key: saves the key from the editor into .env
   stt.js       /api/transcribe proxy to the speech-to-text provider (automatic captions)
   bridge.js    /api/bridge channel between the server and the editor tab
   mcp.js       /mcp MCP server
