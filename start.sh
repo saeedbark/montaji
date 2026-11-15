@@ -1,18 +1,18 @@
 #!/bin/sh
-# Starts the local server and opens the editor in your default browser (macOS / Linux).
+# Starts Montaji and opens the editor in your default browser (macOS / Linux).
+# Keep this window open while you use the editor; close it to stop.
 cd "$(dirname "$0")" || exit 1
 
+# Node's macOS installer and Homebrew put node here; a double-clicked script may not have them on PATH
+PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
+
 if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js is not installed. Download it from https://nodejs.org then run this file again."
+  echo
+  echo "  Node.js is not installed."
+  echo "  1. Download the LTS version from https://nodejs.org and install it."
+  echo "  2. Then run this file again."
+  echo
   exit 1
 fi
 
-URL="http://localhost:${PORT:-4747}"
-(
-  sleep 1
-  if command -v open >/dev/null 2>&1; then open "$URL"
-  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$URL"
-  fi
-) >/dev/null 2>&1 &
-
-exec node server/index.js
+exec node server/index.js --open

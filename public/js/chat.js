@@ -150,29 +150,79 @@ Project model
     'أضف عنواناً في البداية وكلمة ختامية في النهاية',
   ];
 
+  // مزوّدو المفاتيح في نموذج الإعداد. groq للترجمة التلقائية فقط، فلا يغيّر مزوّد المحادثة
+  const KEY_PROVIDERS = [
+    { id: 'gemini', label: 'Google Gemini (مفتاح مجاني)', site: 'Google AI Studio', url: 'https://aistudio.google.com/apikey' },
+    { id: 'openai', label: 'OpenAI', site: 'OpenAI', url: 'https://platform.openai.com/api-keys' },
+    { id: 'anthropic', label: 'Anthropic Claude', site: 'Anthropic', url: 'https://console.anthropic.com/settings/keys' },
+    { id: 'openrouter', label: 'OpenRouter', site: 'OpenRouter', url: 'https://openrouter.ai/keys' },
+    { id: 'groq', label: 'Groq (للترجمة التلقائية فقط، مجاني)', site: 'Groq', url: 'https://console.groq.com/keys' },
+  ];
+  let keyOpen = false; // نموذج المفتاح مفتوح بطلب المستخدم (زر الإعدادات) والمساعد جاهز
+  let keyError = '';
+
+  const keyLink = id => {
+    const k = KEY_PROVIDERS.find(x => x.id === id) || KEY_PROVIDERS[0];
+    return `<a href="${k.url}" target="_blank" rel="noopener">${esc(k.site)}</a>`;
+  };
+
+  function keyForm() {
+    const cur = cfg && cfg.ready && KEY_PROVIDERS.some(k => k.id === cfg.provider) ? cfg.provider : 'gemini';
+    return `<form class="key-form" data-keyform>
+        <label><span>المزوّد</span><select name="provider">${KEY_PROVIDERS.map(k =>
+          `<option value="${k.id}"${k.id === cur ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}</select></label>
+        <label><span>المفتاح</span><input type="password" name="key" dir="ltr" autocomplete="off" spellcheck="false" placeholder="الصق المفتاح هنا" required></label>
+        <p class="key-get">ليس عندك مفتاح؟ أنشئه من <span data-keylink>${keyLink(cur)}</span> ثم انسخه والصقه هنا.</p>
+        <p class="why" data-keyerr>${esc(keyError)}</p>
+        <div class="key-actions">
+          <button class="btn small primary">حفظ وتفعيل</button>
+          ${keyOpen ? '<button type="button" class="btn small" data-keycancel>إلغاء</button>' : ''}
+        </div>
+        <p class="key-note">يُحفظ المفتاح في ملف <code>.env</code> داخل مجلد البرنامج على جهازك، ولا يُرسل إلا إلى المزوّد الذي اخترته.</p>
+      </form>`;
+  }
+
+  async function submitKey(form) {
+    const btn = form.querySelector('button.primary');
+    const err = form.querySelector('[data-keyerr]');
+    btn.disabled = true;
+    err.textContent = '';
+    try {
+      const r = await fetch('/api/settings/key', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: form.provider.value, key: form.key.value }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'تعذّر حفظ المفتاح');
+      form.key.value = '';
+      keyOpen = false;
+      keyError = '';
+      await loadConfig();
+      S.toast && S.toast(form.provider.value === 'groq' ? 'حُفظ مفتاح الترجمة التلقائية' : 'تم تفعيل المساعد');
+    } catch (e) {
+      keyError = e.message === 'Failed to fetch' ? 'الخادم المحلي لا يعمل — شغّل البرنامج من جديد' : e.message;
+      err.textContent = keyError;
+    } finally { btn.disabled = false; }
+  }
+
   function renderIntro() {
     const old = el.log.querySelector('.chat-intro');
     if (old) old.remove();
-    if (msgs.length) return;
+    if (msgs.length && !keyOpen) return;
     let h;
     if (!cfg) {
       h = `<h3>المساعد يحتاج الخادم المحلي</h3>
-        <p>شغّل البرنامج بالنقر المزدوج على <code>start.bat</code> (أو <code>node server.js</code>) ثم افتح <code>http://localhost:4747</code>.</p>
+        <p>شغّل البرنامج بالنقر المزدوج على <code>start.bat</code> (ويندوز) أو <code>start.command</code> (ماك)، وأبقِ نافذته السوداء مفتوحة، ثم افتح <code>http://localhost:4747</code>.</p>
         <button class="btn small" data-retry>إعادة المحاولة</button>`;
+    } else if (keyOpen) {
+      h = `<h3>مفتاح الذكاء الاصطناعي</h3>
+        <p>${cfg.ready ? `المساعد يعمل الآن بـ <b>${esc(cfg.label)}</b>. ` : ''}الصق مفتاحاً جديداً لتغييره، أو أضف مفتاح Groq للترجمة التلقائية.</p>
+        ${keyForm()}`;
     } else if (!cfg.ready) {
       h = `<h3>فعّل المساعد بمفتاحك</h3>
-        <p>المساعد ينفّذ المونتاج بدلاً منك حين تكتب له ما تريد. يلزمه مفتاح من أحد مزوّدي الذكاء الاصطناعي:</p>
-        <ol>
-          <li>افتح الملف <code>${esc(cfg.envFile)}</code> في مجلد البرنامج بأي محرر نصوص.</li>
-          <li>ضع مفتاحك بعد علامة <code>=</code>، مثلاً <code>GEMINI_API_KEY=…</code><br>
-            مفتاح مجاني من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>، أو من
-            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> أو
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic</a> أو
-            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter</a>.</li>
-          <li>احفظ الملف واضغط الزر أدناه.</li>
-        </ol>
-        <p class="why">${esc(cfg.error || '')}</p>
-        <button class="btn small primary" data-retry>تحقّق من المفتاح</button>`;
+        <p>المساعد ينفّذ المونتاج بدلاً منك حين تكتب له ما تريد. يلزمه مفتاح من أحد مزوّدي الذكاء الاصطناعي، وGoogle Gemini يعطيه مجاناً.</p>
+        ${keyForm()}
+        <p class="key-note">${cfg.error && !/لم يُضبط/.test(cfg.error) ? `<span class="why">${esc(cfg.error)}</span><br>` : ''}أو عدّل ملف <code>${esc(cfg.envFile)}</code> بنفسك ثم <button type="button" class="linkish" data-retry>تحقّق من جديد</button>.</p>`;
     } else {
       h = `<h3>أهلاً، أنا مساعد المونتاج</h3>
         <p>ارفع صورك ومقاطعك (بزر المشبك أو بالسحب والإفلات) واكتب ما تريد، وأنا أنفّذه على الخط الزمني مباشرة.</p>
@@ -393,7 +443,24 @@ Project model
     const files = e.clipboardData && e.clipboardData.files;
     if (files && files.length) { e.preventDefault(); S.addFiles(files); }
   });
+  $('#chatKey').onclick = () => {
+    if (busy) return;
+    keyOpen = !keyOpen;
+    keyError = '';
+    renderIntro();
+    if (keyOpen) { el.log.scrollTop = 0; const k = el.log.querySelector('.key-form [name=key]'); if (k) k.focus(); }
+  };
+  el.log.addEventListener('submit', e => {
+    const form = e.target.closest('[data-keyform]');
+    if (form) { e.preventDefault(); submitKey(form); }
+  });
+  el.log.addEventListener('change', e => {
+    if (e.target.name !== 'provider') return;
+    const link = e.target.form.querySelector('[data-keylink]');
+    if (link) link.innerHTML = keyLink(e.target.value);
+  });
   el.log.addEventListener('click', e => {
+    if (e.target.closest('[data-keycancel]')) { keyOpen = false; keyError = ''; return void renderIntro(); }
     if (e.target.closest('[data-retry]')) return void loadConfig();
     const sug = e.target.closest('[data-sug]');
     if (sug) send(sug.dataset.sug);

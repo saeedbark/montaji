@@ -65,7 +65,7 @@ body {
 .btn.small.icon { width: 30px; padding: 0; }
 .btn.danger:hover { border-color: #e5484d; color: #ff8a8e; }
 
-select, input[type="number"], textarea {
+select, input[type="number"], input[type="password"], textarea {
   background: var(--panel-2); color: var(--text);
   border: 1px solid var(--line); border-radius: 8px;
   font: inherit; padding: 6px 9px; min-width: 0;
@@ -200,6 +200,15 @@ body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) va
 .chat-intro a { color: var(--accent); }
 .chat-intro code { background: var(--panel-3); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; font-size: 12px; direction: ltr; display: inline-block; user-select: text; }
 .chat-intro .why { color: #ffb3c1; }
+.chat-intro .why:empty { display: none; }
+.key-form { display: flex; flex-direction: column; gap: 9px; margin: 0 0 10px; padding: 11px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); user-select: text; }
+.key-form label { display: flex; flex-direction: column; gap: 4px; }
+.key-form label > span { color: var(--muted); font-size: 12px; }
+.key-form select, .key-form input { width: 100%; }
+.key-form p { margin: 0; }
+.key-actions { display: flex; gap: 6px; }
+.key-note { color: var(--muted); font-size: 12px; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
 .sugs { display: flex; flex-direction: column; gap: 6px; }
 .sug { text-align: start; padding: 8px 11px; border-radius: 10px; cursor: pointer; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 13px; }
 .sug:hover { background: var(--panel-3); border-color: #3a4251; }

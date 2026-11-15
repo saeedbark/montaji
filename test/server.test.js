@@ -262,4 +262,36 @@ describe('الخادم', () => {
       assert.equal(JSON.parse(r.data.result.content[0].text).tab, 'fresh');
     } finally { fresh.destroy(); stale.destroy(); }
   });
+  test('/api/settings/key يحفظ المفتاح في .env ولا يعيده، ويرفض القيم الخطرة والمواقع الأخرى', async () => {
+    const envFile = path.join(tmp, '.env');
+    const before = fs.readFileSync(envFile, 'utf8');
+    const save = (body, headers = {}) => request('/api/settings/key', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body });
+    try {
+      assert.equal((await save({ provider: 'gemini', key: 'abcdefgh123' }, { Origin: 'http://evil.example' })).status, 403);
+      assert.equal((await save({ provider: 'evil', key: 'abcdefgh123' })).status, 400);
+      // سطر جديد في المفتاح كان سيضيف متغيّراً آخر إلى .env
+      assert.equal((await save({ provider: 'gemini', key: 'abcdefgh123\nAI_BASE_URL=http://evil' })).status, 400);
+      assert.equal((await save({ provider: 'gemini', key: 'short' })).status, 400);
+      assert.ok(!fs.readFileSync(envFile, 'utf8').includes('evil'));
+
+      const r = await save({ provider: 'gemini', key: '  test-key-1234567890  ' });
+      assert.equal(r.status, 200);
+      assert.ok(!r.text.includes('test-key-1234567890'));
+      const env = fs.readFileSync(envFile, 'utf8');
+      assert.match(env, /^GEMINI_API_KEY=test-key-1234567890$/m);
+      assert.match(env, /^AI_PROVIDER=gemini$/m);
+      assert.match(env, /^SECRET_MARKER=do-not-leak$/m); // بقية الملف كما هي
+
+      const cfg = await request('/api/config');
+      assert.equal(cfg.data.ready, true);
+      assert.equal(cfg.data.provider, 'gemini');
+      assert.ok(!cfg.text.includes('test-key-1234567890'));
+
+      // مفتاح الترجمة فقط لا يغيّر مزوّد المحادثة
+      assert.equal((await save({ provider: 'groq', key: 'gsk_groq_key_123456' })).status, 200);
+      const env2 = fs.readFileSync(envFile, 'utf8');
+      assert.match(env2, /^GROQ_API_KEY=gsk_groq_key_123456$/m);
+      assert.match(env2, /^AI_PROVIDER=gemini$/m);
+    } finally { fs.writeFileSync(envFile, before); }
+  });
 });
