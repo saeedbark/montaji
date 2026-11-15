@@ -73,11 +73,77 @@ test('الوميض الأبيض على القص يُعلَّم ولا يُحسب
 });
 
 test('وميض إضاءة داخل اللقطة (تعود الصورة بعده كما كانت) مؤثر لا قص', () => {
-  const lit = { seconds: STEP * 2, at: k => frame(i => pixel(1, k)(i).map(c => Math.min(255, c + 90))) };
+  const lit = { seconds: STEP * 2, at: k => frame(i => pixel(1, k)(i).map(c => Math.min(255, c + 120))) };
   const r = detect(video([moving(1, 2), lit, moving(1, 2), lit, moving(1, 1)]));
   assert.equal(r.cuts.length, 0);
   assert.equal(r.flashes.length, 2);
-  near(r.flashes[0], 2, 1e-9);
+  near(r.flashes[0].t, 2, 1e-9);
+  assert.ok(r.flashes[0].width > 0.9 && r.flashes[0].height > 0.9, 'وميض يغطي الإطار كله');
+});
+
+test('وميض على المنتج: بقعة تسطع ثم تعود، يُكشف مع موضعها في الإطار', () => {
+  // مستطيل 8×6 يبدأ عند (14, 15) من إطار 32×32 يضيء لإطار واحد
+  const inBox = i => { const x = i % 32, y = (i / 32) | 0; return x >= 14 && x < 22 && y >= 15 && y < 21; };
+  const lit = { seconds: STEP, at: () => frame(i => (inBox(i) ? pixel(1)(i).map(c => Math.min(255, c + 110)) : pixel(1)(i))) };
+  const r = detect(video([still(1, 2), lit, still(1, 1), lit, still(1, 1)]));
+  assert.equal(r.cuts.length, 0);
+  assert.equal(r.flashes.length, 2);
+  const f = r.flashes[0];
+  near(f.t, 2, 1e-9);
+  near(f.x, 18 / 32, 0.02);
+  near(f.y, 18 / 32, 0.02);
+  near(f.width, 8 / 32, 0.02);
+  near(f.height, 6 / 32, 0.02);
+});
+
+test('حركة الكاميرا وحدها لا تُحسب وميضاً', () => {
+  assert.equal(detect(video([moving(1, 3), moving(2, 3)])).flashes.length, 0);
+});
+
+/** صورة رمادية N×N ناعمة (بقع)، مكبّرة s حول المركز */
+function blobs(N, s = 1) {
+  const out = new Float32Array(N * N), c = (N - 1) / 2;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = c + (x - c) / s, w = c + (y - c) / s;
+      out[y * N + x] = 128 + 60 * Math.sin(u * 0.31) * Math.cos(w * 0.23) + 40 * Math.sin((u + w) * 0.17);
+    }
+  }
+  return out;
+}
+
+test('zoomBetween يقدّر التكبير بين إطارين، و zoomOf يفرّق الاندفاعة المبكرة عن الزوم المستمر', () => {
+  const N = 64, A = blobs(N), M = blobs(N, 1.27), B = blobs(N, 1.3);
+  const full = RefTools.zoomBetween(A, B, N);
+  near(full.scale, 1.3, 0.04);
+  assert.ok(full.cost < full.base * 0.5, 'التطابق مع التكبير أفضل بكثير من دونه');
+  near(RefTools.zoomBetween(B, A, N).scale, 1 / 1.3, 0.04);
+  near(RefTools.zoomBetween(A, A, N).scale, 1, 1e-9);
+
+  // أغلب التكبير في النصف الأول
+  const early = RefTools.zoomOf(full, RefTools.zoomBetween(A, M, N), RefTools.zoomBetween(M, B, N));
+  assert.equal(early.when, 'early');
+  near(early.scale, 1.3, 0.04);
+  // تكبير موزّع على اللقطة
+  const mid = blobs(N, 1.14);
+  assert.equal(RefTools.zoomOf(full, RefTools.zoomBetween(A, mid, N), RefTools.zoomBetween(mid, B, N)).when, 'steady');
+  // بلا زوم: لا شيء
+  const same = RefTools.zoomBetween(A, A, N);
+  assert.equal(RefTools.zoomOf(same, same, same), null);
+});
+
+test('mergeLayout يختار الترتيب الأقرب لشكل الإطار، و groups تقسّم الوسائط على اللقطات', () => {
+  // ملصقات 4:5 في إطار عمودي 9:16
+  assert.deepEqual(RefTools.mergeLayout(2, 0.8, 9 / 16), { layout: 'column', columns: 1 });
+  assert.deepEqual(RefTools.mergeLayout(4, 0.8, 9 / 16), { layout: 'grid', columns: 2 });
+  // والإطار الأفقي يأخذها صفاً
+  assert.deepEqual(RefTools.mergeLayout(2, 0.8, 16 / 9), { layout: 'row', columns: 2 });
+  assert.deepEqual(RefTools.mergeLayout(3, 1, 16 / 9), { layout: 'row', columns: 3 });
+
+  assert.deepEqual(RefTools.groups(6, [1, 3]), [[0], [1, 2, 3], [4], [5]]);
+  assert.deepEqual(RefTools.groups(4, [3, 3]), [[0, 1, 2], [3]]);
+  assert.deepEqual(RefTools.groups(3), [[0], [1], [2]]);
+  assert.deepEqual(RefTools.groups(0, [2]), []);
 });
 
 test('إطار دخيل واحد (خلل أو لمعة) لا يُحسب قصاً', () => {

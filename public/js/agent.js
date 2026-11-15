@@ -256,6 +256,9 @@ const Agent = (() => {
     return out;
   }
 
+  /** وصف زوم لقطة للنموذج، مثل "zoom in 36%, early" */
+  const zoomText = z => `zoom ${z.scale > 1 ? 'in' : 'out'} ${Math.round(Math.abs(z.scale > 1 ? z.scale - 1 : 1 / z.scale - 1) * 100)}%, ${z.when === 'early' ? 'early (punches in the first half, then holds)' : 'steady through the shot'}`;
+
   /**
    * ورقة وسائط الريمكس: صورة واحدة فيها كل وسيط برقم اللقطة التي أخذها (وما لم يُستعمل بعلامة ×)،
    * ليرى النموذج صور المستخدم ومقاطعه كلها بنظرة ويحكم أيها يناسب أي لقطة
@@ -627,6 +630,8 @@ const Agent = (() => {
       S.toast('جارٍ تحليل المقطع المرجعي…');
       const r = await Reference.analyze(file, { sensitivity, clipId });
       const P = r.beats && r.beats.period, avg = r.duration / r.shots.length;
+      const shotOf = t => r.shots.findIndex(s => t >= s.start && t < s.end);
+      const flashes = r.flashes.map(f => ({ t: r2(f.t), shot: shotOf(f.t) + 1, x: r2(f.x), y: r2(f.y), width: Math.round(f.width * 100), height: Math.round(f.height * 100) }));
       return {
         reference: r.name, width: r.width, height: r.height, ratio: r.ratio, duration: r2(r.duration),
         shot_count: r.shots.length, average_shot: r2(avg), pace: avg < 1 ? 'very fast' : avg < 2 ? 'fast' : avg < 4 ? 'medium' : 'slow',
@@ -635,11 +640,12 @@ const Agent = (() => {
           : { bpm: r.beats.bpm, beat_interval: r2(P), ...(r.rhythm ? { cuts_on_beat_percent: Math.round(r.rhythm.on_beat * 100) } : {}) },
         shots: r.shots.map((s, i) => ({
           n: i + 1, start: r2(s.start), duration: r2(s.duration), enters: s.transition, ...(s.flash ? { flash: true } : {}),
-          picture: s.motion, ...(r.rhythm ? { beats: r.rhythm.pattern[i] } : {}),
+          picture: s.motion, ...(s.zoom ? { camera: zoomText(s.zoom) } : {}), ...(r.rhythm ? { beats: r.rhythm.pattern[i] } : {}),
+          ...(flashes.some(f => f.shot === i + 1) ? { flashes: flashes.filter(f => f.shot === i + 1).length } : {}),
         })),
-        ...(r.flashes.length ? { flashes_inside_shots: r.flashes.map(r2) } : {}),
+        ...(flashes.length ? { flashes, flashes_note: 'Light flashes inside shots: x and y are the center in the frame (0 to 1), width and height percent of the frame. A small one is a product or a sign lighting up for an instant; several in one shot at different places usually mean several products lit one after another.' } : {}),
         ...(r.shots.length === 1 ? { note: 'No cut was found: the video looks like one continuous shot. Try sensitivity high.' } : {}),
-        next: 'The contact sheets show one numbered frame per shot. Call apply_reference to rebuild this edit with the user\'s media.',
+        next: 'The contact sheets show one numbered frame per shot. Call apply_reference to rebuild this edit with the user\'s media. If shots of the reference show several products side by side, per_shot puts several of the user\'s images in one shot.',
         images: r.sheets,
       };
     },
@@ -676,6 +682,21 @@ const Agent = (() => {
       } else material = (has(a.clip_ids) ? pick('clip', a.clip_ids) : state.clips).filter(c => c !== refClip);
       if (!material.length) fail('There is no media to put in the shots. An MCP client passes paths or a folder (default: the "خام" / "raw" folder of the Montaji app); in the editor the user adds photos or clips to the project first.');
 
+      /* عدة وسائط في لقطة واحدة: صور المجموعة تُدمج في صورة واحدة مرتبة لتملأ الإطار */
+      let mergedShots = 0;
+      if (Array.isArray(a.per_shot) && a.per_shot.some(v => +v > 1)) {
+        const [fw, fh] = RATIOS[ref.ratio], units = [];
+        for (const g of RefTools.groups(material.length, a.per_shot)) {
+          const items = g.map(k => material[k]);
+          if (items.length < 2 || items.some(c => c.type !== 'image')) { units.push(...items); continue; } // الفيديو لا يُدمج: يأخذ لقطته
+          const aspect = items.reduce((s, c) => s + c.w / c.h, 0) / items.length;
+          const cv = ImageTools.merge(items.map(c => c.el), { ...RefTools.mergeLayout(items.length, aspect, fw / fh), fit: 'cover', gap: 2, padding: 0, radius: 0, background: '#000000', rtl: true });
+          units.push(await S.makeItem(new File([ImageTools.encode(cv, 'jpeg', 0.92).blob], `دمج-${items.length}-صور.jpg`, { type: 'image/jpeg' })));
+          mergedShots++;
+        }
+        material = units;
+      }
+
       /* موسيقى المرجع: تُضاف إن لم يكن للمشروع موسيقى خاصة به (أو طُلبت صراحة) */
       const oldRefMusic = state.audios.filter(o => o.remix);
       const own = state.audios.some(o => !o.remix) || newAudios.length > 0;
@@ -701,7 +722,6 @@ const Agent = (() => {
         } else Object.assign(c, { in: 0, out: sh.duration, speed: 1 });
         c.transition = !i ? 'none' : sh.transition === 'fade' ? 'fade' : sh.transition === 'black' ? 'black' : 'none';
         if (c.transition !== 'none') c.trLen = r2(clamp(sh.fade || 0.4, 0.15, Math.max(0.15, Math.min(1, sh.duration / 2))));
-        if (yes('motion') && c.type === 'image') c.motion = sh.motion === 'still' ? 'none' : i % 2 ? 'zoomOut' : 'zoomIn';
         if (wantRef && c.type === 'video') c.muted = true; // صوت المرجع هو المسموع
         seq.push(c);
       });
@@ -717,7 +737,11 @@ const Agent = (() => {
       S.setRatio(ref.ratio);
       layout();
 
-      const flash = extra => state.effects.push({ id: uid(), type: 'flash', start: 0, dur: Render.EFFECTS.flash.dur, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.5, r: 0.3, w: 0.4, h: 0.2, remix: true, ...extra });
+      const flash = extra => {
+        const e = { id: uid(), type: 'flash', start: 0, dur: Render.EFFECTS.flash.dur, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.5, r: 0.3, w: 0.4, h: 0.2, remix: true, ...extra };
+        state.effects.push(e);
+        return e;
+      };
 
       /* موسيقى غير موسيقى المرجع: يُنقل الإيقاع (عدد الضربات لكل لقطة) إلى ضرباتها */
       let music = { source: 'none' };
@@ -734,24 +758,51 @@ const Agent = (() => {
           } catch (e) { music.note = 'No clear beat was found in this music, so the clips keep the shot lengths of the reference.'; }
         }
       }
-      // الوميض: على القصّات التي ومضت في المرجع (يتبع مقطعه)، وداخل اللقطات في أزمنته إن بقي توقيت المرجع
+      // حركة الكاميرا للصور (بعد ضبط المدد النهائية): زوم اللقطة كما قيس في المرجع بإطارين مفتاحيين،
+      // أو كاميرا محمولة حيث يتحرك المرجع بلا زوم واضح. الزوم محدود بـ30% وينتهي دائماً عند الصورة كاملة:
+      // التقريب يبدأ أصغر ويكبر إليها، والإبعاد يبدأ أقرب وينكشف إليها، فلا يُقصّ نص الملصق وقت قراءته
+      if (yes('motion')) {
+        seq.forEach((c, i) => {
+          if (c.type !== 'image') return;
+          const sh = shots[i], len = clipLen(c);
+          if (c.kf && c.kf.zoom) { const { zoom, ...rest } = c.kf; if (Object.keys(rest).length) c.kf = rest; else delete c.kf; }
+          if (!sh.zoom) { c.motion = sh.motion === 'still' ? 'none' : 'handheld'; return; }
+          const k = clamp(sh.zoom.scale, 1 / 1.3, 1.3), early = sh.zoom.when === 'early';
+          c.motion = 'none';
+          c.kf = { ...c.kf, zoom: [{ t: 0, v: 1 / k, e: early ? 'smooth' : 'linear' }, { t: r2(early ? len / 2 : len), v: 1, e: 'linear' }] };
+        });
+      }
+      // الوميض: على القصّات التي ومضت في المرجع (يتبع مقطعه)، وداخل اللقطات في اللحظة والموضع نفسيهما
+      const placed = [];
       if (yes('effects')) {
         seq.forEach((c, i) => { if (i && shots[i].flash) flash({ at: c.id }); });
         layout();
-        if (!music.retimed && shots === ref.shots) for (const t of ref.flashes) if (t < view.main) flash({ start: Math.max(0, t - Render.EFFECTS.flash.dur / 2) });
+        for (const f of ref.flashes) {
+          const i = ref.shots.findIndex(s => f.t >= s.start && f.t < s.end), c = seq[i];
+          if (!c) continue;
+          const whole = f.width * f.height >= 0.45, type = whole ? 'flash' : 'areaFlash', def = Render.EFFECTS[type];
+          const t = c._start + (f.t - ref.shots[i].start) / ref.shots[i].duration * clipLen(c);
+          const e = flash({
+            type, dur: def.dur, start: r2(Math.max(0, def.shape === 'burst' ? t - def.dur / 2 : t)),
+            ...(whole ? {} : { x: f.x, y: f.y, w: clamp(f.width * 1.15, 0.05, 1), h: clamp(f.height * 1.15, 0.05, 1) }),
+          });
+          placed.push({ id: e.id, type, shot: i + 1, start: e.start, ...(whole ? {} : { x: r2(e.x), y: r2(e.y), width: Math.round(e.w * 100), height: Math.round(e.h * 100) }) });
+        }
       }
       layout();
       const unused = material.filter(c => !used.has(c));
       return {
         images: [await mediaSheet(seq, unused)],
         ratio: state.ratio, shots_filled: seq.length, reference_shots: ref.shots.length,
-        clips: seq.map((c, i) => ({ id: c.id, name: c.name, type: c.type, shot: i + 1, start: r2(c._start), duration: r2(clipLen(c)) })),
+        clips: seq.map((c, i) => ({ id: c.id, name: c.name, type: c.type, shot: i + 1, start: r2(c._start), duration: r2(clipLen(c)), ...(c.type === 'image' && shots[i].zoom && yes('motion') ? { camera: zoomText(shots[i].zoom) } : {}) })),
+        ...(mergedShots ? { merged_shots: mergedShots } : {}),
+        ...(placed.length ? { flashes: placed, flashes_note: 'Each one sits where the reference had it. Look at the frame (view_frame at its start) and move it onto the product of the user\'s picture with update_effects (x, y, width, height); type can become backlight, glow, shine or sparkle.' } : {}),
         ...(material.length < seq.length ? { reused: `${material.length} media for ${seq.length} shots, so they repeat in a loop.` } : {}),
         ...(unused.length ? { unused: unused.map(c => c.name) } : {}),
         ...(slowed.length ? { slowed_videos: slowed, slowed_note: 'These videos are shorter than their shot and were slowed down to fill it.' } : {}),
         ...(unreadable.length ? { unreadable_files: unreadable } : {}),
         music, ...brief(),
-        next: 'The image shows every media tagged with the number of the shot it took (× = not used): compare it with the contact sheet of the reference. To change which media takes which shot, call apply_reference again with clip_ids in the new order. Texts of the reference are not copied: add the user\'s own with add_text at similar places and times.',
+        next: 'The image shows every media tagged with the number of the shot it took (× = not used): compare it with the contact sheet of the reference. To change which media takes which shot, call apply_reference again with clip_ids in the new order (per_shot shows several images together in a shot). Texts of the reference are not copied: add the user\'s own with add_text at similar places and times.',
       };
     },
 

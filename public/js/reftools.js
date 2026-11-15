@@ -1,5 +1,6 @@
 'use strict';
 /* تحليل مقطع مرجعي — الجزء الذي لا يحتاج متصفحاً:
+   - الوميض الموضعي ومكانه في الإطار، وزوم الكاميرا في كل لقطة
    - كشف القصّات من إطارات مصغّرة (قص حاد، تلاشٍ متقاطع، مرور بالأسود، وميض) بمقارنة توزيع الألوان،
      فتصمد أمام التصوير اليدوي وحركة الكاميرا السريعة
    - تحويل القصّات إلى لقطات، ووصف إيقاعها بعدد الضربات لكل لقطة
@@ -56,7 +57,7 @@ const RefTools = (() => {
    * frames: بصمات من signature، times: زمن كل إطار بالثواني.
    * ← { cuts: [{ i, t, kind: 'cut' | 'fade' | 'black', flash? }], flashes: [t], d, h, luma, step }
    *   i = أول إطار من اللقطة الجديدة. القص الحاد يقع بين الإطارين i-1 و i (يُدقَّق زمنه في المتصفح).
-   *   flashes = ومضات داخل اللقطة (إضاءة تومض ثم تعود الصورة كما كانت): مؤثر لا قص.
+   *   flashes = ومضات داخل اللقطة بمواضعها (انظر localFlashes): مؤثر لا قص.
    */
   function detect(frames, times, { sensitivity = 'normal', minShot = 0.25, duration } = {}) {
     const n = frames.length;
@@ -69,7 +70,6 @@ const RefTools = (() => {
     const end = duration > 0 ? duration : n ? times[n - 1] + step : 0;
     const [hMin, ratio] = SENSITIVITY[sensitivity] || SENSITIVITY.normal;
     let cuts = [];
-    const flashes = [];
 
     // 1) القص الحاد: قفزة مفردة في توزيع الألوان، أعلى بكثير مما حولها، ولا تعود الصورة بعدها كما كانت
     for (let i = 1; i < n; i++) {
@@ -82,10 +82,7 @@ const RefTools = (() => {
       for (let a = Math.max(0, i - 4); a < i; a++) {
         for (let b = i; b <= Math.min(n - 1, i + 3); b++) if (b - a > 1) back = Math.min(back, hdist(frames[a], frames[b]));
       }
-      if (back <= Math.max(0.1, 0.45 * h[i])) {
-        if (luma[i] - luma[i - 1] > 15) flashes.push(times[i]);
-        continue;
-      }
+      if (back <= Math.max(0.1, 0.45 * h[i])) continue;
       if (h[i] < h[i - 1] || (i + 1 < n && h[i] < h[i + 1])) continue;
       cuts.push({ i, t: times[i], kind: 'cut', score: h[i] });
     }
@@ -150,13 +147,134 @@ const RefTools = (() => {
       const after = median(luma.subarray(Math.min(n, c.i + 3), Math.min(n, c.i + 8)));
       if (peak > 165 && peak - Math.max(before, after) > 45) c.flash = true;
     }
-    // الومضات المتقاربة (إضاءة ترفّ) تُعدّ واحدة، وما وقع على قص فهو وميض ذلك القص
-    const lone = [];
-    for (const t of flashes) {
-      if (out.some(c => Math.abs(c.t - t) < 0.3)) continue;
-      if (!lone.length || t - lone[lone.length - 1] > 0.2) lone.push(t);
+    return { cuts: out, flashes: localFlashes(frames, times, out, d), d, h, luma, step };
+  }
+
+  /**
+   * الوميض داخل اللقطة وموضعه: بقعة متماسكة تسطع في إطار ثم تعود كما كانت (منتج يلمع، لوحة تضيء، وميض للإطار كله).
+   * لكل بكسل: كم يزيد سطوعه عمّا قبله وعمّا بعده معاً؛ ثم أكبر بقعة متصلة من هذه البكسلات.
+   * حركة الكاميرا تعطي خطوطاً رفيعة متناثرة لا بقعة ممتلئة، فتُستبعد بنسبة امتلاء البقعة لمستطيلها.
+   * ← [{ t, x, y, width, height }] حيث x و y مركز البقعة و width و height أبعادها، كلها نسب من الإطار (0 إلى 1)
+   */
+  function localFlashes(frames, times, cuts, d) {
+    const n = frames.length;
+    if (n < 3) return [];
+    const G = Math.round(Math.sqrt(frames[0].g.length)), big = G * G * 0.12;
+    const mask = new Uint8Array(G * G), seen = new Uint8Array(G * G), found = [];
+    for (let i = 1; i < n - 1; i++) {
+      if (cuts.some(c => Math.abs(c.i - i) <= 2)) continue; // الانتقال نفسه ليس وميضاً داخل لقطة
+      const a = frames[i].g, b = frames[i - 1].g;
+      let any = 0;
+      for (let p = 0; p < a.length; p++) {
+        let after = 255;
+        for (let k = 1; k <= 3 && i + k < n; k++) after = Math.min(after, frames[i + k].g[p]);
+        mask[p] = a[p] - Math.max(b[p], after) > 30 ? 1 : 0;
+        any += mask[p];
+      }
+      if (any < 14) continue;
+      seen.fill(0);
+      let best = null;
+      for (let p = 0; p < mask.length; p++) {
+        if (!mask[p] || seen[p]) continue;
+        const stack = [p];
+        seen[p] = 1;
+        let count = 0, x0 = G, x1 = -1, y0 = G, y1 = -1;
+        while (stack.length) {
+          const q = stack.pop(), x = q % G, y = (q / G) | 0;
+          count++;
+          if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+          if (x > 0 && mask[q - 1] && !seen[q - 1]) { seen[q - 1] = 1; stack.push(q - 1); }
+          if (x < G - 1 && mask[q + 1] && !seen[q + 1]) { seen[q + 1] = 1; stack.push(q + 1); }
+          if (y > 0 && mask[q - G] && !seen[q - G]) { seen[q - G] = 1; stack.push(q - G); }
+          if (y < G - 1 && mask[q + G] && !seen[q + G]) { seen[q + G] = 1; stack.push(q + G); }
+        }
+        if (!best || count > best.count) best = { count, x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+      }
+      const { count, x0, y0, w, h } = best;
+      if (count < 14 || Math.min(w, h) < 4 || count / (w * h) < 0.5) continue;
+      // بقعة صغيرة على حافة الإطار أو وسط حركة قوية: غالباً شيء ساطع دخل الصورة، لا وميض
+      const edge = x0 === 0 || y0 === 0 || x0 + w === G || y0 + h === G;
+      if (count < big && (edge || d[i] > 15)) continue;
+      found.push({ i, count, t: times[i], x: (x0 + w / 2) / G, y: (y0 + h / 2) / G, width: w / G, height: h / G });
     }
-    return { cuts: out, flashes: lone, d, h, luma, step };
+    // إطاران متتاليان من الوميض نفسه يُعدّان واحداً
+    const out = [];
+    for (const f of found) {
+      const last = out[out.length - 1];
+      if (last && f.i - last.i <= 1 && Math.abs(f.x - last.x) < 0.15 && Math.abs(f.y - last.y) < 0.15) { if (f.count > last.count) out[out.length - 1] = f; }
+      else out.push(f);
+    }
+    return out.map(({ t, x, y, width, height }) => ({ t, x, y, width, height }));
+  }
+
+  /**
+   * تقدير الزوم بين إطارين رماديين N×N من اللقطة نفسه: أي تكبير s (حول المركز، مع إزاحة) يجعل الأول أقرب ما يكون إلى الثاني.
+   * s > 1 = الكاميرا اقتربت. ← { scale, cost, base } حيث base أفضل تطابق بلا تكبير؛ الثقة في النتيجة بقدر انخفاض cost عن base
+   */
+  function zoomBetween(A, B, N) {
+    const c = (N - 1) / 2, m = Math.round(N * 0.1), lim = Math.round(N / 8);
+    const cost = (s, dx, dy) => {
+      let sum = 0, cnt = 0;
+      for (let y = m; y < N - m; y++) {
+        const sy = Math.round(c + (y - c - dy) / s);
+        if (sy < 0 || sy >= N) continue;
+        for (let x = m; x < N - m; x++) {
+          const sx = Math.round(c + (x - c - dx) / s);
+          if (sx < 0 || sx >= N) continue;
+          sum += Math.abs(B[y * N + x] - A[sy * N + sx]);
+          cnt++;
+        }
+      }
+      return cnt > N * N * 0.3 ? sum / cnt : Infinity;
+    };
+    let best = { cost: Infinity, scale: 1 }, base = Infinity;
+    for (let k = -12; k <= 16; k++) {
+      const s = 1 + k * 0.03;
+      for (let dy = -lim; dy <= lim; dy += 2) {
+        for (let dx = -lim; dx <= lim; dx += 2) {
+          const v = cost(s, dx, dy);
+          if (v < best.cost) best = { cost: v, scale: s };
+          if (k === 0 && v < base) base = v;
+        }
+      }
+    }
+    return { scale: best.scale, cost: best.cost, base };
+  }
+
+  /**
+   * زوم اللقطة من ثلاث قياسات: أولها←آخرها، وأولها←وسطها، ووسطها←آخرها.
+   * ← null إن لم يكن زوماً واضحاً، وإلا { scale, when } حيث when = 'early' إن تمّ التكبير في النصف الأول ثم ثبتت الصورة
+   *   (اندفاعة مع الضربة) و 'steady' إن امتد على اللقطة كلها
+   */
+  function zoomOf(full, first, second) {
+    const sure = e => e && e.cost <= e.base * 0.88 && Math.abs(e.scale - 1) >= 0.08;
+    if (!sure(full)) return null;
+    const a = sure(first) ? Math.abs(Math.log(first.scale)) : 0, b = sure(second) ? Math.abs(Math.log(second.scale)) : 0;
+    return { scale: Math.round(full.scale * 100) / 100, when: a > 2 * b && a > 0 ? 'early' : 'steady' };
+  }
+
+  /**
+   * أنسب طريقة لجمع n صورة (نسبة عرضها إلى ارتفاعها aspect) في صورة واحدة تملأ إطاراً نسبته frame:
+   * صف، عمود، أو شبكة بعدد أعمدة. ← { layout, columns }
+   */
+  function mergeLayout(n, aspect, frame) {
+    let best = { layout: 'row', columns: n }, bd = Infinity;
+    for (let cols = 1; cols <= n; cols++) {
+      const diff = Math.abs(Math.log(cols * aspect / Math.ceil(n / cols)) - Math.log(frame));
+      if (diff < bd - 1e-9) { bd = diff; best = { layout: cols === n ? 'row' : cols === 1 ? 'column' : 'grid', columns: cols }; }
+    }
+    return best;
+  }
+
+  /** يقسّم الوسائط مجموعات متتالية: counts[k] وسيطاً للمجموعة k (والباقي واحداً واحداً) */
+  function groups(mediaCount, counts = []) {
+    const out = [];
+    for (let i = 0, k = 0; i < mediaCount; k++) {
+      const size = Math.max(1, Math.min(9, Math.round(+counts[k] || 1), mediaCount - i));
+      out.push(Array.from({ length: size }, (_, j) => i + j));
+      i += size;
+    }
+    return out;
   }
 
   /**
@@ -239,7 +357,7 @@ const RefTools = (() => {
     return { cw, ch, cols, rows: Math.ceil(count / cols) };
   }
 
-  return { SENSITIVITY, signature, hdist, dist, detect, buildShots, rhythm, nearestRatio, assign, fitVideo, sheetLayout, median };
+  return { SENSITIVITY, signature, hdist, dist, detect, localFlashes, zoomBetween, zoomOf, buildShots, rhythm, nearestRatio, assign, groups, mergeLayout, fitVideo, sheetLayout, median };
 })();
 
 if (typeof module !== 'undefined') module.exports = RefTools;

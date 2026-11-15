@@ -306,6 +306,7 @@ const MONTAJI_TOOLS = (() => {
       name: 'analyze_reference',
       description: 'Study a REFERENCE video the user wants to imitate (a reel, an ad, a template from any app or platform) so the same edit can be rebuilt with the user\'s own media. '
         + 'It reads the picture and sound of the file itself: every cut with its time, the length of each shot, how each shot enters (cut, fade, black, flash), whether the shot is a still photo or moving footage, '
+        + 'the camera zoom of each shot (in or out, how much, and whether it punches in early or runs through the shot), light flashes inside shots with their place in the frame (a product or a sign that lights up for an instant), '
         + 'the aspect ratio, and the music rhythm (BPM, beats per shot, share of cuts that land on a beat). '
         + 'Returns contact-sheet images with one numbered frame per shot: look at them to learn what each shot shows, which texts appear and the visual style. '
         + 'It does not change the project. Follow it with apply_reference. Takes about as long as the video itself.',
@@ -317,7 +318,9 @@ const MONTAJI_TOOLS = (() => {
     {
       name: 'apply_reference',
       description: 'Rebuild the edit of the analyzed reference video with the user\'s media (call analyze_reference first). '
-        + 'The main track becomes one clip per reference shot, each with that shot\'s exact length, transition and flash, in the reference aspect ratio; photos get a slow camera move where the reference moves. '
+        + 'The main track becomes one clip per reference shot, each with that shot\'s exact length, transition and flash, in the reference aspect ratio. Photos get the camera zoom measured in their shot (a hand-held drift where the reference moves without zooming). '
+        + 'Flashes inside the reference shots become areaFlash effects at the same moment and place in the frame; the answer lists them so you can move each onto the product of the user\'s picture with update_effects. '
+        + 'When the reference shows several products in one shot, per_shot puts several of the user\'s images together in that shot, merged into one picture. '
         + 'Rhythm: with the reference music the cuts keep their original times, so they hit the same beats. With other music (already in the project, or among the files) the beat pattern of the reference, beats per shot, is re-timed onto the new music. '
         + 'Media shorter than the shot count is reused in a loop; extra media is left out. Videos longer than their shot are trimmed to their middle, shorter ones are slowed down. '
         + 'Returns an image of all the media, each tagged with the number of the shot it took. Call it again with clip_ids in another order to change which media takes which shot. One undo step.',
@@ -326,8 +329,9 @@ const MONTAJI_TOOLS = (() => {
         music: bool('Put the sound of the reference video on the music track. Default: true when the project has no music of its own.'),
         sync: bool('With music other than the reference: re-time the cuts onto its beats, keeping the reference beats per shot. Default true.'),
         fill: pick(['loop', 'trim'], 'When there is less media than shots: loop reuses the media from the start (default), trim ends the video after the last media.'),
-        motion: bool('Give photos a slow zoom on shots where the reference picture moves. Default true.'),
-        effects: bool('Add a flash on the cuts where the reference has one. Default true.'),
+        per_shot: { type: 'array', items: { type: 'number' }, description: 'How many media each shot shows together, in shot order, 1 to 9 (default 1 each). Media are taken in order, and the images of a shot are merged into one picture arranged to fill the frame. Example [1,3,3,1]: the first shot one image, the next two shots three each.' },
+        motion: bool('Give photos the camera zoom of their reference shot. Default true.'),
+        effects: bool('Add the flashes of the reference: on its cuts, and inside its shots as areaFlash effects. Default true.'),
         durations: { type: 'array', items: { type: 'number' }, description: 'Override the shot lengths, in seconds, for example to merge two shots the detection split or to drop the last shots.' },
         replace: bool('The main track already has other clips and new files are being brought in: remove those clips and build the remix in their place.'),
       }),

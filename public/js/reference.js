@@ -5,6 +5,7 @@
 
 const Reference = (() => {
   const G = 32;             // الإطار المصغّر G×G: يكفي لكشف القص ويتجاهل التفاصيل الصغيرة
+  const Z = 64;              // إطار قياس الزوم Z×Z: أدق من إطار كشف القص
   const MAX_SAMPLES = 900;   // أقصى عدد إطارات تُقرأ (12 في الثانية حتى 75 ثانية، ثم تتباعد)
   const SHEET_CELLS = 24, MAX_SHEETS = 3;
   let current = null;        // آخر مقطع حُلّل: يبقى في الذاكرة حتى تحديث الصفحة
@@ -106,6 +107,25 @@ const Reference = (() => {
         c.t = hi;
       }
       const shots = RefTools.buildShots(found.cuts, duration, found.d, times);
+
+      // زوم الكاميرا في كل لقطة: ثلاثة إطارات أدق (أولها ووسطها وآخرها) يُقاس بينها التكبير
+      const big = document.createElement('canvas');
+      big.width = big.height = Z;
+      const bg = big.getContext('2d', { willReadFrequently: true });
+      const gray = async t => {
+        await seekExact(v, t);
+        bg.drawImage(v, 0, 0, Z, Z);
+        const px = bg.getImageData(0, 0, Z, Z).data, out = new Float32Array(Z * Z);
+        for (let i = 0, j = 0; j < out.length; i += 4, j++) out[j] = (px[i] * 77 + px[i + 1] * 150 + px[i + 2] * 29) / 256;
+        return out;
+      };
+      for (const s of shots) {
+        if (s.duration < 0.6 || s.motion === 'still') continue;
+        const m = Math.min(0.17, s.duration / 5);
+        const A = await gray(s.start + m), M = await gray((s.start + s.end) / 2), B = await gray(s.end - m);
+        const zoom = RefTools.zoomOf(RefTools.zoomBetween(A, B, Z), RefTools.zoomBetween(A, M, Z), RefTools.zoomBetween(M, B, Z));
+        if (zoom) s.zoom = zoom;
+      }
       const sheets = await contactSheets(v, shots);
 
       // الصوت: إيقاعه يحدّد كم ضربة تدوم كل لقطة، فيُعاد بناء الإيقاع نفسه على موسيقى أخرى
