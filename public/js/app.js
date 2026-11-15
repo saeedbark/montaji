@@ -1814,5 +1814,7 @@
     state, view, addFiles, loadProject, isEmpty, loadSample, setTime, play, pause,
     refresh, commit, pushHist, undo, redo, select, renderProps, fitTimeline, setRatio, cloneItem, exportVideo, toast, addEffect,
     touch, listOf, setList, splitItem, dupItem, addOverlayFiles, asOverlay, toOverlay, toMain, freeTrack,
+    // يبني عنصراً من ملف دون وضعه في المشروع (للعنصر الصوتي حقل buf)، أو null لنوع غير مدعوم
+    makeItem: async file => { const k = kindOf(file); return k ? makers[k](file) : null; },
   };
 })();

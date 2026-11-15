@@ -49,7 +49,7 @@ describe('الخادم', () => {
     const envFile = path.join(tmp, '.env');
     fs.writeFileSync(envFile, 'SECRET_MARKER=do-not-leak\n');
     // نمسح مفاتيح البيئة كي لا تؤثر إعدادات جهاز المطوّر في النتيجة
-    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports'), MONTAJI_PROJECT_DIR: path.join(tmp, 'projects') };
+    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports'), MONTAJI_PROJECT_DIR: path.join(tmp, 'projects'), MONTAJI_REF_DIR: path.join(tmp, 'ref'), MONTAJI_RAW_DIR: path.join(tmp, 'raw') };
     for (const k of Object.keys(env)) if (/^(AI_|GEMINI_|GOOGLE_API|OPENAI_|ANTHROPIC_|OPENROUTER_|GROQ_|STT_)/.test(k)) delete env[k];
     child = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     await new Promise((resolve, reject) => {
@@ -152,6 +152,73 @@ describe('الخادم', () => {
     const found = await rpc('tools/call', { name: 'open_project', arguments: { path: 'saved' } });
     assert.equal(found.data.result.isError, true);
     assert.match(found.data.result.content[0].text, /editor is not open/);
+  });
+
+  test('الريمكس عبر MCP: المسارات والمجلدات الافتراضية تصل المحرر روابط مؤقتة، والأخطاء واضحة', async () => {
+    // تبويب وهمي يعيد المعاملات التي وصلته كما هي
+    const tab = http.get({ host: '127.0.0.1', port, path: `/api/bridge?loaded=${Date.now()}`, headers: { Host: `localhost:${port}` } }, res => {
+      res.setEncoding('utf8');
+      res.on('data', chunk => {
+        const m = /^data: (.*)$/m.exec(chunk);
+        if (!m) return;
+        const call = JSON.parse(m[1]);
+        request('/api/bridge/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { id: call.id, result: { data: call.args } } });
+      });
+    });
+    await new Promise(r => tab.on('response', r));
+    const call = async (name, args) => {
+      const r = (await rpc('tools/call', { name, arguments: args })).data.result;
+      return r.isError ? { error: r.content[0].text } : JSON.parse(r.content[0].text);
+    };
+    const ref = path.join(tmp, 'ref'), raw = path.join(tmp, 'raw');
+    try {
+      // لا مجلدات بعد: الأداتان تمرّان بلا ملفات، فيستعمل المحرر مقاطع المشروع
+      assert.deepEqual(await call('analyze_reference', {}), {});
+      assert.deepEqual(await call('apply_reference', { fill: 'trim' }), { fill: 'trim' });
+
+      fs.mkdirSync(ref); fs.mkdirSync(raw); fs.mkdirSync(path.join(raw, 'sub'));
+      fs.writeFileSync(path.join(ref, 'old.mp4'), 'old');
+      fs.writeFileSync(path.join(ref, 'new.mov'), 'new');
+      fs.writeFileSync(path.join(ref, 'notes.txt'), 'x');
+      fs.utimesSync(path.join(ref, 'old.mp4'), new Date(1e12), new Date(1e12));
+      for (const n of ['10.jpg', '2.jpg', '1.png', 'لحن.mp3', '.hidden.jpg', 'readme.txt']) fs.writeFileSync(path.join(raw, n), n);
+
+      // بلا مسار: أحدث فيديو في مجلد المرجع، ورابطه يُقرأ مرة واحدة
+      const a = await call('analyze_reference', { sensitivity: 'high' });
+      assert.equal(a.name, 'new.mov');
+      assert.equal(a.sensitivity, 'high');
+      assert.equal(a.path, undefined);
+      assert.match(a.url, /^\/api\/media\/[0-9a-f]{32}$/);
+      assert.equal((await request(a.url)).text, 'new');
+      assert.equal((await request(a.url)).status, 404);
+      // اسم مجرد يُبحث عنه في مجلد المرجع، والمسار الكامل يؤخذ كما هو
+      assert.equal((await call('analyze_reference', { path: 'old.mp4' })).name, 'old.mp4');
+      assert.equal((await call('analyze_reference', { path: path.join(ref, 'old.mp4') })).name, 'old.mp4');
+      assert.match((await call('analyze_reference', { path: 'missing.mp4' })).error, /not found/);
+      assert.match((await call('analyze_reference', { path: path.join(ref, 'notes.txt') })).error, /must be a video/);
+      // مقطع من المشروع: لا يُلمس القرص
+      assert.deepEqual(await call('analyze_reference', { clip_id: 'abc' }), { clip_id: 'abc' });
+
+      // بلا مسارات: مجلد الخام مرتباً ترتيباً طبيعياً، بلا الملفات المخفية ولا غير الوسائط ولا المجلدات الفرعية
+      const b = await call('apply_reference', {});
+      assert.deepEqual(b.files.map(f => f.name), ['1.png', '2.jpg', '10.jpg', 'لحن.mp3']);
+      assert.equal((await request(b.files[1].url)).text, '2.jpg');
+      // مسارات صريحة بترتيبها، ومجلد آخر
+      const c = await call('apply_reference', { paths: [path.join(raw, '10.jpg'), path.join(raw, '1.png')], replace: true });
+      assert.deepEqual(c.files.map(f => f.name), ['10.jpg', '1.png']);
+      assert.equal(c.replace, true);
+      assert.equal(c.paths, undefined);
+      assert.deepEqual((await call('apply_reference', { folder: ref })).files.map(f => f.name), ['new.mov', 'old.mp4']);
+      assert.match((await call('apply_reference', { folder: path.join(raw, 'sub') })).error, /No image, video or audio/);
+      assert.match((await call('apply_reference', { paths: [path.join(raw, 'readme.txt')] })).error, /Unsupported file type/);
+      assert.match((await call('apply_reference', { paths: [path.join(raw, 'nope.jpg')] })).error, /File not found/);
+      // مقاطع المشروع مطلوبة صراحة: لا يُقرأ مجلد الخام
+      assert.deepEqual(await call('apply_reference', { clip_ids: ['x', 'y'] }), { clip_ids: ['x', 'y'] });
+    } finally {
+      tab.destroy();
+      fs.rmSync(ref, { recursive: true, force: true });
+      fs.rmSync(raw, { recursive: true, force: true });
+    }
   });
 
   test('يقدّم الواجهة من public/', async () => {

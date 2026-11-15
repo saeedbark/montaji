@@ -39,6 +39,7 @@ Project model
 - Text is drawn exactly as written and supports Arabic. Keep overlay text short. Size is a percent of frame HEIGHT, so the right value depends on the aspect ratio: follow the size guide at the end of this message.
 - Audio longer than the video is cut at the video's end automatically, so give music a fade-out. When video clips carry speech, lower the music to about 20 to 30.
 - Music and pictures must feel together. Whenever the project has music, finish by calling sync_to_beat so every cut lands on a beat (call it again after you add, remove or reorder clips). Fast music (beat interval under 0.6 s): 2 beats per clip, short transitions (0.15 to 0.3 s) and pulse on. Slow music: 4 beats per clip and softer, longer transitions. Give a closing contact card more beats (last_clip_beats). Use analyze_audio to time titles on bar starts.
+- Imitating a video: when the user wants "the same as this video" with their own photos or clips, call analyze_reference on that video clip, look at the contact sheet, then apply_reference. It copies the cut times, transitions and beat pattern onto the other clips of the project. Afterwards check with view_frame, reorder with apply_reference (clip_ids) so each photo suits its shot, and add texts placed like the ones in the reference, written for the user's own content.
 - All times are in seconds.`;
 
   const VISION_NOTE = '\n- Use view_frame when you need to see what is on screen or to check how your result looks. Do not overuse it.';
@@ -140,6 +141,8 @@ Project model
     undo: () => 'تراجع',
     export_video: () => 'تصدير الفيديو…',
     import_media: () => 'إضافة ملفات',
+    analyze_reference: () => 'تحليل المقطع المرجعي…',
+    apply_reference: () => 'بناء المونتاج على نمط المرجع',
   };
   const label = (name, args) => (LABELS[name] ? LABELS[name](args || {}) : name);
 
@@ -333,7 +336,7 @@ Project model
         if (res.images) images.push(...res.images);
       }
       if (images.length) {
-        msgs.push({ role: 'user', content: [{ type: 'text', text: '[Frames returned by view_frame, in the order requested]' }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] });
+        msgs.push({ role: 'user', content: [{ type: 'text', text: '[Images returned by the tools above, in order: frames from view_frame, contact sheets from analyze_reference and apply_reference]' }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] });
       }
       if (ctl.signal.aborted) throw aborted();
     }

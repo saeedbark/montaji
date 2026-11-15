@@ -14,6 +14,10 @@ const ENV_TEMPLATE = path.join(ROOT, '.env.example');
 const EXPORT_DIR = process.env.MONTAJI_EXPORT_DIR || path.join(ROOT, 'exports');
 // ملفات المشاريع التي يطلب المساعد حفظها (save_project مع save_as). MONTAJI_PROJECT_DIR للاختبارات
 const PROJECT_DIR = process.env.MONTAJI_PROJECT_DIR || path.join(ROOT, 'projects');
+// أماكن اختيارية يقرأ منها الريمكس حين لا يُعطى مسار: المقطع المرجعي (مجلد «مرجع»، أو فيديو موضوع في مجلد التطبيق نفسه)،
+// ووسائط المستخدم الخام (مجلد «خام»). الاسم العربي أو الإنجليزي؛ MONTAJI_REF_DIR و MONTAJI_RAW_DIR للاختبارات أو لمجلد في مكان آخر
+const REF_DIRS = process.env.MONTAJI_REF_DIR ? [process.env.MONTAJI_REF_DIR] : [path.join(ROOT, 'مرجع'), path.join(ROOT, 'reference'), ROOT];
+const RAW_DIRS = process.env.MONTAJI_RAW_DIR ? [process.env.MONTAJI_RAW_DIR] : [path.join(ROOT, 'خام'), path.join(ROOT, 'raw')];
 const VERSION = require('../package.json').version;
 
 /** يحوّل نص ملف .env إلى كائن { KEY: value } */
@@ -99,4 +103,4 @@ function publicConfig() {
   return p.error ? { ...base, ready: false, error: p.error } : { ...base, ready: true, provider: p.id, label: p.label, model: p.model, vision: p.vision };
 }
 
-module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, VERSION, PROVIDERS, STT_PROVIDERS, parseEnv, readEnv, provider, sttProvider, publicConfig };
+module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, REF_DIRS, RAW_DIRS, VERSION, PROVIDERS, STT_PROVIDERS, parseEnv, readEnv, provider, sttProvider, publicConfig };

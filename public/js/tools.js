@@ -303,6 +303,36 @@ const MONTAJI_TOOLS = (() => {
       }, ['ids']),
     },
     {
+      name: 'analyze_reference',
+      description: 'Study a REFERENCE video the user wants to imitate (a reel, an ad, a template from any app or platform) so the same edit can be rebuilt with the user\'s own media. '
+        + 'It reads the picture and sound of the file itself: every cut with its time, the length of each shot, how each shot enters (cut, fade, black, flash), whether the shot is a still photo or moving footage, '
+        + 'the aspect ratio, and the music rhythm (BPM, beats per shot, share of cuts that land on a beat). '
+        + 'Returns contact-sheet images with one numbered frame per shot: look at them to learn what each shot shows, which texts appear and the visual style. '
+        + 'It does not change the project. Follow it with apply_reference. Takes about as long as the video itself.',
+      parameters: obj({
+        clip_id: str('Id of a video clip in the project to use as the reference. Default: the only video clip of the project.'),
+        sensitivity: pick(['low', 'normal', 'high'], 'Cut detection sensitivity. Default normal. Use high if the contact sheet shows two different shots merged in one, low if one continuous shot was split by fast motion.'),
+      }),
+    },
+    {
+      name: 'apply_reference',
+      description: 'Rebuild the edit of the analyzed reference video with the user\'s media (call analyze_reference first). '
+        + 'The main track becomes one clip per reference shot, each with that shot\'s exact length, transition and flash, in the reference aspect ratio; photos get a slow camera move where the reference moves. '
+        + 'Rhythm: with the reference music the cuts keep their original times, so they hit the same beats. With other music (already in the project, or among the files) the beat pattern of the reference, beats per shot, is re-timed onto the new music. '
+        + 'Media shorter than the shot count is reused in a loop; extra media is left out. Videos longer than their shot are trimmed to their middle, shorter ones are slowed down. '
+        + 'Returns an image of all the media, each tagged with the number of the shot it took. Call it again with clip_ids in another order to change which media takes which shot. One undo step.',
+      parameters: obj({
+        clip_ids: ids('Main-track clips to use, in shot order (an id may repeat). Default: every clip on the main track except the reference clip.'),
+        music: bool('Put the sound of the reference video on the music track. Default: true when the project has no music of its own.'),
+        sync: bool('With music other than the reference: re-time the cuts onto its beats, keeping the reference beats per shot. Default true.'),
+        fill: pick(['loop', 'trim'], 'When there is less media than shots: loop reuses the media from the start (default), trim ends the video after the last media.'),
+        motion: bool('Give photos a slow zoom on shots where the reference picture moves. Default true.'),
+        effects: bool('Add a flash on the cuts where the reference has one. Default true.'),
+        durations: { type: 'array', items: { type: 'number' }, description: 'Override the shot lengths, in seconds, for example to merge two shots the detection split or to drop the last shots.' },
+        replace: bool('The main track already has other clips and new files are being brought in: remove those clips and build the remix in their place.'),
+      }),
+    },
+    {
       name: 'duplicate_item',
       description: 'Duplicate a clip, overlay, audio item, text, effect or caption. The copy is placed right after the original.',
       parameters: obj({ id: str('Id of the item to copy.') }, ['id']),

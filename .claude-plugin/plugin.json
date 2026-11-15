@@ -1,0 +1,10 @@
+{
+  "name": "montaji",
+  "version": "1.0.0",
+  "description": "Montaji video editor for agents: the remix skill (rebuild a reference video with your own photos and clips, on the same cuts and beat) and the connection to the local Montaji MCP server.",
+  "author": { "name": "saeedBark" },
+  "homepage": "https://github.com/saeedbark/montaji#readme",
+  "repository": "https://github.com/saeedbark/montaji",
+  "license": "MIT",
+  "keywords": ["video-editor", "remix", "reels", "arabic", "mcp"]
+}

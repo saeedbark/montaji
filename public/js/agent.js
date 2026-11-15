@@ -256,6 +256,34 @@ const Agent = (() => {
     return out;
   }
 
+  /**
+   * ورقة وسائط الريمكس: صورة واحدة فيها كل وسيط برقم اللقطة التي أخذها (وما لم يُستعمل بعلامة ×)،
+   * ليرى النموذج صور المستخدم ومقاطعه كلها بنظرة ويحكم أيها يناسب أي لقطة
+   */
+  async function mediaSheet(used, unused) {
+    const cells = [...used.map((c, i) => ({ c, tag: String(i + 1) })), ...unused.map(c => ({ c, tag: '×' }))].slice(0, 48);
+    const [fw, fh] = RATIOS[state.ratio] || RATIOS['16:9'];
+    const { cw, ch, cols, rows } = RefTools.sheetLayout(cells.length, fw, fh, 180);
+    const gap = 6, cv = document.createElement('canvas');
+    cv.width = cols * (cw + gap) + gap; cv.height = rows * (ch + gap) + gap;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#111'; g.fillRect(0, 0, cv.width, cv.height);
+    g.font = 'bold 15px Segoe UI, Arial, sans-serif'; g.textBaseline = 'top';
+    for (let k = 0; k < cells.length; k++) {
+      const { c, tag } = cells[k];
+      const x = gap + (k % cols) * (cw + gap), y = gap + Math.floor(k / cols) * (ch + gap);
+      const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = c.thumb; });
+      if (img) { // الوسيط كاملاً داخل الخلية، بلا قص
+        const f = Math.min(cw / img.naturalWidth, ch / img.naturalHeight), w = img.naturalWidth * f, h = img.naturalHeight * f;
+        g.drawImage(img, x + (cw - w) / 2, y + (ch - h) / 2, w, h);
+      }
+      g.fillStyle = tag === '×' ? 'rgba(150,0,0,.85)' : 'rgba(0,0,0,.75)';
+      g.fillRect(x, y, g.measureText(tag).width + 10, 22);
+      g.fillStyle = '#fff'; g.fillText(tag, x + 5, y + 3);
+    }
+    return jpeg(cv);
+  }
+
   /* ---------- الأدوات ---------- */
   const impl = {
     get_project: () => project(),
@@ -578,6 +606,155 @@ const Agent = (() => {
       };
     },
 
+    // المرجع ملف من الجهاز (عبر MCP: الخادم يمنحه رابطاً مؤقتاً) أو مقطع فيديو موجود في المشروع
+    async analyze_reference(a) {
+      let file, clipId = null;
+      if (has(a.url)) {
+        const res = await fetch(a.url);
+        if (!res.ok) fail('Could not read the reference video file.');
+        const b = await res.blob();
+        file = new File([b], String(a.name || 'reference.mp4'), { type: b.type });
+      } else {
+        const videos = [...state.clips, ...state.overlays].filter(c => c.type === 'video');
+        let c;
+        if (has(a.clip_id)) c = videos.find(x => x.id === a.clip_id) || fail(`No video clip has id "${a.clip_id}".`);
+        else if (videos.length === 1) c = videos[0];
+        else if (videos.length) fail('The project has several videos: pass clip_id of the one to imitate.');
+        else fail('There is no reference video. Ask the user for the video they want to imitate: an MCP client passes its path (or the user drops it in the "مرجع" / "reference" folder of the Montaji app); in the editor the user adds it to the project.');
+        file = c.file; clipId = c.id;
+      }
+      const sensitivity = has(a.sensitivity) ? oneOf(a.sensitivity, Object.keys(RefTools.SENSITIVITY), 'sensitivity') : 'normal';
+      S.toast('جارٍ تحليل المقطع المرجعي…');
+      const r = await Reference.analyze(file, { sensitivity, clipId });
+      const P = r.beats && r.beats.period, avg = r.duration / r.shots.length;
+      return {
+        reference: r.name, width: r.width, height: r.height, ratio: r.ratio, duration: r2(r.duration),
+        shot_count: r.shots.length, average_shot: r2(avg), pace: avg < 1 ? 'very fast' : avg < 2 ? 'fast' : avg < 4 ? 'medium' : 'slow',
+        music: !r.audio ? { note: 'The video has no sound.' }
+          : !P ? { note: 'The video has sound but no clear beat (speech or ambient sound).' }
+          : { bpm: r.beats.bpm, beat_interval: r2(P), ...(r.rhythm ? { cuts_on_beat_percent: Math.round(r.rhythm.on_beat * 100) } : {}) },
+        shots: r.shots.map((s, i) => ({
+          n: i + 1, start: r2(s.start), duration: r2(s.duration), enters: s.transition, ...(s.flash ? { flash: true } : {}),
+          picture: s.motion, ...(r.rhythm ? { beats: r.rhythm.pattern[i] } : {}),
+        })),
+        ...(r.flashes.length ? { flashes_inside_shots: r.flashes.map(r2) } : {}),
+        ...(r.shots.length === 1 ? { note: 'No cut was found: the video looks like one continuous shot. Try sensitivity high.' } : {}),
+        next: 'The contact sheets show one numbered frame per shot. Call apply_reference to rebuild this edit with the user\'s media.',
+        images: r.sheets,
+      };
+    },
+
+    // files عبر MCP فقط: الخادم يحوّل المسارات (أو مجلد «خام») إلى روابط مؤقتة.
+    // كل شيء يُجهَّز أولاً ثم يُطبَّق دفعة واحدة، فإن فشل شيء في المنتصف بقي المشروع كما كان
+    async apply_reference(a) {
+      const ref = Reference.current() || fail('No reference has been analyzed yet (or the editor page was reloaded since). Call analyze_reference first.');
+      layout();
+      const refClip = ref.clipId ? state.clips.find(c => c.id === ref.clipId) : null;
+      const yes = k => !has(a[k]) || bool(a[k]);
+
+      let shots = ref.shots;
+      if (Array.isArray(a.durations) && a.durations.length) {
+        shots = a.durations.map((d, i) => ({ ...(ref.shots[i] || { transition: 'cut', motion: 'moving' }), duration: clamp(num(d, 'durations'), MIN_LEN, 120) }));
+      }
+
+      /* الوسائط */
+      let material = [];
+      const newAudios = [], unreadable = [];
+      if (Array.isArray(a.files) && a.files.length) {
+        const others = state.clips.filter(c => c !== refClip);
+        if (others.length && !bool(a.replace)) fail(`The main track already has ${others.length} clips. Pass replace: true to build the remix in their place, or clip_ids to use the clips of the project as the media.`);
+        for (const f of a.files) {
+          const res = await fetch(f.url);
+          if (!res.ok) fail('Could not read ' + f.name);
+          const b = await res.blob();
+          let it = null;
+          try { it = await S.makeItem(new File([b], f.name, { type: b.type })); } catch (e) { console.warn('[remix]', f.name, e); }
+          if (!it) unreadable.push(f.name);
+          else (it.buf ? newAudios : material).push(it);
+        }
+        if (!material.length) fail('None of the files is an image or a video this browser can read.');
+      } else material = (has(a.clip_ids) ? pick('clip', a.clip_ids) : state.clips).filter(c => c !== refClip);
+      if (!material.length) fail('There is no media to put in the shots. An MCP client passes paths or a folder (default: the "خام" / "raw" folder of the Montaji app); in the editor the user adds photos or clips to the project first.');
+
+      /* موسيقى المرجع: تُضاف إن لم يكن للمشروع موسيقى خاصة به (أو طُلبت صراحة) */
+      const oldRefMusic = state.audios.filter(o => o.remix);
+      const own = state.audios.some(o => !o.remix) || newAudios.length > 0;
+      const wantRef = !!ref.audio && (has(a.music) ? bool(a.music) : !own);
+      let refMusic = wantRef ? oldRefMusic[0] || null : null;
+      if (wantRef && !refMusic) {
+        const pcm = AudioTools.process(ref.audio, { start: 0, end: ref.audio.duration });
+        refMusic = await S.makeItem(new File([AudioTools.wav(pcm)], (ref.name.replace(/\.[^.\\/]+$/, '') || 'reference') + '.wav', { type: 'audio/wav' }));
+        Object.assign(refMusic, { start: 0, volume: 1, fadeOut: 0.3, remix: true });
+      }
+
+      /* لقطة ← مقطع */
+      const fill = has(a.fill) ? oneOf(a.fill, ['loop', 'trim'], 'fill') : 'loop';
+      const plan = RefTools.assign(shots.length, material.length, fill);
+      const used = new Set(), seq = [], slowed = [];
+      plan.forEach((m, i) => {
+        const src = material[m], sh = shots[i];
+        const c = used.has(src) ? S.cloneItem('clip', src) : src;
+        used.add(src);
+        if (c.type === 'video') {
+          Object.assign(c, RefTools.fitVideo(c.srcDur, sh.duration));
+          if (c.speed < 1) slowed.push(c.name);
+        } else Object.assign(c, { in: 0, out: sh.duration, speed: 1 });
+        c.transition = !i ? 'none' : sh.transition === 'fade' ? 'fade' : sh.transition === 'black' ? 'black' : 'none';
+        if (c.transition !== 'none') c.trLen = r2(clamp(sh.fade || 0.4, 0.15, Math.max(0.15, Math.min(1, sh.duration / 2))));
+        if (yes('motion') && c.type === 'image') c.motion = sh.motion === 'still' ? 'none' : i % 2 ? 'zoomOut' : 'zoomIn';
+        if (wantRef && c.type === 'video') c.muted = true; // صوت المرجع هو المسموع
+        seq.push(c);
+      });
+
+      /* التطبيق */
+      for (const c of state.clips) if (!seq.includes(c) && c.el && c.el.pause) c.el.pause();
+      state.clips = seq;
+      state.effects = state.effects.filter(e => !e.remix);
+      state.audios = state.audios.filter(o => !o.remix || o === refMusic);
+      let at = 0;
+      for (const o of newAudios) { o.start = at; at += audioLen(o); state.audios.push(o); }
+      if (refMusic && !state.audios.includes(refMusic)) state.audios.push(refMusic);
+      S.setRatio(ref.ratio);
+      layout();
+
+      const flash = extra => state.effects.push({ id: uid(), type: 'flash', start: 0, dur: Render.EFFECTS.flash.dur, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.5, r: 0.3, w: 0.4, h: 0.2, remix: true, ...extra });
+
+      /* موسيقى غير موسيقى المرجع: يُنقل الإيقاع (عدد الضربات لكل لقطة) إلى ضرباتها */
+      let music = { source: 'none' };
+      if (wantRef) music = { source: 'reference', audio_id: refMusic.id, note: 'The cuts keep the reference times, so they land on the same beats. The music belongs to the reference video: tell the user in one line to make sure they may reuse it before publishing.' };
+      else if (own) {
+        music = { source: 'own music' };
+        if (yes('sync')) {
+          const g = Beats.grid(null), P = (ref.beats && ref.beats.period) || g.period;
+          try {
+            if (!(P > 0)) fail('no beat');
+            const pattern = shots.slice(0, seq.length).map(s => clamp(Math.round(s.duration / P), 1, 32));
+            const r = impl.sync_to_beat({ pattern, end_with_music: false, snap_texts: false });
+            Object.assign(music, { retimed: true, bpm: r.bpm, beats_per_clip: pattern, ...(r.warning ? { warning: r.warning } : {}) });
+          } catch (e) { music.note = 'No clear beat was found in this music, so the clips keep the shot lengths of the reference.'; }
+        }
+      }
+      // الوميض: على القصّات التي ومضت في المرجع (يتبع مقطعه)، وداخل اللقطات في أزمنته إن بقي توقيت المرجع
+      if (yes('effects')) {
+        seq.forEach((c, i) => { if (i && shots[i].flash) flash({ at: c.id }); });
+        layout();
+        if (!music.retimed && shots === ref.shots) for (const t of ref.flashes) if (t < view.main) flash({ start: Math.max(0, t - Render.EFFECTS.flash.dur / 2) });
+      }
+      layout();
+      const unused = material.filter(c => !used.has(c));
+      return {
+        images: [await mediaSheet(seq, unused)],
+        ratio: state.ratio, shots_filled: seq.length, reference_shots: ref.shots.length,
+        clips: seq.map((c, i) => ({ id: c.id, name: c.name, type: c.type, shot: i + 1, start: r2(c._start), duration: r2(clipLen(c)) })),
+        ...(material.length < seq.length ? { reused: `${material.length} media for ${seq.length} shots, so they repeat in a loop.` } : {}),
+        ...(unused.length ? { unused: unused.map(c => c.name) } : {}),
+        ...(slowed.length ? { slowed_videos: slowed, slowed_note: 'These videos are shorter than their shot and were slowed down to fill it.' } : {}),
+        ...(unreadable.length ? { unreadable_files: unreadable } : {}),
+        music, ...brief(),
+        next: 'The image shows every media tagged with the number of the shot it took (× = not used): compare it with the contact sheet of the reference. To change which media takes which shot, call apply_reference again with clip_ids in the new order. Texts of the reference are not copied: add the user\'s own with add_text at similar places and times.',
+      };
+    },
+
     duplicate_item({ id }) {
       const hit = find(id) || fail(`No item has id "${id}".`);
       const { kind, obj } = hit, n = S.dupItem(kind, obj) || fail('There is no room for a copy right after this caption.');
@@ -803,7 +980,7 @@ const Agent = (() => {
   };
 
   // أدوات لا تعدّل المشروع، أو تسجّل خطوتها في سجل التراجع بنفسها (فتح مشروع، إضافة ملفات)
-  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions']);
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions', 'analyze_reference']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {
