@@ -543,3 +543,39 @@ body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) va
   body.props-open .stage { padding-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ===== الطبقات، الترجمة، والإطارات المفتاحية ===== */
+.item.overlay { background: #16324a; border-color: color-mix(in srgb, #4cc2ff 60%, transparent); align-items: flex-end; padding-bottom: 3px; }
+.item.overlay .thumbs { position: absolute; inset: 0; background-size: auto 100%; background-repeat: repeat-x; opacity: .8; }
+.item.overlay::after { content: ""; position: absolute; inset: auto 0 0 0; height: 20px; background: linear-gradient(transparent, rgba(0,0,0,.75)); }
+.item.overlay .name { z-index: 1; }
+.item.caption { background: #3d2f08; border-color: color-mix(in srgb, #ffd400 60%, transparent); padding: 0 6px; }
+.item.overlay.sel, .item.caption.sel { border-color: #fff; }
+.tl-track.caption .tl-lane .item { top: 0; }
+
+/* نقطة إطار مفتاحي على العنصر في الخط الزمني */
+.item .kf {
+  position: absolute; top: 50%; z-index: 4; width: 9px; height: 9px; margin: -5px 0 0 -5px;
+  background: #fff; border: 1px solid #0b0d12; transform: rotate(45deg); cursor: ew-resize; border-radius: 1px;
+}
+.item .kf:hover { background: var(--accent); }
+
+/* زر ◇ بجانب الخاصية القابلة للتحريك */
+.row:has(.kf-btn) { grid-template-columns: 104px minmax(0, 1fr) auto; }
+.kf-btn {
+  background: none; border: 0; padding: 0 2px; margin-inline-end: 4px; color: var(--muted);
+  font-size: 15px; line-height: 1; cursor: pointer; vertical-align: -1px;
+}
+.kf-btn:hover { color: var(--text); }
+.kf-btn.on { color: #ffd400; }
+#kfHere .actions { margin-top: 6px; }
+#kfHere .link-btn { display: block; }
+
+.cap-note { color: var(--muted); font-size: 12.5px; line-height: 1.7; margin: 10px 0 0; }
+.cap-note b { color: var(--text); }
+.cap-error { color: #ff8a8a; font-size: 13px; line-height: 1.7; margin: 10px 0 0; }
+
+@media (max-width: 640px) {
+  .item .kf { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
+  .kf-btn { font-size: 19px; padding: 4px 4px; }
+}

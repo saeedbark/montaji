@@ -167,6 +167,8 @@ const ProjectTools = (() => {
     const out = {};
     for (const [k, v] of Object.entries(o)) {
       if (k[0] === '_' || SKIP.has(k)) continue;
+      // الإطارات المفتاحية الحقل الوحيد المركّب في العناصر: { خاصية: [{ t, v, e }] }
+      if (k === 'kf' && v && typeof v === 'object') { out.kf = JSON.parse(JSON.stringify(v)); continue; }
       if (v === null || typeof v === 'string' || typeof v === 'boolean' || (typeof v === 'number' && isFinite(v))) out[k] = v;
     }
     return out;
@@ -197,12 +199,18 @@ const ProjectTools = (() => {
       return m.id;
     };
     const withMedia = (list, kindOf) => list.map(o => ({ ...plain(o), media: ref(o, kindOf(o)) })).filter(o => o.media);
+    const cap = st.captions || {};
     const data = {
       app: 'montaji', version: VERSION, name: st.name || '', ratio: st.ratio,
       clips: withMedia(st.clips, c => (c.type === 'video' ? 'video' : 'image')),
+      overlays: withMedia(st.overlays || [], o => (o.type === 'video' ? 'video' : 'image')),
       audios: withMedia(st.audios, () => 'audio'),
       texts: st.texts.map(plain),
       effects: st.effects.map(plain),
+      captions: {
+        lang: cap.lang || '', style: plain(cap.style || {}),
+        items: (cap.items || []).map(it => ({ id: it.id, start: it.start, end: it.end, text: it.text, words: (it.words || []).map(w => ({ w: w.w, t0: w.t0, t1: w.t1 })) })),
+      },
       media: sources.map(({ id, kind, name, path }) => ({ id, kind, name, path })),
     };
     return { data, sources };
@@ -226,6 +234,21 @@ const ProjectTools = (() => {
     stroke: true, strokeColor: '#000000', bg: false, bgColor: '#000000', shadow: true, anim: 'fade',
   };
   const EFFECT_DEFAULTS = { start: 0, dur: 1, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.5, r: 0.3, w: 0.4, h: 0.2 };
+  const OVERLAY_DEFAULTS = {
+    start: 0, in: 0, out: 4, speed: 1, track: 0, x: 0.5, y: 0.5, scale: 0.4, rot: 0, opacity: 1,
+    mask: 'none', radius: 0.08, border: 0, borderColor: '#ffffff', shadow: false, blend: 'normal',
+    filter: 'none', anim: 'none', volume: 1, muted: false,
+  };
+  const CAPTION_STYLE = { font: 'segoe', size: 0.06, y: 0.82, color: '#ffffff', hl: '#ffd400', bg: true, bgColor: '#000000', outline: true, mode: 'word' };
+  // الخصائص القابلة للتحريك ومداها — نسخة من KF_PROPS في core.js (هذا الملف يُحمَّل وحده في Node)
+  const KF = {
+    clip:    { zoom: [0.2, 5], panX: [-1, 1], panY: [-1, 1], opacity: [0, 1], volume: [0, 1] },
+    overlay: { x: [-0.5, 1.5], y: [-0.5, 1.5], scale: [0.02, 3], rot: [-720, 720], opacity: [0, 1], volume: [0, 1] },
+    text:    { x: [-0.5, 1.5], y: [-0.5, 1.5], size: [0.01, 0.4], opacity: [0, 1], rot: [-720, 720] },
+    audio:   { volume: [0, 1] },
+    effect:  { amount: [0, 1] },
+  };
+  const KF_MAX = 200, KF_EASES = ['linear', 'smooth', 'hold'];
 
   const num = (min, max) => v => (typeof v === 'number' && isFinite(v) ? Math.min(max, Math.max(min, v)) : undefined);
   const bool = v => (typeof v === 'boolean' ? v : undefined);
@@ -242,11 +265,26 @@ const ProjectTools = (() => {
         in: num(0, T), out: num(0, T), speed: num(0.25, 4), volume: num(0, 1), muted: bool, pulse: bool,
         filter: oneOf(en.filters), bright: num(50, 150), contrast: num(50, 150), sat: num(0, 200),
         fit: oneOf(en.fit), motion: oneOf(en.motion), transition: oneOf(en.transition), trLen: num(0.1, 1.5),
+        zoom: num(0.2, 5), panX: num(-1, 1), panY: num(-1, 1), opacity: num(0, 1),
       },
+      overlay: {
+        id, type: oneOf(['image', 'video']), name: str(200), media: id,
+        start: num(0, T), in: num(0, T), out: num(0, T), speed: num(0.25, 4), track: v => { const n = num(0, 20)(v); return n === undefined ? n : Math.round(n); },
+        x: num(-0.5, 1.5), y: num(-0.5, 1.5), scale: num(0.02, 3), rot: num(-720, 720), opacity: num(0, 1),
+        mask: oneOf(['none', 'round', 'circle']), radius: num(0, 0.5), border: num(0, 0.05), borderColor: color, shadow: bool,
+        blend: oneOf(['normal', 'screen', 'multiply', 'lighten']), filter: oneOf(en.filters), anim: oneOf(en.anim), volume: num(0, 1), muted: bool,
+      },
+      captionStyle: {
+        font: oneOf(en.fonts), size: num(0.02, 0.2), y: num(0.05, 0.95), color, hl: color, bg: bool, bgColor: color, outline: bool,
+        mode: oneOf(['none', 'word', 'pop', 'reveal']),
+      },
+      caption: { id, start: num(0, T), end: num(0, T), text: str(500) },
+      word: { w: str(80), t0: num(0, T), t1: num(0, T) },
       audio: { id, name: str(200), media: id, start: num(0, T), in: num(0, T), out: num(0, T), volume: num(0, 1), fadeIn: num(0, 5), fadeOut: num(0, 5) },
       text: {
         id, text: str(2000), start: num(0, T), dur: num(MIN_LEN, T), x: num(0, 1), y: num(0, 1), size: num(0.03, 0.22),
         color, font: oneOf(en.fonts), bold: bool, stroke: bool, strokeColor: color, bg: bool, bgColor: color, shadow: bool, anim: oneOf(en.anim),
+        opacity: num(0, 1), rot: num(-720, 720),
       },
       effect: {
         id, type: oneOf(en.effects), start: num(0, T), dur: num(0.1, 600), amount: num(0, 1), at: id, atMode: oneOf(['cut', 'clip']),
@@ -283,19 +321,50 @@ const ProjectTools = (() => {
       return o;
     };
 
+    // الإطارات المفتاحية: مفاتيح من قائمة النوع فقط، وأرقام ضمن المدى، مرتبة، وبحد أقصى للعدد
+    const kfOf = (raw, kind) => o => {
+      const src = raw && raw.kf, out = {};
+      if (src && typeof src === 'object') {
+        for (const key in KF[kind]) {
+          if (!Array.isArray(src[key])) continue;
+          const [min, max] = KF[kind][key], t = num(0, T), v = num(min, max);
+          const ks = src[key].slice(0, 5000).map(k => k && ({ t: t(k.t), v: v(k.v), e: oneOf(KF_EASES)(k.e) || 'smooth' }))
+            .filter(k => k && k.t !== undefined && k.v !== undefined).sort((a, b) => a.t - b.t).slice(0, KF_MAX);
+          if (ks.length) out[key] = ks;
+        }
+      }
+      if (Object.keys(out).length) o.kf = out;
+      return o;
+    };
+    const each = (v, kind, spec, defaults) => list(v).map(raw => kfOf(raw, kind)(clean(raw, spec, defaults)));
+
     const media = list(data.media).map(m => clean(m, sp.media)).filter(m => m.id && m.kind && m.path);
     const kinds = new Map(media.map(m => [m.id, m.kind]));
-    const clips = list(data.clips).map(c => clean(c, sp.clip)).filter(c => c.type && kinds.get(c.media) === c.type).map(unique);
-    const audios = list(data.audios).map(a => clean(a, sp.audio, { start: 0 })).filter(a => kinds.get(a.media) === 'audio').map(unique);
-    const texts = list(data.texts).map(x => clean(x, sp.text, TEXT_DEFAULTS)).map(unique);
+    const clips = each(data.clips, 'clip', sp.clip).filter(c => c.type && kinds.get(c.media) === c.type).map(unique);
+    const overlays = each(data.overlays, 'overlay', sp.overlay, OVERLAY_DEFAULTS).filter(o => o.type && kinds.get(o.media) === o.type).map(unique);
+    const audios = each(data.audios, 'audio', sp.audio, { start: 0 }).filter(a => kinds.get(a.media) === 'audio').map(unique);
+    const texts = each(data.texts, 'text', sp.text, TEXT_DEFAULTS).map(unique);
     const clipIds = new Set(clips.map(c => c.id));
-    const effects = list(data.effects).map(e => clean(e, sp.effect, EFFECT_DEFAULTS)).filter(e => e.type).map(unique);
+    const effects = each(data.effects, 'effect', sp.effect, EFFECT_DEFAULTS).filter(e => e.type).map(unique);
     for (const e of effects) if (e.at && !clipIds.has(e.at)) e.at = null;
 
-    const usedMedia = new Set([...clips, ...audios].map(o => o.media));
+    // الترجمة: كتل مرتبة بنص غير فارغ، وكلمات كل كتلة داخل مداها
+    const cap = data.captions && typeof data.captions === 'object' ? data.captions : {};
+    const items = list(cap.items).map(raw => {
+      const it = clean(raw, sp.caption);
+      if (!(it.end > it.start) || !it.text || !it.text.trim()) return null;
+      it.end = Math.max(it.end, it.start + MIN_LEN);
+      it.words = (Array.isArray(raw.words) ? raw.words.slice(0, 200) : []).map(w => clean(w, sp.word))
+        .filter(w => w.w && w.w.trim() && w.t0 !== undefined && w.t1 !== undefined)
+        .map(w => ({ w: w.w.trim(), t0: Math.min(it.end, Math.max(it.start, w.t0)), t1: Math.min(it.end, Math.max(it.start, w.t1, w.t0)) }));
+      return it;
+    }).filter(Boolean).sort((a, b) => a.start - b.start).map(unique);
+    const captions = { lang: /^[a-z]{2,3}$/.test(cap.lang) ? cap.lang : '', style: clean(cap.style, sp.captionStyle, CAPTION_STYLE), items };
+
+    const usedMedia = new Set([...clips, ...overlays, ...audios].map(o => o.media));
     return {
       name: str(120)(data.name) || '', ratio: oneOf(ENUMS.ratio)(data.ratio) || '16:9',
-      clips, audios, texts, effects, media: media.filter(m => usedMedia.has(m.id)),
+      clips, overlays, audios, texts, effects, captions, media: media.filter(m => usedMedia.has(m.id)),
     };
   }
 

@@ -55,6 +55,41 @@ const AudioTools = (() => {
     return { sampleRate: sr, channels, length: n, duration: n / sr, peak: peak * gain };
   }
 
+  /**
+   * صوت أحادي بتردد 16 كيلوهرتز لمحرّكات تفريغ الكلام: { sampleRate, channels: [mono], length, duration }.
+   * كل عيّنة ناتجة متوسط العيّنات الأصلية التي تغطيها، وهذا يكفي مرشّحاً ضد التعرّج للكلام.
+   */
+  function toMono16k(buf, start, end) {
+    const sr = buf.sampleRate, OUT = 16000;
+    const s = Math.round(lim(start == null ? 0 : +start, 0, buf.length / sr) * sr);
+    const e = Math.max(s, Math.round(lim(end == null ? buf.length / sr : +end, 0, buf.length / sr) * sr));
+    const ch = [];
+    for (let i = 0; i < Math.min(2, buf.numberOfChannels); i++) ch.push(buf.getChannelData(i));
+    const step = sr / OUT, n = Math.floor((e - s) / step), mono = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = s + Math.floor(i * step), b = Math.max(a + 1, Math.min(e, s + Math.floor((i + 1) * step)));
+      let sum = 0;
+      for (const c of ch) for (let j = a; j < b; j++) sum += c[j];
+      mono[i] = sum / ((b - a) * ch.length);
+    }
+    return { sampleRate: OUT, channels: [mono], length: n, duration: n / OUT };
+  }
+
+  /**
+   * يقطّع مدة طويلة إلى أجزاء لا تتجاوز max ثانية مع تداخل بسيط، كي يبقى كل ملف تحت حد المزوّد
+   * (WAV أحادي 16 كيلوهرتز = 32 كيلوبايت للثانية، و25 ميغابايت ≈ 13 دقيقة). ← [{ start, end }]
+   */
+  function sttChunks(duration, max = 600, overlap = 2) {
+    if (!(duration > 0)) return [];
+    if (duration <= max) return [{ start: 0, end: duration }];
+    const n = Math.ceil((duration - overlap) / (max - overlap)), len = (duration + (n - 1) * overlap) / n, out = [];
+    for (let i = 0; i < n; i++) {
+      const start = i * (len - overlap);
+      out.push({ start, end: i === n - 1 ? duration : start + len });
+    }
+    return out;
+  }
+
   /** أعلى قيمة مطلقة في كل عمود من width عموداً (لرسم الموجة) */
   function peaks(buf, width) {
     const ch = [];
@@ -154,7 +189,7 @@ const AudioTools = (() => {
   const estimate = (seconds, format, bitrate = 192000, channels = 2, sampleRate = 48000) =>
     format === 'wav' ? 44 + seconds * sampleRate * channels * 2 : seconds * bitrate / 8 * 1.02;
 
-  return { FORMATS, BITRATES, process, peaks, wav, canM4A, m4a, encode, estimate };
+  return { FORMATS, BITRATES, process, toMono16k, sttChunks, peaks, wav, canM4A, m4a, encode, estimate };
 })();
 
 if (typeof module !== 'undefined') module.exports = AudioTools;

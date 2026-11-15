@@ -9,6 +9,9 @@ A simple, Arabic-first video editor that runs in your browser, on your own machi
 - Music with fades, animated text overlays
 - Transitions, filters, camera motion, and 16:9, 9:16, 1:1 and 4:5 frames
 - Automatic beat detection and beat-synced cuts
+- **Automatic captions**: speech becomes timed caption blocks on the timeline with the spoken word highlighted (Arabic first, RTL-aware), editable, and exportable as SRT / VTT. Speech-to-text runs through your own key (`GROQ_API_KEY`, `OPENAI_API_KEY` or `GEMINI_API_KEY` in `.env`) or a local Whisper server (`STT_BASE_URL`), in which case the audio never leaves your machine
+- **Overlay layers**: pictures and videos on top of the main track (picture-in-picture, logos, cut-outs), moved, scaled and rotated by mouse or touch, with masks, borders, shadows and blend modes
+- **Keyframes**: animate position, size, opacity, rotation, clip zoom and pan, effect intensity and audio volume over time
 - MP4 export up to 4K (WebCodecs, rendered locally)
 - **Save and open projects**: one `.montaji` file holds the timeline and its media files, so a project reopens exactly as it was, on this computer or another. It is a plain uncompressed ZIP (`project.json` plus a `media/` folder). Project menu, `Ctrl+S` / `Ctrl+O`, or drop the file on the editor
 - **Image studio**: crop, rotate, filters, color-based background removal, and PNG / JPEG / WebP conversion for one image or a whole batch (downloaded as a ZIP), and merging several images into one (side by side, stacked, or a grid)
@@ -37,6 +40,10 @@ The interface is in Arabic (RTL). Code comments are in Arabic; tool descriptions
    On Windows you can double-click `start.bat`; on macOS and Linux run `./start.sh`.
 
 The editor opens at `http://localhost:4747`. Export needs a recent Chrome or Edge. Set `PORT` to use another port.
+
+> [!WARNING]
+> **Montaji is for use on your own machine only. Do not run it on a public server or expose it to the internet** (hosting, a tunnel such as ngrok or Cloudflare Tunnel, a reverse proxy, or a port published from Docker or your router).
+> The server has no login: anyone who reaches it can use the assistant **on your API key** (and your bill), drive the editor over MCP, and write files into `exports/` and `projects/`. That is why it listens on `127.0.0.1` only and rejects any other host; do not change that.
 
 ## AI assistant
 
@@ -67,7 +74,7 @@ claude mcp add --transport http montaji http://localhost:4747/mcp
 { "mcpServers": { "montaji": { "url": "http://localhost:4747/mcp" } } }
 ```
 
-Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `save_project` `open_project` `export_video`
+Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_overlay` `update_overlays` `to_overlay` `to_main` `set_keyframes` `clear_keyframes` `transcribe` `update_captions` `export_captions` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `add_effect` `update_effects` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `save_project` `open_project` `export_video`
 
 ## Project layout
 
@@ -77,11 +84,14 @@ server/      Local Node.js server, no dependencies
   config.js    .env parsing and AI providers
   http.js      HTTP helpers and static files
   chat.js      /api/chat proxy to the AI provider (the key stays here)
+  stt.js       /api/transcribe proxy to the speech-to-text provider (automatic captions)
   bridge.js    /api/bridge channel between the server and the editor tab
   mcp.js       /mcp MCP server
 public/      Everything the browser loads
-  js/core.js     shared state and helpers
+  js/core.js     shared state, keyframes and helpers
   js/beats.js    beat detection
+  js/captiontools.js caption logic: words to blocks, SRT and VTT
+  js/captions.js     automatic captions dialog and subtitle export
   js/render.js   frame rendering and effects
   js/export.js   MP4 export (WebCodecs)
   js/audiotools.js   audio processing: trim, normalize, fades, WAV and M4A encoding
@@ -100,7 +110,7 @@ test/        Tests (node --test)
 docs/        Architecture notes
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Arabic) for the data flow.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Arabic) for the data flow, and [docs/ROADMAP.md](docs/ROADMAP.md) (Arabic) for what is done and what is left of automatic captions, overlay tracks and keyframes.
 
 ## Contributing
 

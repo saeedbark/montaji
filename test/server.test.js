@@ -50,7 +50,7 @@ describe('الخادم', () => {
     fs.writeFileSync(envFile, 'SECRET_MARKER=do-not-leak\n');
     // نمسح مفاتيح البيئة كي لا تؤثر إعدادات جهاز المطوّر في النتيجة
     const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports'), MONTAJI_PROJECT_DIR: path.join(tmp, 'projects') };
-    for (const k of Object.keys(env)) if (/^(AI_|GEMINI_|GOOGLE_API|OPENAI_|ANTHROPIC_|OPENROUTER_)/.test(k)) delete env[k];
+    for (const k of Object.keys(env)) if (/^(AI_|GEMINI_|GOOGLE_API|OPENAI_|ANTHROPIC_|OPENROUTER_|GROQ_|STT_)/.test(k)) delete env[k];
     child = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     await new Promise((resolve, reject) => {
       let out = '';
@@ -87,6 +87,43 @@ describe('الخادم', () => {
     assert.equal(fs.readdirSync(path.join(tmp, 'exports')).filter(f => f.endsWith('.part')).length, 0);
     assert.equal((await save('x', { 'Content-Type': 'text/plain' })).status, 415);
     assert.equal((await save('x', { Origin: 'https://evil.example' })).status, 403);
+  });
+
+  test('حفظ ملف الترجمة يبقى داخل مجلد exports بامتداد srt أو vtt', async () => {
+    const save = (query, type = 'text/plain; charset=utf-8') => request('/api/captions/save?' + query, { method: 'POST', headers: { 'Content-Type': type }, body: '1\n00:00:01,000 --> 00:00:02,000\nمرحبا\n' });
+    const a = await save('name=' + encodeURIComponent('..\\..\\ترجمة.exe'));
+    assert.equal(a.status, 200);
+    assert.equal(path.dirname(a.data.path), path.join(tmp, 'exports'));
+    assert.equal(path.basename(a.data.path), 'ترجمة.exe.srt');
+    assert.match(fs.readFileSync(a.data.path, 'utf8'), /مرحبا/);
+    assert.equal(path.basename((await save('format=vtt&name=subs.vtt')).data.path), 'subs.vtt');
+    assert.equal(path.basename((await save('format=evil&name=')).data.path), 'captions.srt');
+    assert.equal((await save('name=x', 'video/mp4')).status, 415);
+    assert.equal((await request('/api/captions/save?name=x', { method: 'POST', headers: { 'Content-Type': 'text/plain', Origin: 'https://evil.example' }, body: 'x' })).status, 403);
+  });
+
+  test('/api/transcribe: يرفض المواقع الأخرى، وبلا خدمة تفريغ يعيد خطأ إعداد واضحاً', async () => {
+    const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(60)]);
+    const post = (headers, body = wav) => new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port, path: '/api/transcribe?lang=ar', method: 'POST', headers: { Host: `localhost:${port}`, 'Content-Type': 'audio/wav', ...headers } }, res => {
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => { let data = null; try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { /* ليس JSON */ } resolve({ status: res.statusCode, data }); });
+      });
+      req.on('error', reject);
+      req.end(body);
+    });
+    assert.equal((await post({ Origin: 'https://evil.example' })).status, 403);
+    assert.equal((await post({ Host: 'evil.example' })).status, 403);
+    const r = await post({});
+    assert.equal(r.status, 400);
+    assert.equal(r.data.setup, true);
+    assert.match(r.data.error, /\.env/);
+    assert.ok(!JSON.stringify(r.data).includes('do-not-leak'));
+    // /api/config يبلّغ الواجهة أن التفريغ غير مضبوط، بلا أي مفتاح
+    const cfg = await request('/api/config');
+    assert.equal(cfg.data.stt.ready, false);
+    assert.equal((await request('/api/transcribe')).status, 404, 'GET غير مدعوم');
   });
 
   test('حفظ المشروع يبقى داخل مجلد projects بامتداد montaji', async () => {

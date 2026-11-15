@@ -72,4 +72,10 @@ const saveExport = (req, res, query) => saveUpload(req, res, { dir: EXPORT_DIR, 
 // ملف المشروع يحمل ملفات الوسائط الأصلية كلها، فحدّه أعلى من حد الفيديو المصدَّر
 const saveProject = (req, res, query) => saveUpload(req, res, { dir: PROJECT_DIR, name: safeName(query.get('name'), '.montaji', 'project'), type: 'application/zip', max: 32 * GB });
 
-module.exports = { saveExport, saveProject, safeName };
+// ملف ترجمة SRT أو VTT (export_captions مع save_as) بجانب الفيديوهات المصدَّرة
+const saveCaptions = (req, res, query) => {
+  const ext = query.get('format') === 'vtt' ? '.vtt' : '.srt';
+  return saveUpload(req, res, { dir: EXPORT_DIR, name: safeName(query.get('name'), ext, 'captions'), type: 'text/plain', max: 8 * 1024 * 1024 });
+};
+
+module.exports = { saveExport, saveProject, saveCaptions, safeName };

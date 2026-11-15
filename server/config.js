@@ -66,11 +66,37 @@ function provider(env = readEnv()) {
   return { id, label: p.label, key, base, model, vision: !/^(off|false|0|no)$/i.test(env('AI_VISION')) };
 }
 
+// خدمات تفريغ الكلام للترجمة التلقائية. whisper = واجهة ‎/audio/transcriptions‎ (توقيت لكل كلمة)،
+// chat = نموذج محادثة يسمع الصوت (توقيت تقريبي للجمل). الترتيب هو ترتيب الاختيار التلقائي.
+const STT_PROVIDERS = {
+  openai: { label: 'OpenAI Whisper', kind: 'whisper', keys: ['OPENAI_API_KEY'], base: 'https://api.openai.com/v1', model: 'whisper-1' },
+  groq:   { label: 'Groq Whisper', kind: 'whisper', keys: ['GROQ_API_KEY'], base: 'https://api.groq.com/openai/v1', model: 'whisper-large-v3' },
+  gemini: { label: 'Google Gemini', kind: 'chat', keys: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'], base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.6-flash' },
+  custom: { label: 'خادم تفريغ مخصّص', kind: 'whisper', keys: ['STT_API_KEY'], base: '', model: 'whisper-1' },
+};
+
+/** خدمة التفريغ الفعّالة بحسب .env، أو { error } برسالة تُعرض للمستخدم */
+function sttProvider(env = readEnv()) {
+  const keyOf = p => p.keys.map(env).find(Boolean) || '';
+  let id = env('STT_PROVIDER').toLowerCase();
+  if (id && !STT_PROVIDERS[id]) return { error: `خدمة التفريغ «${id}» غير معروفة. القيم المتاحة: ${Object.keys(STT_PROVIDERS).join(' ، ')}` };
+  // عنوان مخصّص (whisper.cpp أو faster-whisper على جهازك) يتقدّم على المفاتيح: الصوت لا يغادر الجهاز
+  if (!id) id = env('STT_BASE_URL') ? 'custom' : Object.keys(STT_PROVIDERS).find(k => keyOf(STT_PROVIDERS[k])) || '';
+  if (!id) return { error: 'الترجمة التلقائية تحتاج مفتاح OpenAI أو Groq أو Gemini في ملف .env، أو خادم Whisper محلياً عبر STT_BASE_URL' };
+  const p = STT_PROVIDERS[id];
+  const key = keyOf(p) || env('STT_API_KEY');
+  const base = (env('STT_BASE_URL') || p.base).replace(/\/+$/, '');
+  if (!key && id !== 'custom') return { error: `المفتاح ${p.keys[0]} فارغ في ملف .env` };
+  if (!base) return { error: 'حدّد STT_BASE_URL في ملف .env' };
+  return { id, label: p.label, kind: p.kind, key, base, model: env('STT_MODEL') || p.model };
+}
+
 /** ما يُسمح للمتصفح بمعرفته عن الإعدادات — بلا المفتاح أبداً */
 function publicConfig() {
-  const p = provider();
-  const base = { envFile: '.env', mcp: `http://localhost:${PORT}/mcp` };
+  const p = provider(), s = sttProvider();
+  const stt = s.error ? { ready: false, error: s.error } : { ready: true, provider: s.id, label: s.label, model: s.model, words: s.kind === 'whisper', local: /\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(s.base + '/') };
+  const base = { envFile: '.env', mcp: `http://localhost:${PORT}/mcp`, stt };
   return p.error ? { ...base, ready: false, error: p.error } : { ...base, ready: true, provider: p.id, label: p.label, model: p.model, vision: p.vision };
 }
 
-module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, VERSION, PROVIDERS, parseEnv, readEnv, provider, publicConfig };
+module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, VERSION, PROVIDERS, STT_PROVIDERS, parseEnv, readEnv, provider, sttProvider, publicConfig };
