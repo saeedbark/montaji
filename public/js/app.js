@@ -600,9 +600,12 @@
     dirty = true;
   }
 
+  // المؤشر يتحرك بـtransform (بلا إعادة تخطيط للخط الزمني)، والوقت يُكتب حين يتغيّر نصه فقط
+  let timeText = '';
   function updateTransport() {
-    els.playhead.style.left = (LABEL_W + view.t * view.pps) + 'px';
-    els.time.textContent = `${fmtTime(view.t)} / ${fmtTime(view.total)}`;
+    els.playhead.style.transform = `translateX(${LABEL_W + view.t * view.pps}px)`;
+    const s = `${fmtTime(view.t)} / ${fmtTime(view.total)}`;
+    if (s !== timeText) els.time.textContent = timeText = s;
   }
 
   function loop(ts) {
@@ -615,8 +618,12 @@
       else syncMedia();
       updateTransport();
       // إبقاء المؤشر ظاهراً أثناء التشغيل
-      const x = LABEL_W + view.t * view.pps, sc = els.tlScroll;
-      if (x > sc.scrollLeft + sc.clientWidth - 30 || x < sc.scrollLeft + LABEL_W) sc.scrollLeft = x - LABEL_W - 40;
+      // موضع التمرير وعرضه من tlView لا من العنصر: قراءتهما في كل إطار تفرض إعادة تخطيط
+      const x = LABEL_W + view.t * view.pps;
+      if (x > tlView.left + tlView.w - 30 || x < tlView.left + LABEL_W) {
+        els.tlScroll.scrollLeft = x - LABEL_W - 40;
+        tlView.left = els.tlScroll.scrollLeft;
+      }
       dirty = true;
     }
     if (dirty) {
@@ -641,6 +648,14 @@
     return Math.max(1, ends.length);
   }
 
+  /*
+   * الخط الزمني لا يبني إلا العناصر الواقعة في الجزء الظاهر وعرض شاشة قبله وبعده (tlWin، بإحداثيات المسار).
+   * التمرير يعيد البناء حين يقترب الظاهر من حافة هذه النافذة. بهذا تبقى كلفة كل تعديل وكل حركة سحب
+   * ثابتة مهما طال المشروع. tlView آخر موضع تمرير وعرض معروفين، يقرأهما loop() دون لمس التخطيط.
+   */
+  const tlView = { left: 0, w: 0 };
+  let tlWin = { x0: 0, x1: 0, W: 0 };
+
   function renderTimeline() {
     const pps = view.pps, total = view.total;
     let maxEnd = total;
@@ -648,7 +663,14 @@
     for (const x of state.texts) maxEnd = Math.max(maxEnd, x.start + x.dur);
     for (const x of state.effects) maxEnd = Math.max(maxEnd, x.start + x.dur);
     for (const x of state.captions.items) maxEnd = Math.max(maxEnd, x.end);
-    const W = Math.max(els.tlScroll.clientWidth - LABEL_W - 2, (maxEnd + 3) * pps);
+    const vw = els.tlScroll.clientWidth;
+    const W = Math.max(vw - LABEL_W - 2, (maxEnd + 3) * pps);
+    // إن قصر الخط الزمني (تصغير، حذف) فالمتصفح سيردّ التمرير إلى آخره: نحسب النافذة على الموضع بعد الرد
+    const sl = Math.min(els.tlScroll.scrollLeft, Math.max(0, LABEL_W + W - vw));
+    tlView.left = sl; tlView.w = vw;
+    const x0 = sl - LABEL_W - vw, x1 = sl - LABEL_W + vw * 2;
+    tlWin = { x0, x1, W };
+    const vis = (start, len) => (start + len) * pps >= x0 && start * pps <= x1;
     const sel = state.sel;
     const isSel = (kind, id) => (sel && sel.kind === kind && sel.id === id ? ' sel' : '');
     // نقاط الإطارات المفتاحية على العنصر: النقر ينقل المؤشر إليها والسحب يغيّر وقتها
@@ -656,14 +678,14 @@
 
     // الترجمة: صف واحد، يظهر حين توجد كتل
     const CL = 26;
-    const caps = state.captions.items.map(x =>
+    const caps = state.captions.items.filter(x => vis(x.start, x.end - x.start)).map(x =>
       `<div class="item caption${isSel('caption', x.id)}" data-kind="caption" data-id="${x.id}" style="left:${x.start * pps}px;width:${Math.max(6, (x.end - x.start) * pps - 1)}px;height:${CL}px">
         <span class="name">${esc(x.text)}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // الطبقات: كل صف track، والأعلى يُرسم فوق
     const OL = 40;
     const maxTrack = state.overlays.reduce((m, o) => Math.max(m, o.track || 0), 0);
-    const overlays = state.overlays.map(o => {
+    const overlays = state.overlays.filter(o => vis(o.start, overlayLen(o))).map(o => {
       const len = overlayLen(o);
       return `<div class="item overlay ${o.type}${isSel('overlay', o.id)}" data-kind="overlay" data-id="${o.id}" style="left:${o.start * pps}px;width:${Math.max(6, len * pps)}px;top:${(maxTrack - (o.track || 0)) * (OL + 4)}px;height:${OL}px">
         <div class="thumbs" style="background-image:url('${o.thumb}')"></div>${dots(o)}
@@ -674,17 +696,17 @@
     const steps = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
     const step = steps.find(s => s * pps >= 68) || 600;
     let ticks = '';
-    for (let t = 0; t * pps < W; t += step) ticks += `<span class="tick" style="left:${t * pps}px">${fmtTime(t).replace(/\.0$/, '')}</span>`;
+    for (let k = Math.max(0, Math.floor(x0 / (step * pps))), t; (t = k * step) * pps < Math.min(W, x1); k++) ticks += `<span class="tick" style="left:${t * pps}px">${fmtTime(t).replace(/\.0$/, '')}</span>`;
 
     // النصوص
     const TL = 30, AL = 40;
     const tLanes = assignLanes(state.texts, x => x.dur);
-    const texts = state.texts.map(x =>
+    const texts = state.texts.filter(x => vis(x.start, x.dur)).map(x =>
       `<div class="item text${isSel('text', x.id)}" data-kind="text" data-id="${x.id}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (TL + 4)}px;height:${TL}px">
         ${dots(x)}<span class="name">${esc(x.text.split('\n')[0] || 'نص')}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // المقاطع
-    const clips = state.clips.map(c => {
+    const clips = state.clips.filter(c => vis(c._start, clipLen(c))).map(c => {
       const len = clipLen(c);
       return `<div class="item clip ${c.type}${isSel('clip', c.id)}" data-kind="clip" data-id="${c.id}" style="left:${c._start * pps}px;width:${Math.max(6, len * pps - 2)}px">
         <div class="thumbs" style="background-image:url('${c.thumb}')"></div>
@@ -695,17 +717,17 @@
     // التأثيرات
     const EL = 26;
     const eLanes = assignLanes(state.effects, x => x.dur);
-    const effects = state.effects.map(x =>
+    const effects = state.effects.filter(x => vis(x.start, x.dur)).map(x =>
       `<div class="item effect${x.at ? ' anchored' : ''}${isSel('effect', x.id)}" data-kind="effect" data-id="${x.id}" title="${x.at ? 'مربوط بالقطع: يتبعه عند تغيير التوقيت' : ''}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (EL + 4)}px;height:${EL}px">
         ${dots(x)}<span class="name">${esc((Render.EFFECTS[x.type] || {}).label || x.type)}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // الموسيقى
     const aLanes = assignLanes(state.audios, audioLen);
-    const audios = state.audios.map(a => {
+    const audios = state.audios.filter(a => vis(a.start, audioLen(a))).map(a => {
       const len = audioLen(a);
       // علامات الضربات (الأطول = بداية المازورة) — تُخفى إن تزاحمت
       const b = a.beats;
-      const marks = b && b.period * pps >= 5 ? b.beats.filter(x => x.t >= a.in && x.t < a.out)
+      const marks = b && b.period * pps >= 5 ? b.beats.filter(x => x.t >= a.in && x.t < a.out && vis(a.start + x.t - a.in, 0))
         .map(x => `<i class="beat${x.down ? ' down' : ''}" style="left:${(x.t - a.in) * pps}px"></i>`).join('') : '';
       return `<div class="item audio${isSel('audio', a.id)}" data-kind="audio" data-id="${a.id}" style="left:${a.start * pps}px;width:${Math.max(6, len * pps)}px;top:${a._lane * (AL + 4)}px;height:${AL}px;background-image:url('${a.wave}');background-size:${a.srcDur * pps}px 100%;background-position:${-a.in * pps}px 0">
         ${marks}${dots(a)}<span class="name">${esc(a.name)}</span><i class="h l"></i><i class="h r"></i></div>`;
@@ -713,16 +735,23 @@
 
     els.tlRows.innerHTML =
       `<div class="tl-ruler"><div class="tl-label"></div><div class="tl-lane" style="width:${W}px">${ticks}</div></div>
-       ${caps ? `<div class="tl-track caption"><div class="tl-label">الترجمة</div><div class="tl-lane" style="width:${W}px;height:${CL}px">${caps}</div></div>` : ''}
-       <div class="tl-track text"><div class="tl-label">النصوص</div><div class="tl-lane" style="width:${W}px;height:${tLanes * (TL + 4) - 4}px">${texts || '<span class="tl-hint">اضغط «نص» لإضافة عنوان أو تعليق</span>'}</div></div>
-       ${overlays ? `<div class="tl-track overlay"><div class="tl-label">الطبقات</div><div class="tl-lane" style="width:${W}px;height:${(maxTrack + 1) * (OL + 4) - 4}px">${overlays}</div></div>` : ''}
-       <div class="tl-track main"><div class="tl-label">المقاطع</div><div class="tl-lane" style="width:${W}px">${clips || '<span class="tl-hint">ارفع صوراً أو مقاطع فيديو لتظهر هنا</span>'}</div></div>
-       <div class="tl-track effect"><div class="tl-label">التأثيرات</div><div class="tl-lane" style="width:${W}px;height:${eLanes * (EL + 4) - 4}px">${effects || '<span class="tl-hint">اضغط «تأثير» لإضافة تكبير ضبابي أو وميض أو أبيض وأسود</span>'}</div></div>
-       <div class="tl-track audio"><div class="tl-label">الموسيقى</div><div class="tl-lane" style="width:${W}px;height:${aLanes * (AL + 4) - 4}px">${audios || '<span class="tl-hint">اضغط «موسيقى» لإضافة مقطع صوتي</span>'}</div></div>
+       ${state.captions.items.length ? `<div class="tl-track caption"><div class="tl-label">الترجمة</div><div class="tl-lane" style="width:${W}px;height:${CL}px">${caps}</div></div>` : ''}
+       <div class="tl-track text"><div class="tl-label">النصوص</div><div class="tl-lane" style="width:${W}px;height:${tLanes * (TL + 4) - 4}px">${state.texts.length ? texts : '<span class="tl-hint">اضغط «نص» لإضافة عنوان أو تعليق</span>'}</div></div>
+       ${state.overlays.length ? `<div class="tl-track overlay"><div class="tl-label">الطبقات</div><div class="tl-lane" style="width:${W}px;height:${(maxTrack + 1) * (OL + 4) - 4}px">${overlays}</div></div>` : ''}
+       <div class="tl-track main"><div class="tl-label">المقاطع</div><div class="tl-lane" style="width:${W}px">${state.clips.length ? clips : '<span class="tl-hint">ارفع صوراً أو مقاطع فيديو لتظهر هنا</span>'}</div></div>
+       <div class="tl-track effect"><div class="tl-label">التأثيرات</div><div class="tl-lane" style="width:${W}px;height:${eLanes * (EL + 4) - 4}px">${state.effects.length ? effects : '<span class="tl-hint">اضغط «تأثير» لإضافة تكبير ضبابي أو وميض أو أبيض وأسود</span>'}</div></div>
+       <div class="tl-track audio"><div class="tl-label">الموسيقى</div><div class="tl-lane" style="width:${W}px;height:${aLanes * (AL + 4) - 4}px">${state.audios.length ? audios : '<span class="tl-hint">اضغط «موسيقى» لإضافة مقطع صوتي</span>'}</div></div>
        ${total > 0 ? `<div class="tl-end" style="left:${LABEL_W + total * pps}px;right:0"></div>` : ''}`;
     els.tlInner.style.width = (LABEL_W + W) + 'px';
     updateTransport();
   }
+
+  // التمرير: يُعاد البناء حين يصير الظاهر على أقل من نصف شاشة من حافة ما بُني
+  els.tlScroll.addEventListener('scroll', () => {
+    const l = els.tlScroll.scrollLeft - LABEL_W, vw = tlView.w;
+    tlView.left = l + LABEL_W;
+    if ((l - vw / 2 < tlWin.x0 && tlWin.x0 > 0) || (l + vw * 1.5 > tlWin.x1 && tlWin.x1 < tlWin.W)) renderTimeline();
+  }, { passive: true });
 
   function fitTimeline() {
     layout();
@@ -826,8 +855,9 @@
         const dx = ev.clientX - x0;
         if (!moved && Math.abs(dx) < 5) return;
         moved = true;
-        itemEl.classList.add('dragging');
-        itemEl.style.transform = `translateX(${dx}px)`;
+        // العنصر يُبحث عنه في كل حركة: التمرير أثناء السحب قد يعيد بناء الخط الزمني فيُستبدل
+        const el = els.tlRows.querySelector(`.item[data-id="${id}"]`);
+        if (el) { el.classList.add('dragging'); el.style.transform = `translateX(${dx}px)`; }
         const pt = timeAtX(ev.clientX);
         const others = state.clips.filter(c => c !== obj);
         target = others.filter(c => c._start + clipLen(c) / 2 < pt).length;
