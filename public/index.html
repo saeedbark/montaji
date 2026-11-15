@@ -41,6 +41,8 @@
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
   <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l4 4v12H5zM8 4v5h7V4M8 20v-6h8v6"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 12.5l9 5 9-5M3 17l9 5 9-5"/></symbol>
+  <symbol id="i-cc" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10.5 10.3a2.2 2.2 0 100 3.4M17 10.3a2.2 2.2 0 100 3.4"/></symbol>
   <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
 </svg>
 
@@ -61,6 +63,9 @@
       <button class="menu-item" role="menuitem" id="btnProjSave">
         <svg class="ic"><use href="#i-save"/></svg><span><b>حفظ المشروع</b><small>ملف واحد فيه الخط الزمني وملفات الوسائط · Ctrl+S</small></span>
       </button>
+      <button class="menu-item" role="menuitem" id="btnCapExport">
+        <svg class="ic"><use href="#i-cc"/></svg><span><b>تصدير الترجمة</b><small>ملف SRT يفتحه يوتيوب ومشغّلات الفيديو</small></span>
+      </button>
     </div>
   </div>
 
@@ -74,6 +79,9 @@
     <button class="btn" id="btnAddText" title="إضافة نص فوق الفيديو">
       <svg class="ic"><use href="#i-text"/></svg><span>نص</span>
     </button>
+    <button class="btn" id="btnAddOverlay" title="إضافة صورة أو فيديو فوق المسار الرئيسي: شعار، صورة داخل صورة…">
+      <svg class="ic"><use href="#i-layers"/></svg><span>طبقة</span>
+    </button>
     <button class="btn" id="btnAddEffect" title="إضافة تأثير: تكبير ضبابي، وميض، أبيض وأسود…">
       <svg class="ic"><use href="#i-spark"/></svg><span>تأثير</span>
     </button>
@@ -84,6 +92,9 @@
       <svg class="ic"><use href="#i-wand"/></svg><span>أدوات</span>
     </button>
     <div class="menu" id="toolsMenu" role="menu" hidden>
+      <button class="menu-item" role="menuitem" id="btnCaptions">
+        <svg class="ic"><use href="#i-cc"/></svg><span><b>ترجمة تلقائية</b><small>حوّل كلام الفيديو إلى نص متزامن على الخط الزمني</small></span>
+      </button>
       <button class="menu-item" role="menuitem" id="btnImages">
         <svg class="ic"><use href="#i-wand"/></svg><span><b>استوديو الصور</b><small>قص، إزالة الخلفية، تحويل PNG و JPEG</small></span>
       </button>
@@ -206,6 +217,7 @@
 <input type="file" id="fileMedia" accept="image/*,video/*" multiple hidden>
 <input type="file" id="fileMusic" accept="audio/*" multiple hidden>
 <input type="file" id="fileChat" accept="image/*,video/*,audio/*" multiple hidden>
+<input type="file" id="fileOverlay" accept="image/*,video/*" multiple hidden>
 <input type="file" id="fileProject" accept=".montaji,.zip" hidden>
 
 <!-- حفظ المشروع وفتحه -->
@@ -215,6 +227,14 @@
     <div class="bar"><div class="bar-fill" id="projBar"></div></div>
     <div class="ex-status"><span id="projStatus"></span><b id="projPct" dir="ltr">0%</b></div>
     <p class="ex-note">أبقِ هذه الصفحة مفتوحة حتى ينتهي.</p>
+  </div>
+</div>
+
+<!-- الترجمة التلقائية -->
+<div class="modal" id="capModal" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="capTitle">
+    <h2 id="capTitle">ترجمة تلقائية</h2>
+    <div id="capBody"></div>
   </div>
 </div>
 
@@ -351,6 +371,7 @@
 <script src="vendor/mp4-muxer.js"></script>
 <script src="js/core.js"></script>
 <script src="js/beats.js"></script>
+<script src="js/captiontools.js"></script>
 <script src="js/render.js"></script>
 <script src="js/export.js"></script>
 <script src="js/videotools.js"></script>
@@ -362,6 +383,7 @@
 <script src="js/imagestudio.js"></script>
 <script src="js/extractaudio.js"></script>
 <script src="js/splitvideo.js"></script>
+<script src="js/captions.js"></script>
 <script src="js/tools.js"></script>
 <script src="js/agent.js"></script>
 <script src="js/chat.js"></script>

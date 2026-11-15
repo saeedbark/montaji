@@ -32,6 +32,9 @@ Project model
 - Images last 4 s by default. Good pacing is 2.5 to 4 s per photo in a slideshow, shorter for energetic videos.
 - A transition belongs to the clip that enters and takes up to 0.6 s at its start. The first clip needs none.
 - Effects (zoom blur, whip, flash, shake, color split, black and white, sharpen, vignette, darken) sit on their own track over the picture. Put short burst effects on the cuts (add_effect with at_cuts) for energetic edits; they stay on the cuts after sync_to_beat.
+- Overlays are free layers above the main track (add_overlay from a clip's media, or to_overlay to move a clip up): a logo in a corner (scale about 15), picture-in-picture (scale about 30, mask round, shadow), a product cut-out over a background. They are drawn under effects, texts and captions. Check their placement with view_frame.
+- Captions: transcribe turns the speech into timed caption blocks with the spoken word highlighted (it needs a speech-to-text key in the .env file; if it fails for that reason, tell the user which key to add). Afterwards read the caption texts and fix obvious spelling mistakes with update_captions, keeping the same number of words. On 9:16 use caption size about 4 and y about 0.75.
+- Keyframes: set_keyframes animates one property of an item over time; times are seconds from the item's own start. Use it for moves the presets cannot do: a title sliding in from the side, a layer growing, a slow custom zoom on a clip, music ducking under speech (use the caption times to know where the speech is).
 - Texts and audio sit on their own tracks and are placed freely by start time. Text position uses x and y from 0 to 1 (0.5 is the center). Keep text away from the frame edges; on 9:16 keep y between 0.12 and 0.85.
 - Text is drawn exactly as written and supports Arabic. Keep overlay text short. Size is a percent of frame HEIGHT, so the right value depends on the aspect ratio: follow the size guide at the end of this message.
 - Audio longer than the video is cut at the video's end automatically, so give music a fade-out. When video clips carry speech, lower the music to about 20 to 30.
@@ -113,6 +116,15 @@ Project model
     update_texts: () => 'تعديل النصوص',
     add_effect: a => `إضافة تأثير: ${(Render.EFFECTS[a.type] || {}).label || a.type || ''}`,
     update_effects: () => 'تعديل التأثيرات',
+    add_overlay: () => 'إضافة طبقة فوق الفيديو',
+    update_overlays: () => 'تعديل الطبقات',
+    to_overlay: () => 'تحويل مقطع إلى طبقة',
+    to_main: () => 'تحويل طبقة إلى المسار الرئيسي',
+    set_keyframes: () => 'تحريك بالإطارات المفتاحية',
+    clear_keyframes: () => 'حذف الإطارات المفتاحية',
+    transcribe: () => 'تفريغ الكلام إلى ترجمة',
+    update_captions: () => 'تعديل الترجمة',
+    export_captions: () => 'حفظ ملف الترجمة',
     update_audio: () => 'ضبط الصوت والموسيقى',
     analyze_audio: () => 'تحليل إيقاع الموسيقى',
     sync_to_beat: () => 'مزامنة القص مع الإيقاع',

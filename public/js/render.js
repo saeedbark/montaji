@@ -47,6 +47,17 @@ const Render = (() => {
     backlight:{ label: 'إضاءة خلفية',     shape: 'blink', dur: 0.3,  region: true, rect: true },
   };
 
+  // أوضاع مزج الطبقات ← عملية التركيب في Canvas
+  const BLENDS = {
+    normal:   { label: 'عادي',   op: 'source-over' },
+    screen:   { label: 'إضاءة',  op: 'screen' },
+    multiply: { label: 'ضرب',    op: 'multiply' },
+    lighten:  { label: 'تفتيح',  op: 'lighten' },
+  };
+  const MASKS = { none: 'بدون', round: 'زوايا مستديرة', circle: 'دائرة' };
+  const CAPTION_MODES = { none: 'بلا تمييز', word: 'كلمة ملوّنة', pop: 'كلمة مكبّرة', reveal: 'كلمة كلمة' };
+  const RTL = /[֐-ࣿיִ-ﻼ]/;
+
   let curT = 0; // زمن الإطار الجاري رسمه (لنبضة الإيقاع)
   const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
 
@@ -79,6 +90,11 @@ const Render = (() => {
     const f = filterCss(c);
     const sameAspect = Math.abs(sw / sh - W / H) < 0.01;
     const fit = sameAspect ? 'cover' : c.fit;
+    // تكبير وإزاحة وشفافية المقطع (ثابتة أو بإطارات مفتاحية). الإطارات المفتاحية تعطّل حركة الكاميرا الجاهزة
+    const klt = p * clipLen(c);
+    const custom = hasKf(c, 'zoom') || hasKf(c, 'panX') || hasKf(c, 'panY');
+    const motion = custom ? 'none' : c.motion;
+    ctx.globalAlpha = clamp(prop(c, 'opacity', klt), 0, 1);
 
     try {
       if (fit === 'blur') {
@@ -96,18 +112,18 @@ const Render = (() => {
       const s = fit === 'cover' ? Math.max(W / sw, H / sh) : Math.min(W / sw, H / sh);
       let m = 1, dx = 0, dy = 0, rot = 0;
       const Z = 0.14;
-      if (c.motion === 'zoomIn') m = 1 + Z * p;
-      else if (c.motion === 'zoomOut') m = 1 + Z * (1 - p);
-      else if (c.motion === 'panLeft' || c.motion === 'panRight') {
+      if (motion === 'zoomIn') m = 1 + Z * p;
+      else if (motion === 'zoomOut') m = 1 + Z * (1 - p);
+      else if (motion === 'panLeft' || motion === 'panRight') {
         m = 1 + Z;
         const extra = sw * s * Z;
-        dx = (c.motion === 'panLeft' ? 0.5 - p : p - 0.5) * extra;
-      } else if (c.motion === 'panUp' || c.motion === 'panDown') {
+        dx = (motion === 'panLeft' ? 0.5 - p : p - 0.5) * extra;
+      } else if (motion === 'panUp' || motion === 'panDown') {
         // تمرير عمودي: في الصورة الطويلة (صور مدموجة فوق بعض مع «ملء الإطار») يمر على الصورة كلها
         m = 1 + Z * 0.5;
         const room = Math.max(sh * s * m - H, sh * s * Z * 0.5);
-        dy = (c.motion === 'panUp' ? 0.5 - ease(p) : ease(p) - 0.5) * room;
-      } else if (c.motion === 'handheld') {
+        dy = (motion === 'panUp' ? 0.5 - ease(p) : ease(p) - 0.5) * room;
+      } else if (motion === 'handheld') {
         // كاميرا محمولة: انجراف ناعم ودوران خفيف مع اقتراب بطيء، فتبدو الصورة الثابتة كأنها مصوّرة باليد
         const lt = p * clipLen(c), ph = c._ph || (c._ph = [...String(c.id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 97);
         m = 1.03 + 0.04 * p;
@@ -117,6 +133,9 @@ const Render = (() => {
       }
       // نبضة مع الإيقاع: تكبير خاطف عند كل ضربة في الموسيقى
       if (c.pulse) m *= 1 + 0.045 * Beats.pulse(curT);
+      m *= clamp(prop(c, 'zoom', klt), 0.2, 5);
+      dx += prop(c, 'panX', klt) * W;
+      dy += prop(c, 'panY', klt) * H;
       const dw = sw * s * m, dh = sh * s * m;
       if (rot) { ctx.translate(W / 2, H / 2); ctx.rotate(rot); ctx.translate(-W / 2, -H / 2); }
       ctx.drawImage(el, (W - dw) / 2 + dx, (H - dh) / 2 + dy, dw, dh);
@@ -194,11 +213,12 @@ const Render = (() => {
     const lt = t - tx.start;
     if (lt < 0 || lt > tx.dur || !String(tx.text).trim()) { tx._box = null; return; }
 
-    const size = tx.size * H;
+    const size = prop(tx, 'size', lt) * H;
+    const px = prop(tx, 'x', lt), py = prop(tx, 'y', lt);
     const ff = FONTS[tx.font] || FONTS.segoe;
     ctx.save();
     ctx.font = `${ff.italic ? 'italic ' : ''}${tx.bold ? 700 : 400} ${size}px ${ff.css}`;
-    ctx.direction = /[֐-ࣿיִ-ﻼ]/.test(tx.text) ? 'rtl' : 'ltr';
+    ctx.direction = RTL.test(tx.text) ? 'rtl' : 'ltr';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -218,9 +238,12 @@ const Render = (() => {
       if (tx.anim === 'rise') offY = (1 - e) * size * 0.7;
       if (tx.anim === 'pop') sc = 0.6 + 0.4 * e;
     }
+    alpha *= clamp(prop(tx, 'opacity', lt), 0, 1);
 
-    const cx = tx.x * W, cy = tx.y * H;
+    const cx = px * W, cy = py * H;
     ctx.translate(cx, cy + offY);
+    const rot = prop(tx, 'rot', lt);
+    if (rot) ctx.rotate(rot * Math.PI / 180);
     ctx.scale(sc, sc);
     ctx.globalAlpha = alpha;
 
@@ -252,7 +275,7 @@ const Render = (() => {
 
     // صندوق النص (بنسب 0..1) لالتقاطه بالفأرة
     const hw = (bw / 2 + padX) / W, hh = (bh / 2 + padY) / H;
-    tx._box = { x0: tx.x - hw, y0: tx.y - hh, x1: tx.x + hw, y1: tx.y + hh };
+    tx._box = { x0: px - hw, y0: py - hh, x1: px + hw, y1: py + hh };
 
     if (outline) {
       ctx.save();
@@ -278,7 +301,7 @@ const Render = (() => {
       k = ease(clamp(Math.min(lt / inT, (e.dur - lt) / outT), 0, 1));
     } else if (shape === 'rise') k = ease(Math.min(1, lt / Math.max(0.05, Math.min(0.6, e.dur * 0.6))));
     else k = clamp(Math.min(lt, e.dur - lt) / 0.04, 0, 1); // ثابت، مع حواف قصيرة جداً كي لا تظهر قفزة
-    return k * clamp(e.amount != null ? e.amount : 1, 0, 1);
+    return k * clamp(prop(e, 'amount', lt), 0, 1);
   }
 
   // متوسط نسخ متعددة من الصورة: كل نسخة بشفافية 1/(i+1) فتتساوى أوزانها
@@ -570,7 +593,206 @@ const Render = (() => {
     ctx.restore();
   }
 
-  /** يرسم الإطار عند الزمن t. opts.selText = معرّف النص المحدد (للمعاينة فقط) */
+  /* ---------- الطبقات فوق المسار الرئيسي ---------- */
+  function maskPath(ctx, o, dw, dh) {
+    ctx.beginPath();
+    if (o.mask === 'circle') ctx.arc(0, 0, Math.min(dw, dh) / 2, 0, Math.PI * 2);
+    else if (o.mask === 'round') roundRect(ctx, -dw / 2, -dh / 2, dw, dh, clamp(o.radius != null ? o.radius : 0.08, 0, 0.5) * Math.min(dw, dh));
+    else ctx.rect(-dw / 2, -dh / 2, dw, dh);
+  }
+
+  /** يرسم طبقة: scale نسبة عرضها من عرض الإطار، و x و y مركزها. يخزّن هندستها في _g لمقابض المعاينة */
+  function drawOverlay(ctx, o, W, H, t) {
+    const len = overlayLen(o), lt = t - o.start;
+    o._g = null;
+    if (lt < 0 || lt >= len || !o.el || !o.w || !o.h) return;
+    const dw = clamp(prop(o, 'scale', lt), 0.02, 3) * W, dh = dw * o.h / o.w;
+    const cx = prop(o, 'x', lt) * W, cy = prop(o, 'y', lt) * H, rot = prop(o, 'rot', lt) * Math.PI / 180;
+    o._g = { cx, cy, dw, dh, rot, W, H };
+
+    let alpha = clamp(prop(o, 'opacity', lt), 0, 1), offY = 0, sc = 1;
+    if (o.anim && o.anim !== 'none') {
+      const f = Math.min(0.4, len / 3);
+      const k = clamp(Math.min(lt / f, (len - lt) / f), 0, 1), e = 1 - Math.pow(1 - k, 3);
+      alpha *= k;
+      if (o.anim === 'rise') offY = (1 - e) * dh * 0.15;
+      if (o.anim === 'pop') sc = 0.6 + 0.4 * e;
+    }
+    if (alpha <= 0.003) return;
+
+    ctx.save();
+    ctx.translate(cx, cy + offY);
+    if (rot) ctx.rotate(rot);
+    ctx.scale(sc, sc);
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = (BLENDS[o.blend] || BLENDS.normal).op;
+    const f = (FILTERS[o.filter] || FILTERS.none).css;
+    const shadow = () => { ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = H * 0.03; ctx.shadowOffsetY = H * 0.012; };
+    const masked = o.mask === 'round' || o.mask === 'circle';
+    try {
+      if (masked) {
+        if (o.shadow) { ctx.save(); shadow(); ctx.fillStyle = '#000'; maskPath(ctx, o, dw, dh); ctx.fill(); ctx.restore(); }
+        ctx.save();
+        maskPath(ctx, o, dw, dh); ctx.clip();
+        ctx.filter = f || 'none';
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(o.el, -dw / 2, -dh / 2, dw, dh);
+        ctx.restore();
+      } else {
+        // بلا قناع: الظل يتبع شفافية الصورة نفسها (شعار PNG مثلاً)
+        ctx.save();
+        if (o.shadow) shadow();
+        ctx.filter = f || 'none';
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(o.el, -dw / 2, -dh / 2, dw, dh);
+        ctx.restore();
+      }
+      if (o.border > 0) {
+        ctx.lineWidth = clamp(o.border, 0, 0.05) * H;
+        ctx.strokeStyle = o.borderColor || '#ffffff';
+        ctx.lineJoin = 'round';
+        maskPath(ctx, o, dw, dh);
+        ctx.stroke();
+      }
+    } catch (e) { /* العنصر غير جاهز بعد */ }
+    ctx.restore();
+  }
+
+  const overlaysInOrder = () => [...state.overlays].sort((a, b) => (a.track || 0) - (b.track || 0));
+  const HANDLE = H => Math.max(7, H / 55);
+
+  /** إطار الطبقة المحددة في المعاينة: زوايا للتكبير ومقبض علوي للتدوير */
+  function drawOverlayHandle(ctx, o, W, H) {
+    const g = o && o._g;
+    if (!g) return;
+    const s = HANDLE(H);
+    ctx.save();
+    ctx.translate(g.cx, g.cy); ctx.rotate(g.rot);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1.5, H / 400);
+    ctx.setLineDash([H / 90, H / 120]);
+    ctx.strokeRect(-g.dw / 2, -g.dh / 2, g.dw, g.dh);
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#2b6cff';
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      ctx.beginPath(); ctx.rect(sx * g.dw / 2 - s / 2, sy * g.dh / 2 - s / 2, s, s); ctx.fill(); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(0, -g.dh / 2); ctx.lineTo(0, -g.dh / 2 - s * 2.4); ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -g.dh / 2 - s * 2.4, s * 0.62, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#2b6cff'; ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * ما الذي تحت نقطة المعاينة (nx, ny من 0 إلى 1) في هذه الطبقة؟ 'rot' | 'scale' | 'move' | null.
+   * يعتمد على الهندسة التي خزّنها آخر رسم. handles: هل تُفحص المقابض (للطبقة المحددة فقط)
+   */
+  function overlayHit(o, nx, ny, handles) {
+    const g = o && o._g;
+    if (!g) return null;
+    const dx = nx * g.W - g.cx, dy = ny * g.H - g.cy, c = Math.cos(-g.rot), s = Math.sin(-g.rot);
+    const lx = dx * c - dy * s, ly = dx * s + dy * c, hs = HANDLE(g.H) * 1.3;
+    if (handles) {
+      if (Math.hypot(lx, ly + g.dh / 2 + HANDLE(g.H) * 2.4) < hs) return 'rot';
+      if (Math.abs(Math.abs(lx) - g.dw / 2) < hs && Math.abs(Math.abs(ly) - g.dh / 2) < hs) return 'scale';
+    }
+    return Math.abs(lx) <= g.dw / 2 && Math.abs(ly) <= g.dh / 2 ? 'move' : null;
+  }
+
+  /* ---------- الترجمة ---------- */
+  /**
+   * يرسم كتلة الترجمة الظاهرة عند الزمن t بنمط المشروع، ويميّز الكلمة المنطوقة.
+   * التمييز في العربية: الحروف تتصل فلا تُرسم الكلمة وحدها؛ يُرسم السطر كاملاً ثم يُعاد رسمه بلون التمييز
+   * داخل مستطيل الكلمة فقط (clip). موضع الكلمة يُحسب بقياس ما قبلها في سطرها مع مراعاة الاتجاه.
+   */
+  function drawCaptions(ctx, W, H, t, outline) {
+    const cap = state.captions;
+    cap._box = null; cap._cur = null;
+    const it = CaptionTools.itemAt(cap.items, t);
+    if (!it || !String(it.text).trim()) return;
+    const st = cap.style, size = clamp(st.size, 0.02, 0.2) * H, ff = FONTS[st.font] || FONTS.segoe;
+    const words = it.words && it.words.length ? it.words : CaptionTools.spread(it.text, it.start, it.end);
+    if (!words.length) return;
+    const rtl = RTL.test(it.text);
+    ctx.save();
+    ctx.font = `${ff.italic ? 'italic ' : ''}700 ${size}px ${ff.css}`;
+    ctx.direction = rtl ? 'rtl' : 'ltr';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // الأسطر: أرقام الكلمات في كل سطر
+    const join = l => l.map(k => words[k].w).join(' ');
+    const lines = [];
+    let cur = [];
+    words.forEach((w, i) => {
+      if (cur.length && ctx.measureText(join([...cur, i])).width > W * 0.86) { lines.push(cur); cur = [i]; } else cur.push(i);
+    });
+    lines.push(cur);
+    const strs = lines.map(join), widths = strs.map(s => ctx.measureText(s).width);
+    const lineH = size * 1.4, bw = Math.max(...widths), bh = lines.length * lineH;
+    const padX = size * 0.45, padY = size * 0.18;
+    const active = st.mode === 'none' ? -2 : CaptionTools.wordAt({ words }, t);
+
+    ctx.translate(W / 2, st.y * H);
+    if (st.bg) {
+      ctx.fillStyle = st.bgColor;
+      ctx.globalAlpha = 0.72;
+      roundRect(ctx, -bw / 2 - padX, -bh / 2 - padY, bw + padX * 2, bh + padY * 2, size * 0.28);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    const paint = (s, y, color) => {
+      if (st.outline) { ctx.lineJoin = 'round'; ctx.lineWidth = size * 0.14; ctx.strokeStyle = '#000'; ctx.strokeText(s, 0, y); }
+      ctx.fillStyle = color;
+      ctx.fillText(s, 0, y);
+    };
+    lines.forEach((l, li) => {
+      const y = -bh / 2 + lineH * (li + 0.5), s = strs[li], lw = widths[li];
+      // مدى الكلمة أفقياً داخل سطرها: [البداية، العرض]
+      const ext = k => {
+        const pos = l.indexOf(k), pre = pos ? ctx.measureText(join(l.slice(0, pos)) + ' ').width : 0, ww = ctx.measureText(words[k].w).width;
+        return [rtl ? lw / 2 - pre - ww : -lw / 2 + pre, ww];
+      };
+      const band = (x, w) => { ctx.beginPath(); ctx.rect(x, y - lineH * 0.75, w, lineH * 1.5); };
+      if (st.mode === 'reveal') { // تظهر الكلمات واحدة بعد أخرى: يُقص السطر عند آخر كلمة نُطقت
+        const shown = l.filter(k => k <= active);
+        if (!shown.length) return;
+        if (shown.length < l.length) {
+          const [x0, ww] = ext(shown[shown.length - 1]), pad = size * 0.1;
+          ctx.save();
+          if (rtl) band(x0 - pad, lw / 2 - x0 + pad + size); else band(-lw / 2 - size, x0 + ww + pad + lw / 2 + size);
+          ctx.clip(); paint(s, y, st.color); ctx.restore();
+        } else paint(s, y, st.color);
+        return;
+      }
+      if (!l.includes(active)) return paint(s, y, st.color);
+      const [x0, ww] = ext(active), pad = size * 0.06;
+      if (st.mode === 'pop') { // الكلمة الحالية أكبر وبلون التمييز: السطر بلا الكلمة، ثم الكلمة مكبّرة حول مركزها
+        ctx.save();
+        ctx.beginPath(); ctx.rect(-W, y - lineH, 2 * W, 2 * lineH); ctx.rect(x0 - pad, y - lineH, ww + pad * 2, 2 * lineH);
+        ctx.clip('evenodd'); paint(s, y, st.color); ctx.restore();
+        ctx.save();
+        ctx.translate(x0 + ww / 2, y); ctx.scale(1.16, 1.16); ctx.translate(-x0 - ww / 2, -y);
+        band(x0 - pad, ww + pad * 2); ctx.clip(); paint(s, y, st.hl); ctx.restore();
+      } else {
+        paint(s, y, st.color);
+        ctx.save(); band(x0 - pad, ww + pad * 2); ctx.clip(); paint(s, y, st.hl); ctx.restore();
+      }
+    });
+    ctx.restore();
+
+    const hw = (bw / 2 + padX) / W, hh = (bh / 2 + padY) / H;
+    cap._box = { x0: 0.5 - hw, y0: st.y - hh, x1: 0.5 + hw, y1: st.y + hh };
+    cap._cur = it.id;
+    if (outline) {
+      ctx.save();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = Math.max(1.5, H / 400);
+      ctx.setLineDash([H / 90, H / 120]);
+      ctx.strokeRect(cap._box.x0 * W, cap._box.y0 * H, hw * 2 * W, hh * 2 * H);
+      ctx.restore();
+    }
+  }
+
+  /** يرسم الإطار عند الزمن t. opts للمعاينة فقط: selText و selFx و selOverlay معرّف العنصر المحدد، و selCaption كتلة ترجمة محددة */
   function frame(ctx, W, H, t, opts = {}) {
     curT = t;
     ctx.filter = 'none';
@@ -578,7 +800,8 @@ const Render = (() => {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
-    const i = clipIndexAt(t);
+    // بعد نهاية المسار الرئيسي (طبقة تتجاوزه) تبقى الخلفية سوداء
+    const i = t < view.main || view.main >= view.total - 1e-6 ? clipIndexAt(t) : -1;
     if (i >= 0) {
       const c = state.clips[i];
       const len = clipLen(c);
@@ -588,10 +811,13 @@ const Render = (() => {
       if (td > 0 && lt < td) drawTransition(ctx, c, state.clips[i - 1] || null, W, H, p, ease(lt / td));
       else drawClip(ctx, c, W, H, p);
     }
+    if (state.overlays.length) for (const o of overlaysInOrder()) drawOverlay(ctx, o, W, H, t);
     if (state.effects.length) drawEffects(ctx, W, H, t);
     for (const tx of state.texts) drawText(ctx, tx, W, H, t, opts.selText === tx.id);
+    if (state.captions.items.length) drawCaptions(ctx, W, H, t, !!opts.selCaption);
     if (opts.selFx) drawRegionHandle(ctx, state.effects.find(e => e.id === opts.selFx), W, H, t);
+    if (opts.selOverlay) drawOverlayHandle(ctx, state.overlays.find(o => o.id === opts.selOverlay), W, H);
   }
 
-  return { FILTERS, FONTS, EFFECTS, filterCss, frame, unzoom };
+  return { FILTERS, FONTS, EFFECTS, BLENDS, MASKS, CAPTION_MODES, filterCss, frame, unzoom, overlayHit, overlaysInOrder };
 })();

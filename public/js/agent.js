@@ -19,7 +19,25 @@ const Agent = (() => {
     return /^#[0-9a-f]{6}$/.test(s) ? s : fail(`${name} must be a color like #ffcc00`);
   };
 
-  const lists = { clip: () => state.clips, audio: () => state.audios, text: () => state.texts, effect: () => state.effects };
+  const lists = { clip: () => state.clips, overlay: () => state.overlays, audio: () => state.audios, text: () => state.texts, effect: () => state.effects, caption: () => state.captions.items };
+
+  // أسماء الخصائص المتحركة ووحداتها كما يراها النموذج ← الاسم الداخلي والمعامل (القيمة الداخلية = قيمة الأداة ÷ المعامل)
+  const KF_API = {
+    clip:    { zoom: ['zoom', 100], pan_x: ['panX', 100], pan_y: ['panY', 100], opacity: ['opacity', 100], volume: ['volume', 100] },
+    overlay: { x: ['x', 1], y: ['y', 1], scale: ['scale', 100], rotation: ['rot', 1], opacity: ['opacity', 100], volume: ['volume', 100] },
+    text:    { x: ['x', 1], y: ['y', 1], size: ['size', 100], opacity: ['opacity', 100], rotation: ['rot', 1] },
+    audio:   { volume: ['volume', 100] },
+    effect:  { intensity: ['amount', 100] },
+  };
+  /** إطارات العنصر بوحدات الأدوات، لوصف المشروع */
+  function kfInfo(kind, o) {
+    if (!o.kf || !KF_API[kind]) return {};
+    const out = {};
+    for (const [name, [key, k]] of Object.entries(KF_API[kind])) {
+      if (o.kf[key] && o.kf[key].length) out[name] = o.kf[key].map(x => ({ t: r2(x.t), v: r2(x.v * k), e: x.e }));
+    }
+    return Object.keys(out).length ? { keyframes: out } : {};
+  }
   function find(id) {
     for (const kind in lists) {
       const obj = lists[kind]().find(o => o.id === id);
@@ -41,33 +59,58 @@ const Agent = (() => {
     ...(c.type === 'video' ? { source_duration: r2(c.srcDur), trim_start: r2(c.in), trim_end: r2(c.out), speed: c.speed, volume: Math.round(c.volume * 100), muted: c.muted } : {}),
     transition: c.transition, ...(c.transition !== 'none' ? { transition_duration: r2(trDur(c)) } : {}), pulse: !!c.pulse,
     motion: c.motion, fit: c.fit, filter: c.filter, brightness: c.bright, contrast: c.contrast, saturation: c.sat,
+    ...(c.zoom != null && c.zoom !== 1 ? { zoom: Math.round(c.zoom * 100) } : {}), ...(c.panX ? { pan_x: Math.round(c.panX * 100) } : {}), ...(c.panY ? { pan_y: Math.round(c.panY * 100) } : {}),
+    ...(c.opacity != null && c.opacity !== 1 ? { opacity: Math.round(c.opacity * 100) } : {}),
+    ...kfInfo('clip', c),
   });
+  const overlayInfo = o => ({
+    id: o.id, type: o.type, name: o.name, start: r2(o.start), duration: r2(overlayLen(o)), track: o.track || 0, width: o.w, height: o.h,
+    x: r2(o.x), y: r2(o.y), scale: Math.round(o.scale * 100), rotation: r2(o.rot || 0), opacity: Math.round((o.opacity != null ? o.opacity : 1) * 100),
+    mask: o.mask, ...(o.mask === 'round' ? { radius: Math.round(o.radius * 100) } : {}), border: Math.round((o.border || 0) * 1000), border_color: o.borderColor,
+    shadow: !!o.shadow, blend: o.blend, filter: o.filter, animation: o.anim,
+    ...(o.type === 'video' ? { source_duration: r2(o.srcDur), trim_start: r2(o.in), trim_end: r2(o.out), speed: o.speed, volume: Math.round(o.volume * 100), muted: o.muted } : {}),
+    ...kfInfo('overlay', o),
+  });
+  const captionsInfo = () => {
+    const c = state.captions, s = c.style;
+    if (!c.items.length) return {};
+    return { captions: {
+      ...(c.lang ? { language: c.lang } : {}),
+      style: { font: s.font, size: r2(s.size * 100), y: r2(s.y), color: s.color, highlight_color: s.hl, background: s.bg, background_color: s.bgColor, outline: s.outline, highlight: s.mode },
+      items: c.items.map(it => ({ id: it.id, start: r2(it.start), end: r2(it.end), text: it.text })),
+    } };
+  };
   const audioInfo = a => {
     const b = Beats.ensure(a);
     return {
       id: a.id, name: a.name, start: r2(a.start), duration: r2(audioLen(a)), source_duration: r2(a.srcDur),
       trim_start: r2(a.in), trim_end: r2(a.out), volume: Math.round(a.volume * 100), fade_in: a.fadeIn, fade_out: a.fadeOut,
       ...(b && b.bpm ? { bpm: b.bpm, beat_interval: r2(b.period) } : {}),
+      ...kfInfo('audio', a),
     };
   };
   const textInfo = x => ({
     id: x.id, text: x.text, start: r2(x.start), duration: r2(x.dur), x: r2(x.x), y: r2(x.y), size: r2(x.size * 100),
     color: x.color, font: x.font, bold: x.bold, stroke: x.stroke, stroke_color: x.strokeColor,
     background: x.bg, background_color: x.bgColor, shadow: x.shadow, animation: x.anim,
+    ...(x.opacity != null && x.opacity !== 1 ? { opacity: Math.round(x.opacity * 100) } : {}), ...(x.rot ? { rotation: r2(x.rot) } : {}),
+    ...kfInfo('text', x),
   });
   const effectInfo = e => ({
     id: e.id, type: e.type, start: r2(e.start), duration: r2(e.dur), intensity: Math.round((e.amount != null ? e.amount : 1) * 100),
     ...((Render.EFFECTS[e.type] || {}).region ? { x: r2(e.x), y: r2(e.y),
       ...(Render.EFFECTS[e.type].rect ? { width: Math.round(e.w * 100), height: Math.round(e.h * 100) } : { size: Math.round(e.r * 100) }) } : {}),
     ...(e.at ? { anchored_to_clip: e.at, anchor: e.atMode === 'clip' ? 'whole_clip' : 'cut' } : {}),
+    ...kfInfo('effect', e),
   });
   function project() {
     layout();
     return {
       ...(state.name ? { name: state.name } : {}),
       ratio: state.ratio, duration: r2(view.total), playhead: r2(view.t),
-      clips: state.clips.map(clipInfo), audios: state.audios.map(audioInfo), texts: state.texts.map(textInfo),
-      effects: state.effects.map(effectInfo),
+      clips: state.clips.map(clipInfo), ...(state.overlays.length ? { overlays: state.overlays.map(overlayInfo) } : {}),
+      audios: state.audios.map(audioInfo), texts: state.texts.map(textInfo),
+      effects: state.effects.map(effectInfo), ...captionsInfo(),
     };
   }
   const brief = () => { layout(); return { duration: r2(view.total) }; };
@@ -90,6 +133,35 @@ const Agent = (() => {
     if (has(a.background_color)) x.bgColor = color(a.background_color, 'background_color');
     if (has(a.shadow)) x.shadow = bool(a.shadow);
     if (has(a.animation)) x.anim = oneOf(a.animation, ['none', 'fade', 'rise', 'pop'], 'animation');
+    if (has(a.opacity)) x.opacity = clamp(num(a.opacity, 'opacity'), 0, 100) / 100;
+    if (has(a.rotation)) x.rot = clamp(num(a.rotation, 'rotation'), -720, 720);
+  }
+
+  function applyOverlay(o, a) {
+    const vid = o.type === 'video';
+    if (has(a.start)) o.start = Math.max(0, num(a.start, 'start'));
+    if (vid) {
+      if (has(a.speed)) o.speed = clamp(num(a.speed, 'speed'), 0.25, 4);
+      if (has(a.trim_start)) o.in = clamp(num(a.trim_start, 'trim_start'), 0, o.srcDur - MIN_LEN);
+      if (has(a.duration)) o.out = o.in + num(a.duration, 'duration') * o.speed;
+      o.out = clamp(o.out, o.in + MIN_LEN * o.speed, o.srcDur);
+      if (has(a.volume)) o.volume = clamp(num(a.volume, 'volume'), 0, 100) / 100;
+      if (has(a.muted)) o.muted = bool(a.muted);
+    } else if (has(a.duration)) o.out = clamp(num(a.duration, 'duration'), MIN_LEN, 600);
+    if (has(a.x)) o.x = clamp(num(a.x, 'x'), -0.5, 1.5);
+    if (has(a.y)) o.y = clamp(num(a.y, 'y'), -0.5, 1.5);
+    if (has(a.scale)) o.scale = clamp(num(a.scale, 'scale'), 2, 300) / 100;
+    if (has(a.rotation)) o.rot = clamp(num(a.rotation, 'rotation'), -720, 720);
+    if (has(a.opacity)) o.opacity = clamp(num(a.opacity, 'opacity'), 0, 100) / 100;
+    if (has(a.mask)) o.mask = oneOf(a.mask, Object.keys(Render.MASKS), 'mask');
+    if (has(a.radius)) o.radius = clamp(num(a.radius, 'radius'), 0, 50) / 100;
+    if (has(a.border)) o.border = clamp(num(a.border, 'border'), 0, 40) / 1000;
+    if (has(a.border_color)) o.borderColor = color(a.border_color, 'border_color');
+    if (has(a.shadow)) o.shadow = bool(a.shadow);
+    if (has(a.blend)) o.blend = oneOf(a.blend, Object.keys(Render.BLENDS), 'blend');
+    if (has(a.filter)) o.filter = oneOf(a.filter, Object.keys(Render.FILTERS), 'filter');
+    if (has(a.animation)) o.anim = oneOf(a.animation, ['none', 'fade', 'rise', 'pop'], 'animation');
+    if (has(a.track)) o.track = Math.round(clamp(num(a.track, 'track'), 0, 20));
   }
 
   function applyClip(c, a) {
@@ -114,6 +186,10 @@ const Agent = (() => {
     if (has(a.brightness)) c.bright = Math.round(clamp(num(a.brightness, 'brightness'), 50, 150));
     if (has(a.contrast)) c.contrast = Math.round(clamp(num(a.contrast, 'contrast'), 50, 150));
     if (has(a.saturation)) c.sat = Math.round(clamp(num(a.saturation, 'saturation'), 0, 200));
+    if (has(a.zoom)) c.zoom = clamp(num(a.zoom, 'zoom'), 20, 500) / 100;
+    if (has(a.pan_x)) c.panX = clamp(num(a.pan_x, 'pan_x'), -100, 100) / 100;
+    if (has(a.pan_y)) c.panY = clamp(num(a.pan_y, 'pan_y'), -100, 100) / 100;
+    if (has(a.opacity)) c.opacity = clamp(num(a.opacity, 'opacity'), 0, 100) / 100;
   }
 
   function applyEffect(e, a) {
@@ -151,7 +227,7 @@ const Agent = (() => {
   async function settle() {
     const t0 = performance.now();
     while (performance.now() - t0 < 3000) {
-      if (!state.clips.some(c => c.type === 'video' && (c.el.seeking || c.el._pend != null || c.el.readyState < 2))) return;
+      if (![...state.clips, ...state.overlays].some(c => c.type === 'video' && (c.el.seeking || c.el._pend != null || c.el.readyState < 2))) return;
       await sleep(40);
     }
   }
@@ -213,25 +289,131 @@ const Agent = (() => {
         hit = { kind: 'clip', obj: state.clips[i] };
       }
       const { kind, obj } = hit;
-      const s = kind === 'clip' ? obj._start : obj.start;
-      const len = kind === 'clip' ? clipLen(obj) : kind === 'audio' ? audioLen(obj) : obj.dur;
+      const s = itemStart(kind, obj), len = itemLen(kind, obj);
       if (!(t > s + 0.08 && t < s + len - 0.08)) fail(`time must be inside the item (${r2(s)} to ${r2(s + len)}), not at its edge.`);
-      const n = S.cloneItem(kind, obj);
-      if (kind === 'clip') {
-        const cut = obj.in + (t - obj._start) * obj.speed;
-        if (obj.type === 'image') { n.in = 0; n.out = obj.out - cut; } else n.in = cut;
-        n.transition = 'none'; obj.out = cut;
-        state.clips.splice(state.clips.indexOf(obj) + 1, 0, n);
-      } else if (kind === 'audio') {
-        const cut = obj.in + (t - obj.start);
-        n.in = cut; n.start = t; n.fadeIn = 0; obj.out = cut; obj.fadeOut = 0;
-        state.audios.push(n);
-      } else {
-        if (kind === 'effect') { obj.at = null; n.at = null; }
-        n.start = t; n.dur = obj.start + obj.dur - t; obj.dur = t - obj.start;
-        lists[kind]().push(n);
-      }
+      const n = S.splitItem(kind, obj, t) || fail('This caption is a single word and cannot be split.');
       return { kind, first_part_id: obj.id, second_part_id: n.id };
+    },
+
+    add_overlay(a) {
+      layout();
+      const hit = find(a.clip_id);
+      if (!hit || (hit.kind !== 'clip' && hit.kind !== 'overlay')) fail(`No clip has id "${a.clip_id}". Import the media first, then pass the id of its clip.`);
+      const src = hit.obj;
+      const o = S.asOverlay(S.cloneItem('clip', src), 0);
+      applyOverlay(o, { start: has(a.start) ? a.start : 0, duration: has(a.duration) ? a.duration : src.type === 'image' ? 4 : undefined, ...a });
+      if (!has(a.track)) o.track = S.freeTrack(o.start, overlayLen(o));
+      state.overlays.push(o);
+      layout();
+      return { added: overlayInfo(o), ...brief() };
+    },
+
+    update_overlays(a) {
+      const list = pick('overlay', a.ids);
+      list.forEach(o => applyOverlay(o, a));
+      layout();
+      return { updated: list.map(overlayInfo), ...brief() };
+    },
+
+    to_overlay({ id }) {
+      const c = pick('clip', [id])[0];
+      if (c.el && c.el.pause) c.el.pause();
+      return { overlay: overlayInfo(S.toOverlay(c)), ...brief() };
+    },
+
+    to_main({ id }) {
+      const o = pick('overlay', [id])[0];
+      if (o.el && o.el.pause) o.el.pause();
+      const c = S.toMain(o);
+      return { clip: clipInfo(c, state.clips.indexOf(c)), ...brief() };
+    },
+
+    set_keyframes(a) {
+      layout();
+      const hit = find(a.id) || fail(`No item has id "${a.id}".`);
+      const table = KF_API[hit.kind] || fail(`A ${hit.kind} item cannot be animated with keyframes.`);
+      const def = table[a.prop] || fail(`prop for a ${hit.kind} must be one of: ${Object.keys(table).join(', ')}`);
+      const [key, k] = def, [min, max] = KF_PROPS[hit.kind][key];
+      if (!Array.isArray(a.keys) || !a.keys.length) fail('keys must be a non-empty array of { t, v }. Use clear_keyframes to remove an animation.');
+      if (a.keys.length > KF_MAX) fail(`At most ${KF_MAX} keyframes per property.`);
+      const len = itemLen(hit.kind, hit.obj);
+      const obj = hit.obj, before = obj.kf;
+      obj.kf = { ...before, [key]: [] };
+      try {
+        for (const x of a.keys) {
+          const t = clamp(num(x && x.t, 'keys[].t'), 0, Math.max(0, len));
+          setKey(obj, key, t, clamp(num(x && x.v, 'keys[].v') / k, min, max), has(x.e) ? oneOf(x.e, KF_EASES, 'keys[].e') : 'smooth');
+        }
+      } catch (e) { if (before) obj.kf = before; else delete obj.kf; throw e; }
+      return { id: obj.id, kind: hit.kind, item_duration: r2(len), ...kfInfo(hit.kind, obj) };
+    },
+
+    clear_keyframes(a) {
+      const hit = find(a.id) || fail(`No item has id "${a.id}".`);
+      const table = KF_API[hit.kind] || {};
+      if (has(a.prop) && !table[a.prop]) fail(`prop for a ${hit.kind} must be one of: ${Object.keys(table).join(', ')}`);
+      clearKeys(hit.obj, has(a.prop) ? table[a.prop][0] : undefined);
+      return { id: hit.obj.id, ...kfInfo(hit.kind, hit.obj) };
+    },
+
+    async transcribe(a) {
+      if (has(a.source_id) && !Captions.speechItem(a.source_id)) fail(`source_id "${a.source_id}" is not a video clip, video overlay or audio item.`);
+      const lang = has(a.language) ? String(a.language).trim().toLowerCase() : '';
+      if (lang && !/^[a-z]{2,3}$/.test(lang)) fail('language must be a two-letter code such as ar, en or fr.');
+      let r;
+      try { r = await Captions.transcribe({ id: has(a.source_id) ? a.source_id : null, lang }); }
+      catch (e) { fail(e.message + (e.detail ? ` (${e.detail})` : '') + (e.setup ? ' Tell the user to put a GROQ_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY in the .env file of Montaji (or STT_BASE_URL for a local Whisper server).' : '')); }
+      const items = state.captions.items.filter(it => it.start >= r.start - 0.01 && it.end <= r.end + 0.5);
+      return {
+        blocks: r.count, language: r.language || 'auto', from: r2(r.start), to: r2(r.end),
+        ...(r.approx ? { note: 'This provider returns sentence timing only, so per-word highlighting is approximate.' } : {}),
+        captions: items.slice(0, 300).map(it => ({ id: it.id, start: r2(it.start), end: r2(it.end), text: it.text })),
+      };
+    },
+
+    update_captions(a) {
+      const st = state.captions.style;
+      if (has(a.font)) st.font = oneOf(a.font, Object.keys(Render.FONTS), 'font');
+      if (has(a.size)) st.size = clamp(num(a.size, 'size'), 2, 20) / 100;
+      if (has(a.y)) st.y = clamp(num(a.y, 'y'), 0.05, 0.95);
+      if (has(a.color)) st.color = color(a.color, 'color');
+      if (has(a.highlight_color)) st.hl = color(a.highlight_color, 'highlight_color');
+      if (has(a.background)) st.bg = bool(a.background);
+      if (has(a.background_color)) st.bgColor = color(a.background_color, 'background_color');
+      if (has(a.outline)) st.outline = bool(a.outline);
+      if (has(a.highlight)) st.mode = oneOf(a.highlight, Object.keys(Render.CAPTION_MODES), 'highlight');
+      const items = state.captions.items, updated = [];
+      for (const x of Array.isArray(a.items) ? a.items : []) {
+        const it = items.find(o => o.id === (x && x.id)) || fail(`No caption has id "${x && x.id}". Call get_project to see the caption ids.`);
+        if (has(x.text)) Object.assign(it, CaptionTools.setText(it, x.text));
+        if (has(x.start) || has(x.end)) {
+          const s = has(x.start) ? Math.max(0, num(x.start, 'start')) : it.start, e = has(x.end) ? num(x.end, 'end') : it.end;
+          if (!(e > s)) fail('A caption end must be after its start.');
+          Object.assign(it, CaptionTools.retime(it, s, e));
+        }
+        updated.push(it.id);
+      }
+      if (updated.length) {
+        items.sort((p, q) => p.start - q.start);
+        items.forEach((it, i) => { // كتلة واحدة على الشاشة في كل لحظة
+          const next = items[i + 1];
+          if (next && it.end > next.start) Object.assign(it, CaptionTools.retime(it, it.start, Math.max(it.start + CaptionTools.MIN, next.start)));
+        });
+      }
+      return { updated, blocks: items.length };
+    },
+
+    async export_captions(a) {
+      const f = Captions.fileOf(has(a.format) ? oneOf(a.format, ['srt', 'vtt'], 'format') : 'srt');
+      const out = { format: f.format, blocks: state.captions.items.length };
+      if (has(a.save_as)) {
+        const res = await fetch(`/api/captions/save?format=${f.format}&name=${encodeURIComponent(String(a.save_as))}`, { method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: f.blob });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) fail('Saving the subtitle file failed: ' + (j.error || `HTTP ${res.status}`));
+        return { ...out, saved_to: j.path };
+      }
+      ImageTools.download(f.blob, f.name);
+      return { ...out, file: f.name, note: 'The subtitle file was saved to the user\'s Downloads folder.' };
     },
 
     add_effect(a) {
@@ -398,10 +580,7 @@ const Agent = (() => {
 
     duplicate_item({ id }) {
       const hit = find(id) || fail(`No item has id "${id}".`);
-      const { kind, obj } = hit, n = S.cloneItem(kind, obj);
-      if (kind === 'clip') state.clips.splice(state.clips.indexOf(obj) + 1, 0, n);
-      else if (kind === 'audio') { n.start = obj.start + audioLen(obj); state.audios.push(n); }
-      else { if (kind === 'effect') n.at = null; n.start = obj.start + obj.dur; lists[kind]().push(n); }
+      const { kind, obj } = hit, n = S.dupItem(kind, obj) || fail('There is no room for a copy right after this caption.');
       return { kind, id: n.id, ...brief() };
     },
 
@@ -411,10 +590,7 @@ const Agent = (() => {
       const hits = list.map(id => find(id) || fail(`No item has id "${id}".`));
       for (const { kind, obj } of hits) {
         if (obj.el && obj.el.pause) obj.el.pause();
-        if (kind === 'clip') state.clips = state.clips.filter(o => o !== obj);
-        else if (kind === 'audio') state.audios = state.audios.filter(o => o !== obj);
-        else if (kind === 'effect') state.effects = state.effects.filter(o => o !== obj);
-        else state.texts = state.texts.filter(o => o !== obj);
+        S.setList(kind, lists[kind]().filter(o => o !== obj));
       }
       return { deleted: hits.length, ...brief() };
     },
@@ -627,7 +803,7 @@ const Agent = (() => {
   };
 
   // أدوات لا تعدّل المشروع، أو تسجّل خطوتها في سجل التراجع بنفسها (فتح مشروع، إضافة ملفات)
-  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project']);
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {

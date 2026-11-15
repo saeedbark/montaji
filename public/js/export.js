@@ -71,14 +71,20 @@ const Exporter = (() => {
   /** يمزج صوت المقاطع والموسيقى في مسار واحد بطول الفيديو */
   async function mixAudio(D) {
     const jobs = [];
+    const silent = o => o.muted || (o.volume <= 0 && !hasKf(o, 'volume'));
     for (const c of state.clips) {
-      if (c.type !== 'video' || c.muted || c.volume <= 0) continue;
+      if (c.type !== 'video' || silent(c)) continue;
       const buf = await clipAudio(c);
-      if (buf) jobs.push({ buf, when: c._start, offset: c.in, dur: c.out - c.in, rate: c.speed, vol: c.volume });
+      if (buf) jobs.push({ buf, when: c._start, offset: c.in, dur: c.out - c.in, rate: c.speed, vol: c.volume, item: c });
+    }
+    for (const o of state.overlays) {
+      if (o.type !== 'video' || silent(o) || o.start >= D) continue;
+      const buf = await clipAudio(o);
+      if (buf) jobs.push({ buf, when: o.start, offset: o.in, dur: o.out - o.in, rate: o.speed, vol: o.volume, item: o });
     }
     for (const a of state.audios) {
-      if (a.volume <= 0 || a.start >= D || !a.buf) continue;
-      jobs.push({ buf: a.buf, when: a.start, offset: a.in, dur: audioLen(a), rate: 1, vol: a.volume, fadeIn: a.fadeIn, fadeOut: a.fadeOut });
+      if ((a.volume <= 0 && !hasKf(a, 'volume')) || a.start >= D || !a.buf) continue;
+      jobs.push({ buf: a.buf, when: a.start, offset: a.in, dur: audioLen(a), rate: 1, vol: a.volume, fadeIn: a.fadeIn, fadeOut: a.fadeOut, item: a });
     }
     if (!jobs.length) return null;
 
@@ -91,9 +97,21 @@ const Exporter = (() => {
       const end = Math.min(j.when + j.dur / j.rate, D);
       const fi = Math.min(j.fadeIn || 0, end - j.when);
       const fo = Math.min(j.fadeOut || 0, end - j.when - fi);
-      if (fi > 0) { g.gain.setValueAtTime(0, j.when); g.gain.linearRampToValueAtTime(j.vol, j.when + fi); }
+      if (hasKf(j.item, 'volume') && end - j.when > 0.02) {
+        // مستوى صوت متحرك: منحنى واحد (50 نقطة في الثانية) يجمع الإطارات المفتاحية والتلاشي
+        const len = end - j.when, n = Math.max(2, Math.ceil(len * 50) + 1), curve = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          const lt = len * i / (n - 1);
+          let k = 1;
+          if (fi > 0) k = Math.min(k, lt / fi);
+          if (fo > 0) k = Math.min(k, (len - lt) / fo);
+          curve[i] = clamp(k, 0, 1) * clamp(prop(j.item, 'volume', lt), 0, 1);
+        }
+        g.gain.setValueCurveAtTime(curve, j.when, len);
+      }
+      else if (fi > 0) { g.gain.setValueAtTime(0, j.when); g.gain.linearRampToValueAtTime(j.vol, j.when + fi); }
       else g.gain.setValueAtTime(j.vol, j.when);
-      if (fo > 0) { g.gain.setValueAtTime(j.vol, end - fo); g.gain.linearRampToValueAtTime(0, end); }
+      if (!hasKf(j.item, 'volume') && fo > 0) { g.gain.setValueAtTime(j.vol, end - fo); g.gain.linearRampToValueAtTime(0, end); }
       src.connect(g).connect(oc.destination);
       src.start(j.when, j.offset, j.dur);
     }
@@ -102,14 +120,20 @@ const Exporter = (() => {
 
   /** يجهّز عناصر الفيديو على الإطار المطلوب بالضبط */
   async function prepareFrame(t) {
-    const i = clipIndexAt(t);
-    if (i < 0) return;
-    const c = state.clips[i];
-    const lt = t - c._start;
     const jobs = [];
-    if (c.type === 'video') jobs.push(seekExact(c.el, c.in + lt * c.speed));
-    const prev = state.clips[i - 1];
-    if (prev && prev.type === 'video' && lt < trDur(c)) jobs.push(seekExact(prev.el, prev.out - 0.04));
+    const i = clipIndexAt(t);
+    if (i >= 0) {
+      const c = state.clips[i];
+      const lt = t - c._start;
+      if (c.type === 'video') jobs.push(seekExact(c.el, c.in + lt * c.speed));
+      const prev = state.clips[i - 1];
+      if (prev && prev.type === 'video' && lt < trDur(c)) jobs.push(seekExact(prev.el, prev.out - 0.04));
+    }
+    // كل فيديوهات الطبقات الظاهرة في هذا الإطار، بالتوازي
+    for (const o of state.overlays) {
+      const lt = t - o.start;
+      if (o.type === 'video' && lt >= 0 && lt < overlayLen(o)) jobs.push(seekExact(o.el, o.in + lt * o.speed));
+    }
     if (jobs.length) await Promise.all(jobs);
   }
 
@@ -217,5 +241,5 @@ const Exporter = (() => {
     }
   }
 
-  return { run, supported, bitrateFor, pickVideoConfig, pickAudioConfig };
+  return { run, supported, bitrateFor, pickVideoConfig, pickAudioConfig, mixAudio };
 })();

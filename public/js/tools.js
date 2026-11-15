@@ -24,6 +24,40 @@ const MONTAJI_TOOLS = (() => {
     background_color: str('Box color as #rrggbb.'),
     shadow: bool('Soft drop shadow.'),
     animation: pick(['none', 'fade', 'rise', 'pop'], 'Entrance and exit animation.'),
+    opacity: num('Opacity, 0 (invisible) to 100. Default 100.'),
+    rotation: num('Rotation in degrees, -180 to 180. Default 0.'),
+  };
+
+  const overlayStyle = {
+    x: num('Horizontal center of the layer, 0 (left) to 1 (right). Default 0.5.'),
+    y: num('Vertical center of the layer, 0 (top) to 1 (bottom). Default 0.5.'),
+    scale: num('Layer width as a percent of the frame width, 2 to 300 (height follows the media aspect). Default 40. A corner logo is about 15, picture-in-picture about 30.'),
+    rotation: num('Rotation in degrees, -180 to 180.'),
+    opacity: num('Opacity, 0 to 100.'),
+    mask: pick(['none', 'round', 'circle'], 'Crop shape: none, rounded corners, or a circle (shows the center of the media).'),
+    radius: num('Corner rounding for mask round, 0 to 50 percent. Default 8.'),
+    border: num('Border thickness, 0 to 40 (tenths of a percent of the frame height). 0 = no border.'),
+    border_color: str('Border color as #rrggbb.'),
+    shadow: bool('Soft drop shadow under the layer.'),
+    blend: pick(['normal', 'screen', 'multiply', 'lighten'], 'Blend mode with the picture below. screen drops black backgrounds (light leaks, fire), multiply drops white ones.'),
+    filter: pick(['none', 'vivid', 'warm', 'cool', 'bw', 'vintage', 'soft'], 'Color look.'),
+    animation: pick(['none', 'fade', 'rise', 'pop'], 'Entrance and exit animation.'),
+    track: num('Stacking row, 0 to 20. Higher rows are drawn on top.'),
+    speed: num('Video layers: playback speed, 0.25 to 4.'),
+    volume: num('Video layers: sound level, 0 to 100.'),
+    muted: bool('Video layers: silence the sound.'),
+  };
+
+  const captionStyle = {
+    font: pick(['segoe', 'tahoma', 'arial', 'times', 'courier', 'elegant'], 'Caption font.'),
+    size: num('Caption font size as a percent of frame height, 2 to 20. Default 6 (about 4 on 9:16).'),
+    y: num('Vertical center of the captions, 0.05 (top) to 0.95 (bottom). Default 0.82.'),
+    color: str('Caption text color as #rrggbb.'),
+    highlight_color: str('Color of the word being spoken, as #rrggbb.'),
+    background: bool('Rounded box behind the captions.'),
+    background_color: str('Box color as #rrggbb.'),
+    outline: bool('Black outline around the letters.'),
+    highlight: pick(['none', 'word', 'pop', 'reveal'], 'How the spoken word is marked: none, word (colored), pop (colored and enlarged), reveal (words appear one by one).'),
   };
 
   const EFFECT_TYPES = ['zoomBlur', 'whip', 'flash', 'shake', 'rgb', 'bw', 'sharp', 'vignette', 'darken', 'zoomTo', 'spotlight', 'shine', 'glow', 'sparkle', 'areaFlash', 'backlight'];
@@ -41,7 +75,7 @@ const MONTAJI_TOOLS = (() => {
   return [
     {
       name: 'get_project',
-      description: 'Read the whole project: aspect ratio, total duration, and every clip, audio item and text with its id and settings. Call this before editing if you do not already have the current state.',
+      description: 'Read the whole project: aspect ratio, total duration, and every clip, overlay layer, audio item, text, effect and caption with its id and settings (and its keyframes, if any). Call this before editing if you do not already have the current state.',
       parameters: obj({}),
     },
     {
@@ -69,6 +103,10 @@ const MONTAJI_TOOLS = (() => {
         brightness: num('50 to 150, 100 is unchanged.'),
         contrast: num('50 to 150, 100 is unchanged.'),
         saturation: num('0 to 200, 100 is unchanged.'),
+        zoom: num('Constant zoom of the picture in percent, 20 to 500. 100 is unchanged. Animate it with set_keyframes.'),
+        pan_x: num('Shift the picture horizontally, in percent of the frame width, -100 to 100. Default 0.'),
+        pan_y: num('Shift the picture vertically, in percent of the frame height, -100 to 100. Default 0.'),
+        opacity: num('Opacity over black, 0 to 100. Default 100.'),
       }, ['ids']),
     },
     {
@@ -81,8 +119,102 @@ const MONTAJI_TOOLS = (() => {
       description: 'Cut an item in two at a project time. Without id it cuts the main-track clip playing at that time. To remove a middle section, split twice and delete the piece in between.',
       parameters: obj({
         time: num('Project time in seconds where the cut is made.'),
-        id: str('Optional id of an audio or text item (or a clip) to cut instead.'),
+        id: str('Optional id of an audio, text, effect, overlay or caption item (or a clip) to cut instead.'),
       }, ['time']),
+    },
+    {
+      name: 'add_overlay',
+      description: 'Put a picture or video ON TOP of the main track as a free layer: picture-in-picture, a logo in a corner, a product cut-out over a background, or two videos side by side. '
+        + 'The layer is made from the media of an existing clip (import it first, then pass its id); the clip itself stays on the main track unless you use to_overlay instead. '
+        + 'Layers are drawn above the main track and below effects, texts and captions. Check the placement with view_frame.',
+      parameters: obj({
+        clip_id: str('Id of a main-track clip (or another overlay) whose media is used for the layer.'),
+        start: num('Project time in seconds when the layer appears. Default 0.'),
+        duration: num('Seconds the layer stays. Default: 4 for an image, the clip length for a video.'),
+        ...overlayStyle,
+      }, ['clip_id']),
+    },
+    {
+      name: 'update_overlays',
+      description: 'Change one or more overlay layers. Only the fields you pass are changed.',
+      parameters: obj({
+        ids: ids('Overlay ids, or ["all"].'),
+        start: num('Project time in seconds when the layer appears.'),
+        duration: num('Seconds the layer stays. For a video this moves its trim end.'),
+        trim_start: num('Video layers: second in the source file where the layer starts.'),
+        ...overlayStyle,
+      }, ['ids']),
+    },
+    {
+      name: 'to_overlay',
+      description: 'Move a clip off the main track and make it an overlay layer at the same time position (the clips after it close the gap).',
+      parameters: obj({ id: str('Id of the main-track clip.') }, ['id']),
+    },
+    {
+      name: 'to_main',
+      description: 'Move an overlay layer onto the main track, inserted near its current time.',
+      parameters: obj({ id: str('Id of the overlay.') }, ['id']),
+    },
+    {
+      name: 'set_keyframes',
+      description: 'Animate one property of an item over time with keyframes. The list REPLACES all keyframes of that property. Times are seconds from the START OF THE ITEM, not project time. '
+        + 'Properties by item kind — text: x, y, size, opacity, rotation. overlay: x, y, scale, rotation, opacity, volume. clip (main track): zoom, pan_x, pan_y, opacity, volume (zoom or pan keyframes replace the preset camera motion). audio: volume. effect: intensity. '
+        + 'Values use the same units as the update tools: x and y 0 to 1 (may go outside to slide in from off-screen, -0.5 to 1.5), size/scale/zoom/pan/opacity/volume/intensity in percent, rotation in degrees. '
+        + 'Examples: slide a title in from the right: prop x, keys [{t:0,v:1.3},{t:0.8,v:0.5}]. Duck music under speech: prop volume, keys [{t:4,v:80},{t:4.5,v:20},{t:9,v:20},{t:9.5,v:80}].',
+      parameters: obj({
+        id: str('Id of the item (clip, overlay, text, audio or effect).'),
+        prop: pick(['x', 'y', 'size', 'scale', 'rotation', 'opacity', 'volume', 'zoom', 'pan_x', 'pan_y', 'intensity'], 'Property to animate. Must be valid for the item kind.'),
+        keys: {
+          type: 'array', description: 'Keyframes, at least 1 and at most 200.',
+          items: obj({
+            t: num('Seconds from the start of the item.'),
+            v: num('Value at that time.'),
+            e: pick(['smooth', 'linear', 'hold'], 'Easing from this keyframe to the next. smooth (default) eases in and out, hold jumps.'),
+          }, ['t', 'v']),
+        },
+      }, ['id', 'prop', 'keys']),
+    },
+    {
+      name: 'clear_keyframes',
+      description: 'Remove the keyframes of an item so the property is constant again (it keeps the value of its first keyframe).',
+      parameters: obj({
+        id: str('Id of the item.'),
+        prop: pick(['x', 'y', 'size', 'scale', 'rotation', 'opacity', 'volume', 'zoom', 'pan_x', 'pan_y', 'intensity'], 'Only this property. Default: every animated property of the item.'),
+      }, ['id']),
+    },
+    {
+      name: 'transcribe',
+      description: 'Automatic captions: turn the speech of the project into timed caption blocks on the captions track, with per-word timing so the spoken word can be highlighted. '
+        + 'Needs a speech-to-text provider configured in the .env file (OpenAI, Groq or Gemini key, or a local Whisper server); the audio is sent to that provider. It can take a minute. '
+        + 'Existing captions in the same time range are replaced. Afterwards get_project lists the caption texts, so you can fix spelling with update_captions.',
+      parameters: obj({
+        source_id: str('Id of a video clip, video overlay or audio item to transcribe. Default: the sound of the whole project as it is heard.'),
+        language: str('Two-letter language code of the speech, e.g. ar, en, fr. Default: auto-detect.'),
+      }),
+    },
+    {
+      name: 'update_captions',
+      description: 'Change the caption style (one style for all caption blocks) and/or edit caption blocks: fix their text, retime them, or delete them with delete_items. Only the fields you pass are changed.',
+      parameters: obj({
+        ...captionStyle,
+        items: {
+          type: 'array', description: 'Caption blocks to change.',
+          items: obj({
+            id: str('Caption id.'),
+            text: str('New text. Keeping the same number of words keeps the per-word timing.'),
+            start: num('Project time in seconds when the block appears.'),
+            end: num('Project time in seconds when the block disappears.'),
+          }, ['id']),
+        },
+      }),
+    },
+    {
+      name: 'export_captions',
+      description: 'Save the captions as a subtitle file (SRT or WebVTT) for YouTube or a video player. Only call it when the user asks for a subtitle file.',
+      parameters: obj({
+        format: pick(['srt', 'vtt'], 'File format. Default srt.'),
+        save_as: str('Save the file in the "exports" folder of the Montaji app under this name (no folders). Never overwrites. Without it the file goes to the user\'s Downloads folder.'),
+      }),
     },
     {
       name: 'add_text',
@@ -172,12 +304,12 @@ const MONTAJI_TOOLS = (() => {
     },
     {
       name: 'duplicate_item',
-      description: 'Duplicate a clip, audio item, text or effect. The copy is placed right after the original.',
+      description: 'Duplicate a clip, overlay, audio item, text, effect or caption. The copy is placed right after the original.',
       parameters: obj({ id: str('Id of the item to copy.') }, ['id']),
     },
     {
       name: 'delete_items',
-      description: 'Remove clips, audio items, texts or effects from the project.',
+      description: 'Remove clips, overlays, audio items, texts, effects or caption blocks from the project.',
       parameters: obj({ ids: ids('Ids of the items to remove.') }, ['ids']),
     },
     {
