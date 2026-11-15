@@ -29,7 +29,7 @@ function request(reqPath, { method = 'GET', headers = {}, body } = {}) {
         const text = Buffer.concat(chunks).toString('utf8');
         let data = null;
         try { data = JSON.parse(text); } catch (e) { /* ليس JSON */ }
-        resolve({ status: res.statusCode, type: res.headers['content-type'] || '', text, data });
+        resolve({ status: res.statusCode, type: res.headers['content-type'] || '', headers: res.headers, text, data });
       });
     });
     req.on('error', reject);
@@ -163,6 +163,30 @@ describe('الخادم', () => {
       assert.equal((await request(p)).status, 200, p);
     }
     assert.equal((await request('/missing.js')).status, 404);
+    assert.equal((await request('/js')).status, 404, 'المجلد ليس ملفاً');
+  });
+
+  test('الملفات الثابتة: 304 إن لم يتغيّر الملف، وأجزاء Range للوسائط', async () => {
+    const full = await request('/js/core.js');
+    const size = fs.statSync(path.join(ROOT, 'public/js/core.js')).size;
+    assert.equal(full.headers['cache-control'], 'no-cache', 'المتصفح يسأل في كل مرة فلا يبقى على كود قديم');
+    assert.ok(full.headers.etag);
+    assert.equal(+full.headers['content-length'], size);
+
+    const same = await request('/js/core.js', { headers: { 'If-None-Match': full.headers.etag } });
+    assert.equal(same.status, 304);
+    assert.equal(same.text, '');
+    assert.equal((await request('/js/core.js', { headers: { 'If-None-Match': 'W/"old"' } })).status, 200);
+
+    const part = await request('/js/core.js', { headers: { Range: 'bytes=0-11' } });
+    assert.equal(part.status, 206);
+    assert.equal(part.headers['content-range'], `bytes 0-11/${size}`);
+    assert.equal(part.text, full.text.slice(0, 12)); // أول الملف ASCII
+    const tail = await request('/js/core.js', { headers: { Range: 'bytes=-5' } });
+    assert.equal(tail.status, 206);
+    assert.equal(tail.headers['content-range'], `bytes ${size - 5}-${size - 1}/${size}`);
+    assert.equal((await request('/js/core.js', { headers: { Range: `bytes=${size + 10}-` } })).status, 416);
+    assert.equal((await request('/js/core.js', { headers: { Range: 'lines=1-2' } })).status, 200, 'وحدة غير معروفة: الملف كاملاً');
   });
 
   test('كل ملف يحمّله index.html موجود', async () => {

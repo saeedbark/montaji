@@ -273,7 +273,7 @@ body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) va
 .item.audio .beat { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -1px; background: rgba(255,255,255,.22); pointer-events: none; }
 .item.audio .beat.down { width: 2px; background: rgba(255,209,102,.75); }
 
-.tl-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; z-index: 4; pointer-events: none; }
+.tl-playhead { position: absolute; left: 0; top: 0; bottom: 0; will-change: transform; width: 2px; margin-left: -1px; background: #fff; z-index: 4; pointer-events: none; }
 .tl-playhead::before { content: ""; position: absolute; top: 0; left: -6px; width: 14px; height: 12px; background: #fff; border-radius: 3px 3px 7px 7px; }
 .tl-dropmark { position: absolute; top: 26px; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--accent); z-index: 4; border-radius: 2px; pointer-events: none; }
 

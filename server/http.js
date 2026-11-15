@@ -51,10 +51,28 @@ function serveStatic(req, res, p) {
   const rel = path.relative(PUBLIC_DIR, f);
   const hidden = !rel || path.isAbsolute(rel) || rel.split(path.sep).some(s => s.startsWith('.'));
   if (hidden || /[\\:\0]/.test(p)) { res.writeHead(403); return res.end(); }
-  fs.readFile(f, (err, data) => {
-    if (err) { res.writeHead(404); return res.end('not found'); }
-    res.writeHead(200, { 'Content-Type': contentType(f), 'Cache-Control': 'no-store' });
-    res.end(data);
+  fs.stat(f, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
+    // no-cache: المتصفح يسأل في كل مرة، فيصل أي تحديث للملفات فوراً، وإن لم يتغيّر الملف فالرد 304 بلا جسم
+    // (ويحتفظ المتصفح بنسخته المترجمة من السكربتات بدل تحليلها من جديد عند كل فتح)
+    const etag = `W/"${st.size.toString(36)}-${Math.round(st.mtimeMs).toString(36)}"`;
+    const head = { 'Content-Type': contentType(f), 'Cache-Control': 'no-cache', ETag: etag, 'Accept-Ranges': 'bytes' };
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, head); return res.end(); }
+    // Range: مشغّل الفيديو (فيديو الدليل) يطلب الجزء الذي يحتاجه فقط، فيبدأ فوراً ويقفز بلا تحميل الملف كله
+    let start = 0, end = st.size - 1, status = 200;
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m && (m[1] || m[2]) && st.size) {
+      if (m[1]) { start = +m[1]; if (m[2]) end = Math.min(end, +m[2]); }
+      else start = Math.max(0, st.size - +m[2]);
+      if (start > end) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}` }); return res.end(); }
+      status = 206;
+      head['Content-Range'] = `bytes ${start}-${end}/${st.size}`;
+    }
+    head['Content-Length'] = end - start + 1;
+    res.writeHead(status, head);
+    if (req.method === 'HEAD' || !st.size) return res.end();
+    // بثّ من القرص: الملف الكبير لا يُحمَّل كله في ذاكرة الخادم
+    fs.createReadStream(f, { start, end }).on('error', () => res.destroy()).pipe(res);
   });
 }
 
