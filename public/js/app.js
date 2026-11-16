@@ -1751,6 +1751,7 @@
   $('#btnDup').onclick = dupSel;
   $('#btnDel').onclick = () => (selObj() ? removeSel() : toast('حدّد عنصراً أولاً لحذفه'));
   $('#btnFit').onclick = fitTimeline;
+  initTimelineResize();
   els.btnProps.onclick = () => setSheet(!sheetOpen());
   $('#propsClose').onclick = () => setSheet(false);
   els.btnUndo.onclick = undo;
@@ -1833,6 +1834,50 @@
   window.addEventListener('beforeunload', e => { if (!isEmpty()) { e.preventDefault(); e.returnValue = ''; } });
 
   /* ================= البدء ================= */
+  /* سحب الحافة العليا للخط الزمني لتكبيره أو تصغيره؛ يُحفظ الارتفاع في المتصفح، ونقرتان تُرجعانه */
+  function initTimelineResize() {
+    const handle = $('#tlResize'), tl = $('.timeline'), root = document.documentElement;
+    const KEY = 'montaji.tlHeight', MIN = 120;
+    const maxH = () => Math.max(MIN, window.innerHeight - 200); // تبقى مساحة للمعاينة والشريط العلوي
+    const apply = h => {
+      if (h == null) { root.style.removeProperty('--tl-h'); return; }
+      root.style.setProperty('--tl-h', Math.round(Math.min(maxH(), Math.max(MIN, h))) + 'px');
+    };
+    const save = h => { try { h == null ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, String(Math.round(h))); } catch {} };
+    let saved = null;
+    try { saved = +localStorage.getItem(KEY) || null; } catch {}
+    if (saved) apply(saved);
+
+    const done = () => { readLabelW(); renderTimeline(); };
+    handle.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      const startY = e.clientY, startH = tl.getBoundingClientRect().height;
+      document.body.classList.add('tl-resizing');
+      const move = ev => { saved = startH + (startY - ev.clientY); apply(saved); };
+      const up = () => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        document.body.classList.remove('tl-resizing');
+        saved = tl.getBoundingClientRect().height;
+        save(saved); done();
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
+    handle.addEventListener('dblclick', () => { saved = null; apply(null); save(null); done(); });
+    handle.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      saved = tl.getBoundingClientRect().height + (e.key === 'ArrowUp' ? 20 : -20);
+      apply(saved); save(saved); done();
+    });
+    window.addEventListener('resize', () => { if (saved) apply(saved); });
+  }
+
   applyRatio();
   refresh();
   renderProps();
