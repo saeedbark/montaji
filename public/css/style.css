@@ -218,7 +218,12 @@ body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) va
 .chat-form .btn { flex: none; }
 
 /* ---------- الخط الزمني ---------- */
-.timeline { background: var(--panel); border-top: 1px solid var(--line); display: flex; flex-direction: column; height: var(--tl-h); min-height: 0; min-width: 0; }
+.timeline { position: relative; background: var(--panel); border-top: 1px solid var(--line); display: flex; flex-direction: column; height: var(--tl-h); min-height: 0; min-width: 0; }
+/* مقبض تغيير الارتفاع على الحافة العليا للخط الزمني */
+.tl-resize { position: absolute; inset-inline: 0; top: -5px; height: 9px; cursor: ns-resize; z-index: 6; touch-action: none; }
+.tl-resize::after { content: ''; position: absolute; inset-inline: 0; top: 4px; height: 2px; background: transparent; transition: background .15s; }
+.tl-resize:hover::after, .tl-resize:focus-visible::after, body.tl-resizing .tl-resize::after { background: var(--accent); }
+body.tl-resizing { cursor: ns-resize; user-select: none; }
 .tl-toolbar { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-bottom: 1px solid var(--line); }
 .tl-toolbar .hint { color: var(--muted); font-size: 12px; margin-inline-end: 8px; }
 .zoom { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
