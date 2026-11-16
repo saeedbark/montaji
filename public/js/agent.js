@@ -256,6 +256,21 @@ const Agent = (() => {
     return out;
   }
 
+  /** يبني عناصر الوسائط من ملفات جاء بها الخادم (روابط مؤقتة) دون وضعها في المشروع */
+  async function loadMedia(files) {
+    const visual = [], audios = [], unreadable = [];
+    for (const f of files) {
+      const res = await fetch(f.url);
+      if (!res.ok) fail('Could not read ' + f.name);
+      const b = await res.blob();
+      let it = null;
+      try { it = await S.makeItem(new File([b], f.name, { type: b.type })); } catch (e) { console.warn('[remix]', f.name, e); }
+      if (!it) unreadable.push(f.name);
+      else (it.buf ? audios : visual).push(it);
+    }
+    return { visual, audios, unreadable };
+  }
+
   /** وصف زوم لقطة للنموذج، مثل "zoom in 36%, early" */
   const zoomText = z => `zoom ${z.scale > 1 ? 'in' : 'out'} ${Math.round(Math.abs(z.scale > 1 ? z.scale - 1 : 1 / z.scale - 1) * 100)}%, ${z.when === 'early' ? 'early (punches in the first half, then holds)' : 'steady through the shot'}`;
 
@@ -640,14 +655,52 @@ const Agent = (() => {
           : { bpm: r.beats.bpm, beat_interval: r2(P), ...(r.rhythm ? { cuts_on_beat_percent: Math.round(r.rhythm.on_beat * 100) } : {}) },
         shots: r.shots.map((s, i) => ({
           n: i + 1, start: r2(s.start), duration: r2(s.duration), enters: s.transition, ...(s.flash ? { flash: true } : {}),
-          picture: s.motion, ...(s.zoom ? { camera: zoomText(s.zoom) } : {}), ...(r.rhythm ? { beats: r.rhythm.pattern[i] } : {}),
+          picture: s.motion, ...(s.zoom ? { camera: zoomText(s.zoom) } : {}), ...(s.effect ? { cut_effect: s.effect } : {}), ...(s.look ? { look: s.look } : {}),
+          ...(r.rhythm ? { beats: r.rhythm.pattern[i] } : {}),
           ...(flashes.some(f => f.shot === i + 1) ? { flashes: flashes.filter(f => f.shot === i + 1).length } : {}),
         })),
+        ...(r.fades.in ? { opens: `fade in from black, ${r2(r.fades.in)} s` } : {}), ...(r.fades.out ? { closes: `fade out to black, ${r2(r.fades.out)} s` } : {}),
+        effects_found: [
+          [r.shots.filter(s => s.zoom).length, 'camera zoom in shots: %'], [flashes.length, 'flashes inside shots: %'], [r.shots.filter(s => s.flash).length, 'white flash on cuts: %'],
+          [r.shots.filter(s => s.effect === 'whip').length, 'whip (fast swipe blur) on cuts: %'], [r.shots.filter(s => s.effect === 'zoomBlur').length, 'zoom blur on cuts: %'],
+          [r.shots.filter(s => s.look === 'bw').length, 'black-and-white shots: %'], [r.fades.in ? 1 : 0, 'fade in'], [r.fades.out ? 1 : 0, 'fade out'],
+        ].filter(x => x[0]).map(x => x[1].replace('%', x[0])).join('; ') || 'none recognized',
         ...(flashes.length ? { flashes, flashes_note: 'Light flashes inside shots: x and y are the center in the frame (0 to 1), width and height percent of the frame. A small one is a product or a sign lighting up for an instant; several in one shot at different places usually mean several products lit one after another.' } : {}),
         ...(r.shots.length === 1 ? { note: 'No cut was found: the video looks like one continuous shot. Try sensitivity high.' } : {}),
         next: 'The contact sheets show one numbered frame per shot. Call apply_reference to rebuild this edit with the user\'s media. If shots of the reference show several products side by side, per_shot puts several of the user\'s images in one shot.',
         images: r.sheets,
       };
+    },
+
+    // files عبر MCP فقط. لا يغيّر المشروع: عناصر الملفات تُبنى للنظر إليها ثم تُترك
+    async view_media(a) {
+      let items, audios = [], unreadable = [];
+      const temp = Array.isArray(a.files) && a.files.length > 0;
+      if (temp) {
+        const m = await loadMedia(a.files);
+        items = m.visual; audios = m.audios; unreadable = m.unreadable;
+      } else {
+        layout();
+        const ref = Reference.current();
+        items = (has(a.clip_ids) ? pick('clip', a.clip_ids) : state.clips).filter(c => !ref || c.id !== ref.clipId);
+      }
+      if (!items.length && !audios.length) fail('There is no media to look at. An MCP client passes paths or a folder (default: the "خام" / "raw" folder of the Montaji app); in the editor the user adds photos or clips to the project first.');
+      const out = {
+        count: items.length,
+        media: items.map((c, i) => ({ n: i + 1, ...(temp ? {} : { id: c.id }), name: c.name, type: c.type, width: c.w, height: c.h, ...(c.type === 'video' ? { seconds: r2(c.srcDur) } : {}) })),
+        ...(audios.length ? { audio_files: audios.map(o => ({ name: o.name, seconds: r2(o.srcDur), ...(o.beats && o.beats.bpm ? { bpm: o.beats.bpm } : {}) })), audio_note: 'An audio file among the media becomes the music of the remix instead of the reference sound.' } : {}),
+        ...(unreadable.length ? { unreadable_files: unreadable } : {}),
+        note: 'Nothing was added to the project. The numbers are the ones apply_reference takes: order: [3, 1, 2] puts media 3 in the first shot, and per_shot shows several together.',
+        images: items.length ? [await mediaSheet(items, [])] : [],
+      };
+      if (temp) {
+        for (const it of [...items, ...audios]) {
+          if (it.el && it.el.pause) it.el.pause();
+          if (it.type === 'video') { it.el.removeAttribute('src'); it.el.load(); }
+          URL.revokeObjectURL(it.url);
+        }
+      }
+      return out;
     },
 
     // files عبر MCP فقط: الخادم يحوّل المسارات (أو مجلد «خام») إلى روابط مؤقتة.
@@ -669,18 +722,16 @@ const Agent = (() => {
       if (Array.isArray(a.files) && a.files.length) {
         const others = state.clips.filter(c => c !== refClip);
         if (others.length && !bool(a.replace)) fail(`The main track already has ${others.length} clips. Pass replace: true to build the remix in their place, or clip_ids to use the clips of the project as the media.`);
-        for (const f of a.files) {
-          const res = await fetch(f.url);
-          if (!res.ok) fail('Could not read ' + f.name);
-          const b = await res.blob();
-          let it = null;
-          try { it = await S.makeItem(new File([b], f.name, { type: b.type })); } catch (e) { console.warn('[remix]', f.name, e); }
-          if (!it) unreadable.push(f.name);
-          else (it.buf ? newAudios : material).push(it);
-        }
+        const m = await loadMedia(a.files);
+        material = m.visual; newAudios.push(...m.audios); unreadable.push(...m.unreadable);
         if (!material.length) fail('None of the files is an image or a video this browser can read.');
       } else material = (has(a.clip_ids) ? pick('clip', a.clip_ids) : state.clips).filter(c => c !== refClip);
       if (!material.length) fail('There is no media to put in the shots. An MCP client passes paths or a folder (default: the "خام" / "raw" folder of the Montaji app); in the editor the user adds photos or clips to the project first.');
+
+      if (Array.isArray(a.order) && a.order.length) {
+        const all = material;
+        material = a.order.map(n => all[Math.round(num(n, 'order')) - 1] || fail(`order: there is no media number ${n}; view_media shows ${all.length} media.`));
+      }
 
       /* عدة وسائط في لقطة واحدة: صور المجموعة تُدمج في صورة واحدة مرتبة لتملأ الإطار */
       let mergedShots = 0;
@@ -773,9 +824,27 @@ const Agent = (() => {
         });
       }
       // الوميض: على القصّات التي ومضت في المرجع (يتبع مقطعه)، وداخل اللقطات في اللحظة والموضع نفسيهما
-      const placed = [];
+      const placed = [], added = {};
+      const count = k => { added[k] = (added[k] || 0) + 1; };
+      // ظهور واختفاء تدريجي من تطبيق سابق: يُزال، ثم يُعاد إن طُلبت المؤثرات
+      for (const c of seq) {
+        if (!c.remixFade) continue;
+        if (c.kf && c.kf.opacity) { const { opacity, ...rest } = c.kf; if (Object.keys(rest).length) c.kf = rest; else delete c.kf; }
+        delete c.remixFade;
+      }
       if (yes('effects')) {
-        seq.forEach((c, i) => { if (i && shots[i].flash) flash({ at: c.id }); });
+        seq.forEach((c, i) => { if (i && shots[i].flash) { flash({ at: c.id }); count('flash_on_cut'); } });
+        // مؤثرات المرجع المتعرَّف عليها: ضباب أو سحب على القص، أبيض وأسود على اللقطة، وظهور واختفاء تدريجي بشفافية المقطع
+        seq.forEach((c, i) => {
+          const sh = shots[i];
+          if (i && sh.effect && Render.EFFECTS[sh.effect]) { flash({ type: sh.effect, dur: Render.EFFECTS[sh.effect].dur, at: c.id }); count(sh.effect + '_on_cut'); }
+          if (sh.look === 'bw') { flash({ type: 'bw', dur: clipLen(c), at: c.id, atMode: 'clip' }); count('bw_shot'); }
+        });
+        const first = seq[0], last = seq[seq.length - 1], L = clipLen(last);
+        const fi = Math.min(ref.fades.in, clipLen(first) / 2), fo = seq.length >= ref.shots.length ? Math.min(ref.fades.out, L / 2) : 0;
+        const keys = c => (c.kf && c.kf.opacity ? c.kf.opacity.slice() : []);
+        if (fi >= MIN_LEN) { first.kf = { ...first.kf, opacity: [{ t: 0, v: 0, e: 'linear' }, { t: r2(fi), v: 1, e: 'linear' }] }; first.remixFade = true; added.fade_in = r2(fi); }
+        if (fo >= MIN_LEN) { last.kf = { ...last.kf, opacity: [...keys(last).filter(x => x.t < L - fo), { t: r2(L - fo), v: 1, e: 'linear' }, { t: r2(L), v: 0, e: 'linear' }] }; last.remixFade = true; added.fade_out = r2(fo); }
         layout();
         for (const f of ref.flashes) {
           const i = ref.shots.findIndex(s => f.t >= s.start && f.t < s.end), c = seq[i];
@@ -801,6 +870,7 @@ const Agent = (() => {
         ...(unused.length ? { unused: unused.map(c => c.name) } : {}),
         ...(slowed.length ? { slowed_videos: slowed, slowed_note: 'These videos are shorter than their shot and were slowed down to fill it.' } : {}),
         ...(unreadable.length ? { unreadable_files: unreadable } : {}),
+        ...(Object.keys(added).length ? { effects_added: added } : {}),
         music, ...brief(),
         next: 'The image shows every media tagged with the number of the shot it took (× = not used): compare it with the contact sheet of the reference. To change which media takes which shot, call apply_reference again with clip_ids in the new order (per_shot shows several images together in a shot). Texts of the reference are not copied: add the user\'s own with add_text at similar places and times.',
       };
@@ -1031,7 +1101,7 @@ const Agent = (() => {
   };
 
   // أدوات لا تعدّل المشروع، أو تسجّل خطوتها في سجل التراجع بنفسها (فتح مشروع، إضافة ملفات)
-  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions', 'analyze_reference']);
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions', 'analyze_reference', 'view_media']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {

@@ -1,6 +1,7 @@
 'use strict';
 /* تحليل مقطع مرجعي — الجزء الذي لا يحتاج متصفحاً:
    - الوميض الموضعي ومكانه في الإطار، وزوم الكاميرا في كل لقطة
+   - المؤثرات: انتقال ضبابي أو سحب سريع عند القص، لقطة بالأبيض والأسود، ظهور واختفاء تدريجي
    - كشف القصّات من إطارات مصغّرة (قص حاد، تلاشٍ متقاطع، مرور بالأسود، وميض) بمقارنة توزيع الألوان،
      فتصمد أمام التصوير اليدوي وحركة الكاميرا السريعة
    - تحويل القصّات إلى لقطات، ووصف إيقاعها بعدد الضربات لكل لقطة
@@ -318,6 +319,74 @@ const RefTools = (() => {
     };
   }
 
+  /**
+   * حدّة صورة رمادية N×N: s = متوسط الفروق بين البكسلات المتجاورة (أفقياً ورأسياً)،
+   * r = نسبة الأفقي إلى الرأسي (تتغيّر حين يكون الضباب في اتجاه واحد)، luma = متوسط السطوع
+   */
+  function sharpness(a, N) {
+    let sx = 0, sy = 0, sum = 0;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const p = y * N + x;
+        sum += a[p];
+        if (x < N - 1) sx += Math.abs(a[p + 1] - a[p]);
+        if (y < N - 1) sy += Math.abs(a[p + N] - a[p]);
+      }
+    }
+    return { s: (sx + sy) / (N * N), r: sx / Math.max(1e-6, sy), luma: sum / (N * N) };
+  }
+
+  /**
+   * هل يمرّ القص بانتقال ضبابي؟ samples = حدّة إطارات حول لحظة القص [{ dt, s, r }] (dt بالثواني، السالب قبل القص)،
+   * و before و after حدّة إطار هادئ من كل لقطة. الانتقال الضبابي يُفقد الصورة تفاصيلها لبضعة إطارات على أحد جانبي القص.
+   * ← null، أو 'whip' إن كان الضباب في اتجاه واحد (سحب سريع)، أو 'zoomBlur' إن كان في كل الاتجاهات
+   */
+  function blurAt(samples, before, after) {
+    for (const side of [samples.filter(x => x.dt >= 0), samples.filter(x => x.dt < 0)]) {
+      const ref = side.length && side[0].dt >= 0 ? after : before;
+      if (!side.length || !ref || ref.s < 3) continue; // لقطة بلا تفاصيل أصلاً (شاشة سوداء، لون واحد)
+      const ratios = side.map(x => x.s / ref.s);
+      if (median(ratios) >= 0.78 || Math.min(...ratios) < 0.1) continue;
+      const soft = side.filter(x => x.s / ref.s < 0.85);
+      const oneWay = soft.filter(x => { const k = x.r / Math.max(1e-6, ref.r); return k > 1.5 || k < 0.67; }).length;
+      return oneWay * 2 >= soft.length ? 'whip' : 'zoomBlur';
+    }
+    return null;
+  }
+
+  /** اللقطة بالأبيض والأسود: كل ألوانها تقريباً رمادية (خانات القطر في توزيع الألوان) وليست شاشة مظلمة */
+  function markLooks(shots, frames, times, luma) {
+    for (const s of shots) {
+      let gray = 0, light = 0, count = 0;
+      for (let j = 0; j < frames.length; j++) {
+        if (times[j] < s.start || times[j] >= s.end) continue;
+        const h = frames[j].h;
+        gray += h[0] + h[21] + h[42] + h[63]; light += luma[j]; count++;
+      }
+      if (count && gray / count >= 0.97 && light / count >= 40) s.look = 'bw';
+    }
+    return shots;
+  }
+
+  /**
+   * الظهور التدريجي من الأسود في أول الفيديو والاختفاء إليه في آخره، بالثواني (0 = لا يوجد).
+   * يُشترط أن يتغيّر السطوع تدريجياً: قفزة واحدة تحمل أغلب التغيّر قصٌّ من الأسود لا ظهور تدريجي
+   */
+  function edgeFades(luma, times) {
+    const n = luma.length, normal = median(luma);
+    const run = order => {
+      if (n < 6 || normal < 2 * DARK || luma[order[0]] >= DARK) return 0;
+      let k = 1, jump = 0;
+      while (k < n && luma[order[k]] < normal * 0.8) k++;
+      if (k >= n) return 0;
+      for (let j = 1; j <= k; j++) jump = Math.max(jump, Math.abs(luma[order[j]] - luma[order[j - 1]]));
+      const len = Math.abs(times[order[k]] - times[order[0]]);
+      return len >= 0.2 && len <= 2.5 && jump <= 0.6 * (luma[order[k]] - luma[order[0]]) ? len : 0;
+    };
+    const fwd = Array.from({ length: n }, (_, i) => i);
+    return { in: run(fwd), out: run(fwd.slice().reverse()) };
+  }
+
   /** أقرب مقاس يدعمه المحرر لأبعاد الفيديو */
   function nearestRatio(w, h) {
     const list = { '16:9': 16 / 9, '9:16': 9 / 16, '1:1': 1, '4:5': 4 / 5 };
@@ -357,7 +426,7 @@ const RefTools = (() => {
     return { cw, ch, cols, rows: Math.ceil(count / cols) };
   }
 
-  return { SENSITIVITY, signature, hdist, dist, detect, localFlashes, zoomBetween, zoomOf, buildShots, rhythm, nearestRatio, assign, groups, mergeLayout, fitVideo, sheetLayout, median };
+  return { SENSITIVITY, signature, hdist, dist, detect, localFlashes, zoomBetween, zoomOf, sharpness, blurAt, markLooks, edgeFades, buildShots, rhythm, nearestRatio, assign, groups, mergeLayout, fitVideo, sheetLayout, median };
 })();
 
 if (typeof module !== 'undefined') module.exports = RefTools;

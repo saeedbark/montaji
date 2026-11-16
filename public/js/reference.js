@@ -106,7 +106,8 @@ const Reference = (() => {
         }
         c.t = hi;
       }
-      const shots = RefTools.buildShots(found.cuts, duration, found.d, times);
+      const shots = RefTools.markLooks(RefTools.buildShots(found.cuts, duration, found.d, times), frames, times, found.luma);
+      const fades = RefTools.edgeFades(found.luma, times);
 
       // زوم الكاميرا في كل لقطة: ثلاثة إطارات أدق (أولها ووسطها وآخرها) يُقاس بينها التكبير
       const big = document.createElement('canvas');
@@ -126,6 +127,18 @@ const Reference = (() => {
         const zoom = RefTools.zoomOf(RefTools.zoomBetween(A, B, Z), RefTools.zoomBetween(A, M, Z), RefTools.zoomBetween(M, B, Z));
         if (zoom) s.zoom = zoom;
       }
+      // مؤثر الانتقال عند كل قص حاد: هل تفقد الصورة تفاصيلها لبضعة إطارات حول القص (ضباب تكبير أو سحب سريع)؟
+      // الوميض الأبيض يمحو التفاصيل أيضاً، فالقص الوامض مستثنى
+      for (let k = 0; k < found.cuts.length; k++) {
+        const c = found.cuts[k], prev = shots[k], next = shots[k + 1];
+        if (c.kind !== 'cut' || c.flash || Math.min(prev.duration, next.duration) < 0.4) continue;
+        const calm = sh => Math.min(0.3, sh.duration / 2);
+        const before = RefTools.sharpness(await gray(c.t - calm(prev)), Z), after = RefTools.sharpness(await gray(c.t + calm(next)), Z);
+        const samples = [];
+        for (const dt of [-0.08, -0.04, 0, 0.04, 0.08]) samples.push({ dt, ...RefTools.sharpness(await gray(c.t + dt), Z) });
+        const effect = RefTools.blurAt(samples, before, after);
+        if (effect) next.effect = effect;
+      }
       const sheets = await contactSheets(v, shots);
 
       // الصوت: إيقاعه يحدّد كم ضربة تدوم كل لقطة، فيُعاد بناء الإيقاع نفسه على موسيقى أخرى
@@ -144,7 +157,7 @@ const Reference = (() => {
 
       current = {
         name: file.name, clipId, width: v.videoWidth, height: v.videoHeight, duration,
-        ratio: RefTools.nearestRatio(v.videoWidth, v.videoHeight), shots, flashes: found.flashes, audio, beats, rhythm,
+        ratio: RefTools.nearestRatio(v.videoWidth, v.videoHeight), shots, flashes: found.flashes, fades, audio, beats, rhythm,
         series: { times, d: found.d, h: found.h, luma: found.luma }, // للفحص من وحدة التحكم: Reference.current().series
       };
       return { ...current, sheets };

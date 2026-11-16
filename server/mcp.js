@@ -36,6 +36,10 @@ const PATH_ARGS = {
   analyze_reference: {
     path: { type: 'string', description: 'Absolute path of the reference video on this computer (any MP4, MOV or WebM, from any app or platform). A bare file name is looked up in the "مرجع" (or "reference") folder of the Montaji app and in the app folder itself. Default: the newest video found there, else the only video clip of the project.' },
   },
+  view_media: {
+    paths: { type: 'array', items: { type: 'string' }, description: 'Absolute paths of the photos and videos to look at.' },
+    folder: { type: 'string', description: 'Absolute path of a folder with the user\'s media (sorted by name, subfolders ignored). Default when neither paths nor clip_ids is given: the "خام" (or "raw") folder of the Montaji app if it has media, else the clips already in the project.' },
+  },
   apply_reference: {
     paths: { type: 'array', items: { type: 'string' }, description: 'Absolute paths of the user\'s photos and videos, in shot order. An audio file among them becomes the music instead of the reference sound.' },
     folder: { type: 'string', description: 'Absolute path of a folder with the user\'s media (sorted by name, subfolders ignored). Default when neither paths nor clip_ids is given: the "خام" (or "raw") folder of the Montaji app if it has media, else the clips already in the project.' },
@@ -99,6 +103,10 @@ function remixFiles(args) {
   return [];
 }
 const MCP_INSTRUCTIONS = 'Montaji is a video editor running in the user\'s browser. These tools edit the project that is open there, live. '
+  + 'ASK BEFORE YOU EDIT. Before your first change to the project in a conversation, ask the user a few short questions, unless their message already answers them or asks for one small precise edit: '
+  + 'what the video is for and where it will be posted (this sets the ratio), which music, which words should appear on screen (a title, a price, a phone number or an account), and whether it should be calm or lively with zooms and flashes on the beat. '
+  + 'At most four questions, in the user\'s language, each with ready answers and your default marked, so one word or one tap is enough. Look first so the questions are precise: get_project, view_media, view_frame and analyze_reference change nothing. '
+  + 'If the user says to decide yourself, or leaves a question unanswered, take the default and go on; never ask a second round. '
   + 'Start with get_project. The main track is a gapless sequence of clips (images and videos); texts, effects and audio are placed freely by start time. '
   + 'Effects (add_effect) sit on their own track over the picture; burst effects such as zoomBlur go on the cuts (at_cuts) and stay there after re-timing. '
   + 'Overlays (add_overlay, to_overlay) are free picture or video layers above the main track: logos, picture-in-picture, cut-outs. '
@@ -111,7 +119,7 @@ const MCP_INSTRUCTIONS = 'Montaji is a video editor running in the user\'s brows
   + 'on fast music use 2 beats per clip, short transitions and pulse.';
 
 // أدوات تقرأ أو تكتب ملفات كبيرة: مهلتها أطول
-const LONG_TOOLS = ['export_video', 'split_video_file', 'save_project', 'open_project', 'analyze_reference', 'apply_reference'];
+const LONG_TOOLS = ['export_video', 'split_video_file', 'save_project', 'open_project', 'analyze_reference', 'apply_reference', 'view_media'];
 
 async function mcpCall(params) {
   const name = params && params.name;
@@ -142,7 +150,7 @@ async function mcpCall(params) {
       const { path: _path, ...rest } = args;
       args = abs ? { ...rest, ...asMedia(abs) } : rest;
     }
-    if (name === 'apply_reference') {
+    if (name === 'apply_reference' || name === 'view_media') {
       const { paths, folder, ...rest } = args;
       const list = rest.clip_ids ? [] : remixFiles(args).slice(0, MAX_REMIX_FILES);
       args = list.length ? { ...rest, files: list.map(asMedia) } : rest;

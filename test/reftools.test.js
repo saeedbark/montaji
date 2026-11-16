@@ -132,6 +132,69 @@ test('zoomBetween يقدّر التكبير بين إطارين، و zoomOf يف
   assert.equal(RefTools.zoomOf(same, same, same), null);
 });
 
+/** صورة رمادية N×N بتفاصيل؛ blur = عدد مرات التنعيم، وأفقياً فقط إن كان oneWay */
+function detail(N, blur = 0, oneWay = false) {
+  let a = Float32Array.from({ length: N * N }, (_, i) => 130 + ((((i % N) / 3) | 0) % 2 ? 45 : -45) + (((((i / N) | 0) / 3) | 0) % 2 ? 45 : -45));
+  for (let k = 0; k < blur; k++) {
+    const b = new Float32Array(N * N);
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        let sum = 0, cnt = 0;
+        for (let dy = oneWay ? 0 : -1; dy <= (oneWay ? 0 : 1); dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue;
+            sum += a[yy * N + xx]; cnt++;
+          }
+        }
+        b[y * N + x] = sum / cnt;
+      }
+    }
+    a = b;
+  }
+  return a;
+}
+
+test('blurAt: القص الحاد بلا مؤثر، والضباب في كل الاتجاهات zoomBlur، وفي اتجاه واحد whip', () => {
+  const N = 64, sharp = RefTools.sharpness(detail(N), N);
+  const around = make => [-0.08, -0.04, 0, 0.04, 0.08].map(dt => ({ dt, ...RefTools.sharpness(make(dt), N) }));
+  assert.ok(sharp.s > 20 && sharp.luma > 40);
+  assert.equal(RefTools.blurAt(around(() => detail(N)), sharp, sharp), null);
+  // الإطارات بعد القص ضبابية ثم تصفو
+  assert.equal(RefTools.blurAt(around(dt => detail(N, dt >= 0 ? 2 : 0)), sharp, sharp), 'zoomBlur');
+  assert.equal(RefTools.blurAt(around(dt => detail(N, dt >= 0 ? 3 : 0, true)), sharp, sharp), 'whip');
+  // الضباب قبل القص يُكشف أيضاً
+  assert.equal(RefTools.blurAt(around(dt => detail(N, dt < 0 ? 2 : 0)), sharp, sharp), 'zoomBlur');
+  // إطار أسود عند القص ليس ضباباً، ولقطة بلا تفاصيل لا يُحكم عليها
+  assert.equal(RefTools.blurAt(around(dt => (dt === 0 ? new Float32Array(N * N) : detail(N))), sharp, sharp), null);
+  const flat = RefTools.sharpness(new Float32Array(N * N).fill(90), N);
+  assert.equal(RefTools.blurAt(around(() => new Float32Array(N * N).fill(90)), flat, flat), null);
+});
+
+test('markLooks: لقطة رمادية كلها تُعلَّم أبيض وأسود، لا الملوّنة ولا الشاشة المظلمة', () => {
+  const grayShot = { seconds: 1, at: () => frame(i => (i % 8 < 4 ? [200, 200, 200] : [90, 90, 90])) };
+  const darkCard = { seconds: 1, at: () => frame(() => [20, 20, 20]) };
+  const v = video([still(1, 1), grayShot, darkCard]);
+  const r = detect(v);
+  const shots = RefTools.markLooks(RefTools.buildShots(r.cuts, v.duration, r.d, v.times), v.frames, v.times, r.luma);
+  assert.deepEqual(shots.map(x => x.look), [undefined, 'bw', undefined]);
+});
+
+test('edgeFades: ظهور تدريجي من الأسود واختفاء إليه، والقص من الأسود ليس ظهوراً تدريجياً', () => {
+  const lit = k => frame(i => pixel(1)(i).map(c => c * k));
+  const fadeIn = { seconds: 0.5, at: (k, n) => lit(k / n) }, fadeOut = { seconds: 0.75, at: (k, n) => lit(1 - (k + 1) / n) };
+  let v = video([fadeIn, still(1, 3), fadeOut]);
+  let f = RefTools.edgeFades(detect(v).luma, v.times);
+  near(f.in, 0.5, 0.17);
+  near(f.out, 0.75, 0.17);
+  // بلا تدرّج
+  v = video([still(1, 3)]);
+  assert.deepEqual(RefTools.edgeFades(detect(v).luma, v.times), { in: 0, out: 0 });
+  // شاشة سوداء ثم قص مباشر إلى الصورة
+  v = video([{ seconds: 0.5, at: () => frame(() => [2, 2, 2]) }, still(1, 3)]);
+  assert.equal(RefTools.edgeFades(detect(v).luma, v.times).in, 0);
+});
+
 test('mergeLayout يختار الترتيب الأقرب لشكل الإطار، و groups تقسّم الوسائط على اللقطات', () => {
   // ملصقات 4:5 في إطار عمودي 9:16
   assert.deepEqual(RefTools.mergeLayout(2, 0.8, 9 / 16), { layout: 'column', columns: 1 });

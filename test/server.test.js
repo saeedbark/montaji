@@ -212,6 +212,9 @@ describe('الخادم', () => {
       assert.match((await call('apply_reference', { folder: path.join(raw, 'sub') })).error, /No image, video or audio/);
       assert.match((await call('apply_reference', { paths: [path.join(raw, 'readme.txt')] })).error, /Unsupported file type/);
       assert.match((await call('apply_reference', { paths: [path.join(raw, 'nope.jpg')] })).error, /File not found/);
+      // view_media يقرأ المجلد نفسه بالترتيب نفسه، فأرقامه هي أرقام apply_reference
+      assert.deepEqual((await call('view_media', {})).files.map(f => f.name), ['1.png', '2.jpg', '10.jpg', 'لحن.mp3']);
+      assert.deepEqual(await call('view_media', { clip_ids: ['x'] }), { clip_ids: ['x'] });
       // مقاطع المشروع مطلوبة صراحة: لا يُقرأ مجلد الخام
       assert.deepEqual(await call('apply_reference', { clip_ids: ['x', 'y'] }), { clip_ids: ['x', 'y'] });
     } finally {
