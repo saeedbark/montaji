@@ -997,7 +997,10 @@ const Agent = (() => {
         Object.assign(o, { mode: 'times', times: a.times.map(t => num(t, 'times')) });
       }
       const r = await VideoSplit.splitToFiles(c.file, o);
-      if (r.method === 'copy') r.note = 'Copied without re-encoding: each part starts on the keyframe at or before the requested cut, so part lengths can differ slightly from what was asked.';
+      if (r.keyframe_fallback) r.note = 'The keyframes of this file are too far from the requested cuts for a direct copy, so the parts were re-encoded with exact cuts.';
+      else if (r.keyframe_mismatch) r.note = 'Copied without re-encoding, but the keyframes of this file are far from the requested cuts, so the parts differ a lot from what was asked (start, end or count). This browser cannot re-encode; tell the user, or retry in a recent Chrome or Edge.';
+      else if (r.method === 'copy') r.note = 'Copied without re-encoding: each part starts on the keyframe at or before the requested cut, so part lengths can differ slightly from what was asked.';
+      delete r.keyframe_fallback; delete r.keyframe_mismatch;
       return r;
     },
 

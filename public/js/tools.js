@@ -407,7 +407,7 @@ const MONTAJI_TOOLS = (() => {
     },
     {
       name: 'split_video_file',
-      description: 'Cut the SOURCE FILE of a video clip into several separate MP4 files, saved in the exports folder next to the app. It does not change the project; to cut a clip on the timeline use split instead. Use it only when the user asks for separate video files (for example 30-second parts for WhatsApp or Instagram stories). Give exactly one of every, parts or times. MP4/MOV files are copied without re-encoding (fast, original quality) and each cut moves back to the nearest keyframe; other formats are re-encoded with exact cuts.',
+      description: 'Cut the SOURCE FILE of a video clip into several separate MP4 files, saved in the exports folder next to the app. It does not change the project; to cut a clip on the timeline use split instead. Use it only when the user asks for separate video files (for example 30-second parts for WhatsApp or Instagram stories). Give exactly one of every, parts or times. MP4/MOV files are copied without re-encoding (fast, original quality) and each cut moves back to the nearest keyframe; when the keyframes are too far from the cuts (the parts would change a lot), and for other formats, the parts are re-encoded with exact cuts.',
       parameters: obj({
         id: str('Id of the video clip.'),
         every: num('Length of each part in seconds, for example 30.'),

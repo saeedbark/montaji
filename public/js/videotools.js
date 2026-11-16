@@ -45,6 +45,22 @@ const VideoTools = (() => {
     return b.slice(0, -1).map((s, i) => ({ start: s, end: b[i + 1] }));
   }
 
+  /**
+   * هل أجزاء النسخ المباشر قريبة بما يكفي مما طُلب؟ (copy: من copyParts، want: من exactParts)
+   * لا تصلح إن ابتعدت بداية جزء عن موضعها أكثر من السماح، أو نقص عدد الأجزاء (قطعان على إطار مفتاحي واحد)،
+   * أو زاد جزء على N في وضع «كل N ثانية». السماح ربع أقصر جزء مطلوب، بين نصف ثانية وثانيتين:
+   * ملف إطاراته المفتاحية كل ثانيتين يصلح لأجزاء 30 ثانية، وملف بإطار مفتاحي واحد لا يصلح أبداً
+   */
+  function copyFits(copy, want, every = 0) {
+    if (!copy.length || !want.length) return false;
+    const shortest = Math.min(...want.map(p => p.end - p.start));
+    const tol = Math.max(0.5, Math.min(2, shortest * 0.25));
+    if (Math.abs(copy[0].start - want[0].start) > tol) return false;
+    if (every > 0) return copy.every(p => p.end - p.start <= every + 1e-3);
+    if (copy.length !== want.length) return false;
+    return copy.every((p, i) => Math.abs(p.start - want[i].start) <= tol);
+  }
+
   /** «0:30, 1:15.5, 90» ← ثوانٍ. يقبل ث، د:ث، س:د:ث، والفاصلة العربية */
   function parseTimes(text) {
     const times = [], bad = [];
@@ -452,7 +468,7 @@ const VideoTools = (() => {
     read: async (o, l) => new Uint8Array(await blob.slice(o, o + l).arrayBuffer()),
   });
 
-  return { MIN_PART, planCuts, exactParts, parseTimes, parseMp4, copyParts, copyPart, blobSource, pts };
+  return { MIN_PART, planCuts, exactParts, copyFits, parseTimes, parseMp4, copyParts, copyPart, blobSource, pts };
 })();
 
 if (typeof module !== 'undefined') module.exports = VideoTools;

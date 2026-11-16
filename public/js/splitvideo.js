@@ -232,13 +232,23 @@ const VideoSplit = (() => {
   async function splitToFiles(file, o) {
     const ctx = await prepare(file);
     try {
-      const exact = !!o.exact && !!ctx.info;
+      let exact = !!o.exact && !!ctx.info, fallback = false, mismatch = false;
+      // النسخ المباشر يقطع عند الإطارات المفتاحية؛ إن كانت بعيدة عن المواضع المطلوبة (ملف بإطار مفتاحي واحد مثلاً)
+      // تتغير الأجزاء كلياً، فنعيد الترميز بقطع دقيق بدلاً منه
+      if (ctx.info && !exact) {
+        const want = partsFor(ctx, { ...o, exact: true }), got = partsFor(ctx, o);
+        if (want.length && !VideoTools.copyFits(got, want, o.mode === 'every' ? +o.every || 0 : 0)) {
+          if (Exporter.supported()) exact = fallback = true; else mismatch = true;
+        }
+      }
       const parts = partsFor(ctx, { ...o, exact });
       if (!parts.length) throw new Error('The range is too short to split.');
       if ((!ctx.info || exact) && !Exporter.supported()) throw new Error('This browser cannot encode video. Use a recent Chrome or Edge.');
       const files = await run(ctx, parts, parts.map((_, i) => i), { audio: o.audio !== false, exact, sink: saveToExports });
       return {
         method: ctx.info && !exact ? 'copy' : 'reencode',
+        ...(fallback ? { keyframe_fallback: true } : {}),
+        ...(mismatch ? { keyframe_mismatch: true } : {}),
         source_duration: r1(ctx.dur),
         parts: files.map(f => ({
           file: f.name, saved_to: f.saved_to, size_kb: Math.round(f.size / 1024),
