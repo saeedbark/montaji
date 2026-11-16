@@ -17,8 +17,9 @@ A simple, Arabic-first video editor that runs in your browser, on your own machi
 - **Image studio**: crop, rotate, filters, color-based background removal, and PNG / JPEG / WebP conversion for one image or a whole batch (downloaded as a ZIP), and merging several images into one (side by side, stacked, or a grid)
 - **Video to audio**: pull the music or speech out of any video, trim it, then download it as M4A (AAC) or WAV or drop it on the music track; a clip's sound can be detached in sync with one click
 - **Split video**: cut a video into separate MP4 files every N seconds (e.g. 30 s parts for WhatsApp or Instagram stories), into N equal parts, or at chosen times. MP4/MOV files are copied without re-encoding, so it is fast and lossless; each cut moves back to the nearest keyframe (or turn on exact cuts to re-encode). The parts can also go straight onto the timeline as clips
+- **Remix from a reference video**: hand the editor a video you like (a reel or an ad from any app or platform) and your own photos or clips, and it rebuilds the edit with them: the same cuts, shot lengths, transitions and flashes, on the same beat or re-timed onto your music
 - **AI assistant** using your own API key (Gemini, OpenAI, Claude, OpenRouter, any OpenAI-compatible service, or local models through Ollama)
-- **MCP server** so external clients (Claude Code, Cursor, ...) can drive the editor
+- **MCP server** so external clients (Claude Code, Cursor, ...) can drive the editor, with a ready-made **Agent Skill** (`montaji-remix`)
 
 The interface is in Arabic (RTL). Code comments are in Arabic; tool descriptions and protocol messages are in English.
 
@@ -79,7 +80,43 @@ claude mcp add --transport http montaji http://localhost:4747/mcp
 { "mcpServers": { "montaji": { "url": "http://localhost:4747/mcp" } } }
 ```
 
-Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_overlay` `update_overlays` `to_overlay` `to_main` `set_keyframes` `clear_keyframes` `transcribe` `update_captions` `export_captions` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `add_effect` `update_effects` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `save_project` `open_project` `export_video`
+Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_overlay` `update_overlays` `to_overlay` `to_main` `set_keyframes` `clear_keyframes` `transcribe` `update_captions` `export_captions` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `add_effect` `update_effects` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `save_project` `open_project` `export_video` `analyze_reference` `view_media` `apply_reference`
+
+The server instructions tell every agent to **ask before it edits**: before the first change to the project it asks the user a few short questions with ready answers (what the video is for and where it will be posted, which music, which words on screen, calm or lively with zooms and flashes), unless the request already answers them or is one small precise edit. The built-in assistant follows the same rule.
+
+## Remix: imitate any video with your own media
+
+Ask the assistant or your agent for "the same as this video with my photos" and two tools do the work:
+
+1. `analyze_reference` reads the picture and sound of the video file itself, so any file the browser plays works, not only Montaji projects. It finds every cut and shot length, how each shot enters (cut, cross-fade, dip to black, flash), the camera zoom of each shot, light flashes inside shots with their place in the frame (a product or a sign lighting up for an instant), the effects it can recognize (a blurred or whip transition on a cut, a black-and-white shot, a fade in or out), whether the picture is still or moving, the aspect ratio, and the music rhythm: BPM and beats per shot. It returns a contact sheet with one numbered frame per shot.
+2. `view_media` returns one image with all your photos and videos numbered and adds nothing to the project. The agent then says what it understood and asks its questions.
+3. `apply_reference` puts one of your clips in each shot with that shot's length, transition and flash, in the reference ratio. Photos get the zoom measured in their shot, and each flash is placed at the same moment and place so the agent can move it onto your product, and the recognized effects are added where the reference had them. `order` chooses which media goes in which shot by its `view_media` number. `per_shot` shows several of your images together in a shot, merged to fill the frame, when the reference shows several products at once. Fewer media than shots loop; extra media are left out. Longer videos are trimmed to their middle, shorter ones slowed down. With the reference music the cuts keep their times; with other music the beats-per-shot pattern is re-timed onto the new beats. It is one undo step and can be re-applied in another media order without a new analysis.
+
+Over MCP both tools take any path on the computer (`path`, `paths`, `folder`). With no arguments the reference is the newest video in the `مرجع` (or `reference`) folder of the app or in the app folder itself, and the media come from its `خام` (or `raw`) folder, else from the open project. These folders are optional and git-ignored.
+
+Cut detection compares color histograms rather than pixels, so fast hand-held footage does not confuse it. Zoom is an estimate: reliable for a clear push in or pull out, silent when the camera mostly pans or shakes. A blur on a cut is recognized by lost detail, so a soft shot can look like one. It does not detect speed ramps, shake, glitches, pans, how many products a shot shows, masks, stickers or text animation. Texts are never copied from the reference, and its music belongs to its owner.
+
+### Agent Skill
+
+`skills/montaji-remix/SKILL.md` teaches an agent the whole flow: find the files, analyze the reference and look at the media, say what it understood and ask at most four questions with ready answers before changing anything, then build, match the media to the shots and move the flashes onto the products.
+
+Claude Code (installs the skill and the MCP connection):
+
+```bash
+claude plugin marketplace add saeedbark/montaji
+```
+
+```bash
+claude plugin install montaji@montaji
+```
+
+Other agents that support [Agent Skills](https://agentskills.io) (Cursor, Codex and more):
+
+```bash
+npx skills add saeedbark/montaji
+```
+
+Agents without skill support can read `AGENTS.md`. In every case Montaji must be running with its page open.
 
 ## Project layout
 
@@ -102,6 +139,8 @@ public/      Everything the browser loads
   js/export.js   MP4 export (WebCodecs)
   js/audiotools.js   audio processing: trim, normalize, fades, WAV and M4A encoding
   js/projecttools.js project file (.montaji): ZIP writing and reading, validation
+  js/reftools.js     reference analysis logic: cut detection, rhythm, media assignment
+  js/reference.js    reads the frames and sound of a reference video, builds the contact sheet
   js/app.js      editor UI and timeline
   js/imagetools.js   image processing: background removal, conversion, ZIP
   js/projectio.js    saving and opening projects
@@ -112,6 +151,7 @@ public/      Everything the browser loads
   js/tools.js    tool definitions, shared by the chat and MCP
   js/agent.js    tool implementations
   js/chat.js     assistant panel and conversation loop
+skills/      Agent Skill: remix a reference video with the user's media
 test/        Tests (node --test)
 docs/        Architecture notes
 ```

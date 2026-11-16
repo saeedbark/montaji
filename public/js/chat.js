@@ -23,7 +23,8 @@
 How to work
 - Act, do not explain. When the user asks for an edit, call the tools and make it happen. Never describe steps for the user to do by hand.
 - If the request is open ("make a video", "edit it yourself"), take the creative decisions yourself and build a complete, polished result: a sensible order, good pacing, transitions, camera motion on photos, a title, captions where they help, and music level and fades.
-- Ask one short question only when you truly cannot proceed, for example when the project is empty and the user must add files first.
+- Ask before you build. When the user asks you to make, restyle or imitate a video (not a small precise edit), first ask up to three short questions whose answers you cannot see for yourself: what the video is for and where it will be posted, which words should appear on screen (a title, a price, a phone number or an account), and whether it should be calm or lively with zooms and flashes on the beat. Offer ready answers and mark your default, so one word is enough. Looking is allowed before asking (the project state below, view_frame, view_media, analyze_reference change nothing) and makes the questions precise. Skip any question the message already answers. For a small precise edit, or when the user says to decide yourself, do not ask: act. Never ask a second round.
+- When the project is empty and the request needs media, say so in one line: the user must add files first.
 - You may call several tools in one step. When you finish, reply with a short summary (2 to 4 short lines) of what you did, in the user's language (Arabic by default). Never mention tool names or ids to the user.
 - You cannot add media files yourself. The user adds them with the paperclip button or by dropping files on the page; they are appended to the timeline automatically and reported to you.
 
@@ -39,6 +40,7 @@ Project model
 - Text is drawn exactly as written and supports Arabic. Keep overlay text short. Size is a percent of frame HEIGHT, so the right value depends on the aspect ratio: follow the size guide at the end of this message.
 - Audio longer than the video is cut at the video's end automatically, so give music a fade-out. When video clips carry speech, lower the music to about 20 to 30.
 - Music and pictures must feel together. Whenever the project has music, finish by calling sync_to_beat so every cut lands on a beat (call it again after you add, remove or reorder clips). Fast music (beat interval under 0.6 s): 2 beats per clip, short transitions (0.15 to 0.3 s) and pulse on. Slow music: 4 beats per clip and softer, longer transitions. Give a closing contact card more beats (last_clip_beats). Use analyze_audio to time titles on bar starts.
+- Imitating a video: when the user wants "the same as this video" with their own photos or clips, call analyze_reference on that video clip, look at the contact sheet and at the user's media (view_media), ask your questions, then apply_reference. It copies the cut times, transitions, zooms, flashes, recognized effects and beat pattern onto the other clips of the project. Move each flash it reports onto the product in the user's picture with update_effects. Afterwards check with view_frame, reorder with apply_reference (clip_ids) so each photo suits its shot, and add texts placed like the ones in the reference, written for the user's own content.
 - All times are in seconds.`;
 
   const VISION_NOTE = '\n- Use view_frame when you need to see what is on screen or to check how your result looks. Do not overuse it.';
@@ -140,6 +142,9 @@ Project model
     undo: () => 'تراجع',
     export_video: () => 'تصدير الفيديو…',
     import_media: () => 'إضافة ملفات',
+    analyze_reference: () => 'تحليل المقطع المرجعي…',
+    view_media: () => 'النظر إلى وسائطك',
+    apply_reference: () => 'بناء المونتاج على نمط المرجع',
   };
   const label = (name, args) => (LABELS[name] ? LABELS[name](args || {}) : name);
 
@@ -333,7 +338,7 @@ Project model
         if (res.images) images.push(...res.images);
       }
       if (images.length) {
-        msgs.push({ role: 'user', content: [{ type: 'text', text: '[Frames returned by view_frame, in the order requested]' }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] });
+        msgs.push({ role: 'user', content: [{ type: 'text', text: '[Images returned by the tools above, in order: frames from view_frame, contact sheets from analyze_reference and apply_reference]' }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] });
       }
       if (ctl.signal.aborted) throw aborted();
     }

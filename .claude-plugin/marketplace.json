@@ -1,0 +1,12 @@
+{
+  "name": "montaji",
+  "description": "Skills for the Montaji video editor",
+  "owner": { "name": "saeedBark" },
+  "plugins": [
+    {
+      "name": "montaji",
+      "source": "./",
+      "description": "Remix a reference video with your own media in the Montaji editor: same cuts, transitions and beat rhythm."
+    }
+  ]
+}
