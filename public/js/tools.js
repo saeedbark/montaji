@@ -344,7 +344,7 @@ const MONTAJI_TOOLS = (() => {
         motion: bool('Give photos the camera zoom of their reference shot. Default true.'),
         effects: bool('Add the effects of the reference: flashes on its cuts and inside its shots, blurred or whip transitions, black and white, fade in and out. Default true.'),
         durations: { type: 'array', items: { type: 'number' }, description: 'Override the shot lengths, in seconds, for example to merge two shots the detection split or to drop the last shots.' },
-        replace: bool('The main track already has other clips and new files are being brought in: remove those clips and build the remix in their place.'),
+        replace: bool('The main track already has other clips and new files are being brought in: start from an empty project. The old clips are removed together with everything else of the previous project (its music, overlays, texts, effects and captions), so the reference music is used unless an audio file is among the new files. One undo step brings it all back.'),
       }),
     },
     {

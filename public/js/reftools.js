@@ -426,7 +426,23 @@ const RefTools = (() => {
     return { cw, ch, cols, rows: Math.ceil(count / cols) };
   }
 
-  return { SENSITIVITY, signature, hdist, dist, detect, localFlashes, zoomBetween, zoomOf, sharpness, blurAt, markLooks, edgeFades, buildShots, rhythm, nearestRatio, assign, groups, mergeLayout, fitVideo, sheetLayout, median };
+  /**
+   * replace: true يبدأ الريمكس من مشروع فارغ. ما يبقى من المشروع القديم غير المقاطع:
+   * موسيقاه (وإلا عُدّت «موسيقى المستخدم» فأعيد توقيت القصّات عليها بدل صوت المرجع)، وطبقاته ونصوصه
+   * ومؤثراته وترجمته (وإلا ظهرت فوق الريمكس: زجاجات عطر في إعلان ساعات).
+   * keep: عناصر لا تُحذف (موسيقى المرجع من تطبيق سابق تُعاد استعمالها). يعيد العدد لكل نوع (غير الصفري فقط)
+   */
+  function leftovers(p, keep = []) {
+    const n = list => (list || []).filter(o => !keep.includes(o)).length;
+    const out = {
+      music: n(p.audios), overlays: n(p.overlays), texts: n(p.texts),
+      effects: n(p.effects), captions: n(p.captions && p.captions.items),
+    };
+    for (const k of Object.keys(out)) if (!out[k]) delete out[k];
+    return out;
+  }
+
+  return { SENSITIVITY, signature, leftovers, hdist, dist, detect, localFlashes, zoomBetween, zoomOf, sharpness, blurAt, markLooks, edgeFades, buildShots, rhythm, nearestRatio, assign, groups, mergeLayout, fitVideo, sheetLayout, median };
 })();
 
 if (typeof module !== 'undefined') module.exports = RefTools;
