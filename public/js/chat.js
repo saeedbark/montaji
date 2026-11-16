@@ -9,13 +9,17 @@
   const el = {
     panel: $('#chat'), log: $('#chatLog'), form: $('#chatForm'), input: $('#chatInput'), send: $('#chatSend'),
     sendIcon: $('#chatSendIcon'), model: $('#chatModel'), fresh: $('#chatFresh'), toggle: $('#btnChat'), file: $('#fileChat'),
+    pick: $('#chatPick'), hist: $('#chatHist'), histMenu: $('#chatHistMenu'), dot: $('#chatDot'), resize: $('#chatResize'),
   };
 
   let cfg = null;        // إعدادات الخادم: null = الخادم غير متاح
-  let msgs = [];         // المحادثة بصيغة OpenAI (دون رسالة النظام)
+  let chats = [];        // كل المحادثات: { id, title, mcp, at, msgs, seen, node }
+  let cur = null;        // المحادثة المعروضة الآن
+  let msgs = [];         // = cur.msgs: المحادثة بصيغة OpenAI (دون رسالة النظام)
+  let seen = new Set();  // = cur.seen: روابط الملفات التي عُرّف بها النموذج في هذه المحادثة
   let busy = false;
   let ctl = null;        // لإيقاف الطلب الجاري
-  const seen = new Set(); // روابط الملفات التي عُرّف بها النموذج
+  let choice = null;     // النموذج المختار من القائمة { provider, label, model }
 
   /* ================= رسالة النظام ================= */
   const SYSTEM = `You are the built-in AI editor of "Montaji" (مونتاجي), a video editor that runs in the user's browser. You edit the user's project directly by calling tools, and the user watches the timeline change live.
@@ -69,11 +73,13 @@ Project model
     .map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }));
 
   /* ================= عرض المحادثة ================= */
-  function add(node) {
-    el.log.append(node);
-    el.log.scrollTop = el.log.scrollHeight;
+  // كل محادثة لها عقدتها الخاصة (div.chat-thread)؛ المعروضة وحدها داخل el.log
+  function addTo(chat, node) {
+    chat.node.append(node);
+    if (chat === cur) el.log.scrollTop = el.log.scrollHeight;
     return node;
   }
+  const add = node => addTo(cur, node);
   function div(cls, html) {
     const d = document.createElement('div');
     d.className = cls;
@@ -99,7 +105,7 @@ Project model
     const row = div('step run');
     row.textContent = text;
     box.append(row);
-    el.log.scrollTop = el.log.scrollHeight;
+    if (cur && cur.node.contains(box)) el.log.scrollTop = el.log.scrollHeight;
     return row;
   }
   function endStep(row, res) {
@@ -211,9 +217,9 @@ Project model
   }
 
   function renderIntro() {
-    const old = el.log.querySelector('.chat-intro');
+    const old = cur.node.querySelector('.chat-intro');
     if (old) old.remove();
-    if (msgs.length && !keyOpen) return;
+    if (!isEmpty(cur) && !keyOpen) return;
     let h;
     if (!cfg) {
       h = `<h3>المساعد يحتاج الخادم المحلي</h3>
@@ -221,7 +227,7 @@ Project model
         <button class="btn small" data-retry>إعادة المحاولة</button>`;
     } else if (keyOpen) {
       h = `<h3>مفتاح الذكاء الاصطناعي</h3>
-        <p>${cfg.ready ? `المساعد يعمل الآن بـ <b>${esc(cfg.label)}</b>. ` : ''}الصق مفتاحاً جديداً لتغييره، أو أضف مفتاح Groq للترجمة التلقائية.</p>
+        <p>${cfg.ready ? `المساعد يعمل الآن بـ <b>${esc((choice || cfg).label)}</b>. ` : ''}الصق مفتاحاً جديداً لتغييره، أو أضف مفتاح Groq للترجمة التلقائية.</p>
         ${keyForm()}`;
     } else if (!cfg.ready) {
       h = `<h3>فعّل المساعد بمفتاحك</h3>
@@ -233,7 +239,7 @@ Project model
         <p>ارفع صورك ومقاطعك (بزر المشبك أو بالسحب والإفلات) واكتب ما تريد، وأنا أنفّذه على الخط الزمني مباشرة.</p>
         <div class="sugs">${SUGGESTIONS.map(s => `<button class="sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
     }
-    el.log.prepend(div('chat-intro', h));
+    cur.node.prepend(div('chat-intro', h));
   }
 
   async function loadConfig() {
@@ -242,10 +248,147 @@ Project model
       if (!r.ok) throw new Error('no server');
       cfg = await r.json();
     } catch (e) { cfg = null; }
-    el.model.textContent = cfg && cfg.ready ? cfg.model : '';
-    el.model.title = cfg && cfg.ready ? `${cfg.label} — ${cfg.model}` : '';
+    renderPick();
     renderIntro();
     return cfg;
+  }
+
+  /* ================= اختيار النموذج ================= */
+  // كل مزوّد له مفتاح في .env يظهر في القائمة؛ الاختيار يُحفظ في المتصفح ويُرسل مع كل طلب
+  const PICK_KEY = 'montaji.model';
+  function renderPick() {
+    const list = (cfg && cfg.ready && cfg.choices) || [];
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(PICK_KEY) || 'null'); } catch (e) { /* وضع خاص */ }
+    const sel = (saved && list.find(o => o.provider === saved.provider && o.model === saved.model))
+      || list.find(o => o.default) || list[0] || null;
+    choice = sel;
+    const multi = list.length > 1;
+    el.pick.hidden = !multi;
+    el.model.hidden = multi;
+    el.model.textContent = cfg && cfg.ready ? (sel || cfg).model : '';
+    el.model.title = cfg && cfg.ready ? `${(sel || cfg).label} — ${(sel || cfg).model}` : '';
+    if (!multi) return void (el.pick.innerHTML = '');
+    const groups = new Map();
+    list.forEach((o, i) => {
+      if (!groups.has(o.provider)) groups.set(o.provider, { label: o.label, items: [] });
+      groups.get(o.provider).items.push(`<option value="${i}"${o === sel ? ' selected' : ''}>${esc(o.model)}</option>`);
+    });
+    el.pick.innerHTML = [...groups.values()].map(g => `<optgroup label="${esc(g.label)}">${g.items.join('')}</optgroup>`).join('');
+    el.pick.title = `${sel.label} — ${sel.model}`;
+  }
+  el.pick.addEventListener('change', () => {
+    const o = cfg && cfg.choices && cfg.choices[+el.pick.value];
+    if (!o) return;
+    try { localStorage.setItem(PICK_KEY, JSON.stringify({ provider: o.provider, model: o.model })); } catch (e) { /* وضع خاص */ }
+    renderPick();
+    S.toast && S.toast(`المساعد يعمل الآن بـ ${o.label} — ${o.model}`);
+  });
+
+  /* ================= المحادثات ================= */
+  const CHATS_KEY = 'montaji.chats';
+  const MAX_CHATS = 30;
+  const MCP_IDLE = 10 * 60e3; // نداءات MCP بعد هذا الصمت تبدأ محادثة جديدة
+
+  const isEmpty = c => !c.msgs.length && !c.node.querySelector(':scope > :not(.chat-intro)');
+
+  function newChat(o = {}) {
+    const c = { id: uid(), title: o.title || '', mcp: !!o.mcp, at: Date.now(), msgs: [], seen: new Set(), node: div('chat-thread') };
+    chats.unshift(c);
+    return c;
+  }
+
+  /** يعرض محادثة: المحادثة الفارغة التي نغادرها تُحذف كي لا تتراكم */
+  function show(c) {
+    if (cur === c) return;
+    if (cur) {
+      cur.scroll = el.log.scrollTop;
+      if (isEmpty(cur)) chats = chats.filter(x => x !== cur);
+    }
+    cur = c;
+    msgs = c.msgs;
+    seen = c.seen;
+    c.unread = false;
+    el.log.replaceChildren(c.node);
+    renderIntro();
+    el.log.scrollTop = c.scroll != null ? c.scroll : el.log.scrollHeight;
+    updateFresh();
+    updateDot();
+  }
+
+  const updateDot = () => { el.dot.hidden = !chats.some(c => c.unread && c !== cur); };
+
+  function when(at) {
+    const d = new Date(at), now = new Date();
+    const time = d.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === now.toDateString() ? time : d.toLocaleDateString('ar', { day: 'numeric', month: 'short' }) + ' · ' + time;
+  }
+
+  const listed = () => chats.filter(c => c === cur || !isEmpty(c)).sort((a, b) => b.at - a.at);
+
+  function renderHist() {
+    const list = listed();
+    el.histMenu.innerHTML = list.length ? list.map(c => `<button type="button" class="menu-item${c === cur ? ' on' : ''}" role="menuitem" data-chat="${c.id}">
+        <span class="txt"><b>${esc(c.title || (c.mcp ? 'عميل MCP' : 'محادثة جديدة'))}</b><small>${esc(when(c.at))}</small></span>
+        ${c.mcp ? '<i class="tag">MCP</i>' : ''}${c.unread && c !== cur ? '<i class="dot"></i>' : ''}
+        <span class="del" data-del="${c.id}" title="حذف المحادثة"><svg class="ic"><use href="#i-close"/></svg></span>
+      </button>`).join('') : '<div class="empty">لا محادثات بعد</div>';
+  }
+
+  function setHist(open) {
+    if (open) renderHist();
+    el.histMenu.hidden = !open;
+    el.hist.setAttribute('aria-expanded', String(open));
+  }
+
+  // الصور تُحذف من المحادثات المحفوظة: مساحة المتصفح محدودة، والنموذج لا يحتاج إلا آخرها
+  const stripImages = m => (Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
+    ? { ...m, content: m.content.filter(p => p.type === 'text').map(p => p.text).join('\n') + '\n[images omitted]' } : m);
+
+  function htmlOf(c) {
+    const n = c.node.cloneNode(true);
+    n.querySelectorAll('.chat-intro, .typing, img[src^="blob:"]').forEach(x => x.remove());
+    return n.innerHTML;
+  }
+
+  /** يحفظ المحادثات في المتصفح؛ إن امتلأت المساحة تُترك الأقدم */
+  function saveChats() {
+    const data = chats.filter(c => !isEmpty(c)).sort((a, b) => b.at - a.at).slice(0, MAX_CHATS)
+      .map(c => ({ id: c.id, title: c.title, mcp: c.mcp, at: c.at, msgs: c.msgs.map(stripImages), html: htmlOf(c) }));
+    for (let n = data.length; n >= 0; n--) {
+      try { return void localStorage.setItem(CHATS_KEY, JSON.stringify(data.slice(0, n))); } catch (e) { /* ممتلئ أو وضع خاص */ }
+    }
+  }
+  let saveTimer = 0;
+  const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveChats, 600); };
+
+  function loadChats() {
+    let data = [];
+    try { data = JSON.parse(localStorage.getItem(CHATS_KEY) || '[]'); } catch (e) { /* تالف أو وضع خاص */ }
+    chats = (Array.isArray(data) ? data : []).filter(d => d && d.id).map(d => {
+      const node = div('chat-thread', d.html || '');
+      node.querySelectorAll('.step.run').forEach(r => { r.className = 'step'; }); // خطوات انقطعت بإغلاق الصفحة
+      return { id: String(d.id), title: d.title || '', mcp: !!d.mcp, at: +d.at || 0, msgs: Array.isArray(d.msgs) ? d.msgs : [], seen: new Set(), node };
+    });
+  }
+
+  function deleteChat(id) {
+    const c = chats.find(x => x.id === id);
+    if (!c || (busy && c === cur)) return;
+    chats = chats.filter(x => x !== c);
+    if (c === cur) { cur = null; show(listed()[0] || newChat()); }
+    saveChats();
+  }
+
+  /** محادثة نداءات MCP: تستمر ما دام العميل يعمل، وتبدأ واحدة جديدة بعد صمت طويل */
+  function mcpChat() {
+    let c = chats.find(x => x.mcp && x.live);
+    if (!c || Date.now() - c.at > MCP_IDLE) {
+      c = newChat({ mcp: true, title: 'عميل MCP · ' + new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) });
+      c.live = true;
+    }
+    c.at = Date.now();
+    return c;
   }
 
   /* ================= الملفات الجديدة ================= */
@@ -309,7 +452,8 @@ Project model
     for (let turn = 0; turn < 40; turn++) {
       const typing = addTyping();
       let r;
-      try { r = await api({ messages: [{ role: 'system', content: systemMessage() }, ...history()], tools: toolDefs() }); }
+      const pick = choice && { provider: choice.provider, model: choice.model };
+      try { r = await api({ messages: [{ role: 'system', content: systemMessage() }, ...history()], tools: toolDefs(), choice: pick }); }
       finally { typing.remove(); }
 
       const m = r.message;
@@ -357,6 +501,7 @@ Project model
     if (!text || busy) return;
     setBusy(true);
     ctl = new AbortController();
+    const chat = cur;
     const mark = msgs.length;
     let u = null, bubble = null;
     try {
@@ -366,6 +511,8 @@ Project model
       autoGrow();
       u = await userContent(text);
       msgs.push({ role: 'user', content: u.content });
+      if (!chat.title) chat.title = short(text, 60);
+      chat.at = Date.now();
       renderIntro();
       bubble = addUser(text, u.media);
       await converse();
@@ -383,6 +530,7 @@ Project model
       ctl = null;
       if (Agent.flush()) S.fitTimeline(); // كل تعديلات هذا الدور = خطوة تراجع واحدة
       setBusy(false);
+      saveChats();
     }
   }
 
@@ -394,15 +542,24 @@ Project model
     es.onmessage = async ev => {
       let call;
       try { call = JSON.parse(ev.data); } catch (e) { return; }
-      let box = el.log.lastElementChild;
+      // نداءات MCP تُعرض في محادثتها الخاصة، لا وسط محادثة المستخدم مع المساعد.
+      // تُفتح تلقائياً إلا إن كان المساعد يعمل أو نموذج المفتاح مفتوحاً، فتظهر نقطة على زر المحادثات
+      const chat = mcpChat();
+      if (chat !== cur) {
+        if (!busy && !keyOpen) show(chat);
+        else { chat.unread = true; updateDot(); }
+      }
+      let box = chat.node.lastElementChild;
       if (!box || !box.classList.contains('mcp')) {
-        const intro = el.log.querySelector('.chat-intro');
+        const intro = chat.node.querySelector('.chat-intro');
         if (intro) intro.remove();
-        box = add(div('chat-steps mcp', '<b>عميل MCP خارجي</b>'));
+        box = addTo(chat, div('chat-steps mcp', '<b>عميل MCP خارجي</b>'));
       }
       const row = addStep(box, label(call.name, call.args));
       const result = await Agent.run(call.name, call.args, { commit: true });
       endStep(row, result);
+      chat.at = Date.now();
+      saveSoon();
       fetch('/api/bridge/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: call.id, result }) }).catch(() => {});
     };
   }
@@ -424,14 +581,26 @@ Project model
 
   el.toggle.onclick = () => setOpen(el.panel.hidden);
   $('#chatClose').onclick = () => setOpen(false);
+  // محادثة جديدة: السابقة تبقى في قائمة المحادثات
   $('#chatNew').onclick = () => {
     if (busy) return;
-    msgs = [];
-    seen.clear();
-    el.log.innerHTML = '';
-    renderIntro();
-    updateFresh();
+    setHist(false);
+    if (!isEmpty(cur) || cur.mcp) show(newChat());
+    el.input.focus();
   };
+  el.hist.onclick = () => setHist(el.histMenu.hidden);
+  el.histMenu.addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (del) { e.stopPropagation(); deleteChat(del.dataset.del); return void renderHist(); }
+    const item = e.target.closest('[data-chat]');
+    if (!item) return;
+    const c = chats.find(x => x.id === item.dataset.chat);
+    if (c && c !== cur && busy) return void (S.toast && S.toast('انتظر حتى ينهي المساعد عمله أو أوقفه'));
+    setHist(false);
+    if (c) show(c);
+  });
+  window.addEventListener('pointerdown', e => { if (!el.histMenu.hidden && !e.target.closest('.chat-hist-wrap')) setHist(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !el.histMenu.hidden) setHist(false); });
   $('#chatAttach').onclick = () => el.file.click();
   el.file.onchange = e => { S.addFiles(e.target.files); e.target.value = ''; };
 
@@ -472,7 +641,66 @@ Project model
   });
   document.addEventListener('studio:change', updateFresh);
 
-  // البدء: اللوحة مفتوحة على الشاشات الواسعة ما لم يغلقها المستخدم سابقاً
+  /* سحب الحافة الداخلية للوحة لتوسيعها أو تضييقها؛ يُحفظ العرض في المتصفح، ونقرتان تُرجعانه */
+  function initResize() {
+    const handle = el.resize, root = document.documentElement;
+    const KEY = 'montaji.chatW', MIN = 300;
+    const side = $('#side');
+    // اللوحة الطافية (الشاشات المتوسطة) تتسع حتى حافة النافذة؛ وإلا تبقى مساحة للمعاينة ولوحة الخصائص
+    const maxW = () => Math.max(MIN, getComputedStyle(el.panel).position === 'absolute'
+      ? window.innerWidth - 40 : window.innerWidth - (side ? side.offsetWidth : 0) - 380);
+    const apply = w => {
+      if (w == null) return void root.style.removeProperty('--chat-w');
+      root.style.setProperty('--chat-w', Math.round(Math.min(maxW(), Math.max(MIN, w))) + 'px');
+    };
+    const save = w => { try { w == null ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, String(Math.round(w))); } catch (e) { /* وضع خاص */ } };
+    let saved = null;
+    try { saved = +localStorage.getItem(KEY) || null; } catch (e) { /* وضع خاص */ }
+    if (saved) apply(saved);
+    // المعاينة والخط الزمني يعيدان حساب مقاسهما عند resize؛ مرة واحدة لكل إطار أثناء السحب
+    let raf = 0;
+    const relayout = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; window.dispatchEvent(new Event('resize')); }); };
+    const rtl = () => getComputedStyle(el.panel).direction === 'rtl';
+
+    handle.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      const startX = e.clientX, startW = el.panel.getBoundingClientRect().width, sign = rtl() ? -1 : 1;
+      document.body.classList.add('chat-resizing');
+      const move = ev => { saved = startW + sign * (ev.clientX - startX); apply(saved); relayout(); };
+      const up = () => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        document.body.classList.remove('chat-resizing');
+        saved = el.panel.getBoundingClientRect().width;
+        save(saved);
+        relayout();
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
+    handle.addEventListener('dblclick', () => { saved = null; apply(null); save(null); relayout(); });
+    handle.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      // السهم نحو المعاينة يوسّع اللوحة
+      const wider = (e.key === 'ArrowLeft') === rtl();
+      saved = el.panel.getBoundingClientRect().width + (wider ? 20 : -20);
+      apply(saved); save(saved); relayout();
+    });
+    window.addEventListener('resize', () => { if (saved) apply(saved); });
+  }
+
+  // البدء: المحادثات السابقة في القائمة، ومحادثة جديدة فارغة معروضة
+  loadChats();
+  show(newChat());
+  initResize();
+  window.addEventListener('pagehide', saveChats);
+
+  // اللوحة مفتوحة على الشاشات الواسعة ما لم يغلقها المستخدم سابقاً
   let pref = null;
   try { pref = localStorage.getItem('montaji.chat'); } catch (e) { /* وضع خاص */ }
   loadConfig().then(c => { if (c) bridge(); });

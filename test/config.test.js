@@ -3,7 +3,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseEnv, provider, PROVIDERS } = require('../server/config');
+const { parseEnv, provider, choices, PROVIDERS } = require('../server/config');
 
 const envOf = vals => k => vals[k] || '';
 
@@ -51,4 +51,37 @@ test('provider: AI_BASE_URL وحده يكفي للمزوّد المخصّص', ()
   const p = provider(envOf({ AI_BASE_URL: 'http://localhost:1234/v1/', AI_MODEL: 'local' }));
   assert.equal(p.id, 'custom');
   assert.equal(p.base, 'http://localhost:1234/v1');
+});
+
+test('choices: كل مزوّد له مفتاح يظهر في القائمة، والافتراضي أولاً', () => {
+  const env = envOf({ GEMINI_API_KEY: 'g', OPENROUTER_API_KEY: 'o', AI_PROVIDER: 'openrouter' });
+  const c = choices(env);
+  assert.deepEqual(c.map(o => o.provider), ['openrouter', 'gemini']);
+  assert.equal(c[0].default, true);
+  assert.equal(c[1].model, PROVIDERS.gemini.model);
+  assert.ok(c.every(o => !('key' in o)), 'لا مفاتيح في القائمة');
+});
+
+test('choices: GEMINI_MODEL و AI_MODEL قوائم مفصولة بفواصل', () => {
+  const env = envOf({ GEMINI_API_KEY: 'g', OPENROUTER_API_KEY: 'o', AI_MODEL: 'gemini-a', GEMINI_MODEL: 'gemini-b, gemini-a', OPENROUTER_MODEL: 'x/one,y/two' });
+  assert.deepEqual(choices(env).map(o => `${o.provider}:${o.model}`), ['gemini:gemini-a', 'gemini:gemini-b', 'openrouter:x/one', 'openrouter:y/two']);
+  assert.equal(provider(env).model, 'gemini-a');
+});
+
+test('choices: لا قائمة بلا مفاتيح، ولا Ollama ما لم يُسمَّ له نموذج', () => {
+  assert.deepEqual(choices(envOf({})), []);
+  assert.deepEqual(choices(envOf({ GEMINI_API_KEY: 'g' })).map(o => o.provider), ['gemini']);
+  assert.deepEqual(choices(envOf({ GEMINI_API_KEY: 'g', OLLAMA_MODEL: 'llama' })).map(o => o.provider), ['gemini', 'ollama']);
+});
+
+test('provider: يقبل الاختيار من القائمة فقط', () => {
+  const env = envOf({ GEMINI_API_KEY: 'g', OPENROUTER_API_KEY: 'o', AI_BASE_URL: 'http://proxy/v1' });
+  const p = provider(env, { provider: 'openrouter', model: PROVIDERS.openrouter.model });
+  assert.equal(p.id, 'openrouter');
+  assert.equal(p.key, 'o');
+  assert.equal(p.base, PROVIDERS.openrouter.base, 'AI_BASE_URL يخص المزوّد الافتراضي وحده');
+  // مزوّد بلا مفتاح أو نموذج غير مسمّى: يعود إلى الافتراضي
+  assert.equal(provider(env, { provider: 'openai', model: 'gpt' }).id, 'gemini');
+  assert.equal(provider(env, { provider: 'openrouter', model: 'any/model' }).id, 'gemini');
+  assert.equal(provider(env).base, 'http://proxy/v1');
 });
