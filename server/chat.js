@@ -7,7 +7,8 @@ const { json, readBody } = require('./http');
 
 async function chat(req, res) {
   const body = JSON.parse(await readBody(req, 48e6));
-  const p = provider();
+  // النموذج المختار من قائمة لوحة المساعد (إن وُجد)؛ provider يتجاهله إن لم يكن له مفتاح في .env
+  const p = provider(undefined, body.choice);
   if (p.error) return json(res, 400, { error: p.error, setup: true });
   if (typeof fetch !== 'function') return json(res, 500, { error: 'الشات يحتاج Node.js بإصدار 18 أو أحدث' });
 
@@ -39,7 +40,7 @@ async function chat(req, res) {
     const e = Array.isArray(data) ? data[0] && data[0].error : data && data.error;
     const detail = (typeof e === 'string' ? e : e && e.message) || text.slice(0, 300);
     const hint = r.status === 401 || r.status === 403 ? 'المفتاح مرفوض — تأكد من صحته في ملف .env'
-      : r.status === 404 ? `النموذج «${p.model}» غير متاح — غيّر AI_MODEL في ملف .env`
+      : r.status === 404 ? `النموذج «${p.model}» غير متاح — اختر نموذجاً آخر أو غيّر اسمه في ملف .env`
       : r.status === 429 ? 'تجاوزت حد الاستخدام أو انتهى الرصيد لدى المزوّد'
       : r.status >= 500 ? `${p.label} مزدحم الآن — أعد إرسال رسالتك بعد لحظات`
       : `خطأ من ${p.label} (${r.status})`;

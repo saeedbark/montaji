@@ -34,6 +34,7 @@
   <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="M4 20L14.5 9.5M12.5 7.5l4 4M18 3v3M16.5 4.5h3M20 10v2M19 11h2M8 3v2M7 4h2"/></symbol>
   <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 10v4M7 6v12M11 3v18M15 8v8M19 5v14M23 10v4"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></symbol>
@@ -145,11 +146,17 @@
       <svg class="ic"><use href="#i-spark"/></svg>
       <b>المساعد الذكي</b>
       <span class="chat-model" id="chatModel" dir="ltr"></span>
+      <select class="chat-pick" id="chatPick" dir="ltr" title="اختر النموذج" aria-label="النموذج" hidden></select>
       <div class="spacer"></div>
+      <div class="chat-hist-wrap">
+        <button class="btn small icon" id="chatHist" title="المحادثات السابقة" aria-haspopup="menu" aria-expanded="false"><svg class="ic"><use href="#i-history"/></svg><i class="chat-dot" id="chatDot" hidden></i></button>
+        <div class="menu chat-hist" id="chatHistMenu" role="menu" hidden></div>
+      </div>
       <button class="btn small icon" id="chatKey" title="مفتاح الذكاء الاصطناعي"><svg class="ic"><use href="#i-sliders"/></svg></button>
       <button class="btn small icon" id="chatNew" title="محادثة جديدة"><svg class="ic"><use href="#i-plus"/></svg></button>
       <button class="btn small icon" id="chatClose" title="إخفاء المساعد"><svg class="ic"><use href="#i-close"/></svg></button>
     </header>
+    <div class="chat-resize" id="chatResize" role="separator" aria-orientation="vertical" aria-label="عرض لوحة المساعد" tabindex="0" title="اسحب لتغيير العرض — نقرتان للعرض الافتراضي"></div>
     <div class="chat-log" id="chatLog" aria-live="polite"></div>
     <div class="chat-fresh" id="chatFresh" hidden></div>
     <form class="chat-form" id="chatForm">

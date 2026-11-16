@@ -165,11 +165,37 @@ kbd { background: var(--panel-3); border: 1px solid var(--line); border-radius: 
 /* ---------- المساعد الذكي ---------- */
 body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) var(--side-w); }
 .btn[aria-pressed="true"] { border-color: var(--accent); color: #ffb3c1; }
-.chat { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-inline-end: 1px solid var(--line); }
+.chat { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-inline-end: 1px solid var(--line); }
 .chat-head { display: flex; align-items: center; gap: 7px; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--line); }
 .chat-head > .ic { color: var(--accent); }
+.chat-head > b { white-space: nowrap; }
 .chat-model { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* قائمة النموذج: تظهر حين يكون في .env أكثر من مزوّد أو نموذج */
+.chat-pick { min-width: 0; max-width: 170px; flex: 0 1 auto; height: 28px; padding: 0 6px; font-size: 11.5px; color: var(--muted); text-overflow: ellipsis; }
+.chat-pick:hover, .chat-pick:focus { color: var(--text); }
+/* المحادثات السابقة */
+.chat-hist-wrap { position: relative; }
+#chatHist { position: relative; }
+.chat-dot { position: absolute; top: 3px; inset-inline-end: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.chat-hist { inset-inline-start: auto; inset-inline-end: 0; min-width: 250px; max-width: min(320px, 86vw); max-height: 60vh; overflow-y: auto; }
+.chat-hist .menu-item { gap: 8px; padding: 7px 9px; }
+.chat-hist .menu-item.on { background: var(--panel-3); }
+.chat-hist .menu-item > .txt { flex: 1; min-width: 0; }
+.chat-hist .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.chat-hist .menu-item b { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-hist .tag { flex: none; font-size: 10px; padding: 1px 5px; border-radius: 5px; background: #2d1a45; color: #d9b8ff; }
+.chat-hist .del { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); opacity: 0; }
+.chat-hist .menu-item:hover .del, .chat-hist .del:focus-visible { opacity: 1; }
+.chat-hist .del:hover { background: #3b171c; color: #ffc9cc; }
+.chat-hist .del .ic { width: 14px; height: 14px; }
+.chat-hist .empty { padding: 10px; color: var(--muted); font-size: 12.5px; text-align: center; }
+/* مقبض تغيير عرض لوحة المساعد على حافتها الداخلية */
+.chat-resize { position: absolute; inset-block: 0; inset-inline-end: -5px; width: 9px; cursor: ew-resize; z-index: 6; touch-action: none; }
+.chat-resize::after { content: ''; position: absolute; inset-block: 0; inset-inline-start: 4px; width: 2px; background: transparent; transition: background .15s; }
+.chat-resize:hover::after, .chat-resize:focus-visible::after, body.chat-resizing .chat-resize::after { background: var(--accent); }
+body.chat-resizing { cursor: ew-resize; user-select: none; }
 .chat-log { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 9px; user-select: text; }
+.chat-thread { display: flex; flex-direction: column; gap: 9px; }
 .msg { max-width: 92%; padding: 8px 11px; border-radius: 13px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
 .msg.user { align-self: flex-start; background: var(--accent); color: #fff; border-start-start-radius: 4px; }
 .msg.bot { align-self: flex-end; background: var(--panel-2); border: 1px solid var(--line); border-start-end-radius: 4px; }
@@ -501,6 +527,8 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 
   /* المساعد يملأ الشاشة */
   .chat { position: fixed; inset: 0; width: 100%; z-index: 40; border: 0; box-shadow: none; }
+  .chat-resize { display: none; }
+  .chat-pick { max-width: 120px; }
 
   /* الخط الزمني */
   .tl-toolbar { padding: 6px 8px; gap: 5px; }
