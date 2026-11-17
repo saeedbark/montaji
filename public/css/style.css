@@ -48,6 +48,10 @@ body {
 }
 /* على الهاتف: الارتفاع الفعلي الظاهر، كي لا يختفي الخط الزمني خلف شريط المتصفح */
 @supports (height: 100dvh) { body { height: 100dvh; } }
+/* على ماك: خط تجوّل المرفق في public/fonts (رخصة OFL، نصها في fonts/licenses) */
+@font-face { font-family: "Tajawal"; src: url(../fonts/tajawal-400.ttf) format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Tajawal"; src: url(../fonts/tajawal-700.ttf) format("truetype"); font-weight: 700; font-display: swap; }
+:root[data-os="mac"] body { font-family: "Tajawal", "Segoe UI", Tahoma, system-ui, sans-serif; }
 
 .ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ic.big { width: 44px; height: 44px; stroke-width: 1.4; color: var(--accent); }
