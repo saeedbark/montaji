@@ -4,8 +4,8 @@ const THEME = (() => {
   const KEY = 'montaji.accent';
   const ACCENTS = [
     { id: 'pink', label: ['وردي', 'Pink'] },
-    { id: 'violet', label: ['بنفسجي', 'Violet'] },
-    { id: 'green', label: ['أخضر', 'Green'] },
+    { id: 'amber', label: ['عنبري', 'Amber'] },
+    { id: 'blue', label: ['أزرق', 'Blue'] },
   ];
   const ids = ACCENTS.map(a => a.id);
   const valid = id => (ids.includes(id) ? id : ids[0]);

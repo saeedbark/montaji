@@ -12,7 +12,7 @@
 <script>/* اتجاه الصفحة قبل رسمها، كي لا تومض بالعربية؛ الترجمة نفسها في js/i18n.js */
 try { const l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('montaji.lang'); if (l === 'en') { document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr'; } } catch (e) { /* وضع خاص */ }
 /* واللون المميز كذلك (js/theme.js) */
-try { const a = localStorage.getItem('montaji.accent'); if (a === 'violet' || a === 'green') document.documentElement.dataset.accent = a; } catch (e) { /* وضع خاص */ }</script>
+try { const a = localStorage.getItem('montaji.accent'); if (a === 'amber' || a === 'blue') document.documentElement.dataset.accent = a; } catch (e) { /* وضع خاص */ }</script>
 </head>
 <body>
 
