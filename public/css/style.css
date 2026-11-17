@@ -6,7 +6,10 @@
   --line: #2a303c;
   --text: #e9ebf1;
   --muted: #8c94a5;
+  /* اللون المميز: يختاره المستخدم من زر الألوان (js/theme.js)، والوردي هو الافتراضي */
   --accent: #ff5c7a;
+  --accent-hover: #ff7590;
+  --accent-soft: #ffb3c1;  /* نص فاتح بلون المميز على الخلفية الداكنة */
   --accent-ink: #2a0a12;
   --clip: #3d7bff;
   --audio: #17b890;
@@ -21,6 +24,9 @@
   --sheet-h: min(56dvh, 480px); /* لوحة الخصائص حين تصير درجاً سفلياً على الهاتف */
   color-scheme: dark;
 }
+/* الألوان المميزة الأخرى، على ‎<html data-accent>‎ */
+:root[data-accent="violet"] { --accent: #7c5cff; --accent-hover: #9178ff; --accent-soft: #c9bcff; --accent-ink: #160b3a; }
+:root[data-accent="green"]  { --accent: #12a37f; --accent-hover: #1bbf96; --accent-soft: #9ce9d4; --accent-ink: #032a20; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -59,7 +65,7 @@ body {
 .btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn:disabled { opacity: .4; cursor: default; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.primary:hover { background: #ff7590; border-color: #ff7590; }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn.icon { width: 36px; padding: 0; }
 .btn.small { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
 .btn.small.icon { width: 30px; padding: 0; }
@@ -167,7 +173,7 @@ kbd { background: var(--panel-3); border: 1px solid var(--line); border-radius: 
 
 /* ---------- المساعد الذكي ---------- */
 body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) var(--side-w); }
-.btn[aria-pressed="true"] { border-color: var(--accent); color: #ffb3c1; }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-soft); }
 .chat { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-inline-end: 1px solid var(--line); }
 .chat-head { display: flex; align-items: center; gap: 7px; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--line); }
 .chat-head > .ic { color: var(--accent); }
@@ -228,7 +234,7 @@ body.chat-resizing { cursor: ew-resize; user-select: none; }
 .chat-intro li { margin: 5px 0; }
 .chat-intro a { color: var(--accent); }
 .chat-intro code { background: var(--panel-3); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; font-size: 12px; direction: ltr; display: inline-block; user-select: text; }
-.chat-intro .why { color: #ffb3c1; }
+.chat-intro .why { color: var(--accent-soft); }
 .chat-intro .why:empty { display: none; }
 .key-form { display: flex; flex-direction: column; gap: 9px; margin: 0 0 10px; padding: 11px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); user-select: text; }
 .key-form label { display: flex; flex-direction: column; gap: 4px; }
@@ -347,7 +353,7 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 .ex-status { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; font-size: 13px; color: #c5cad6; }
 #exVideo { width: 100%; max-height: 46vh; background: #000; border-radius: 10px; display: block; }
 
-.drop-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(255,92,122,.14); border: 3px dashed var(--accent); display: grid; place-items: center; pointer-events: none; }
+.drop-overlay { position: fixed; inset: 0; z-index: 60; background: color-mix(in srgb, var(--accent) 14%, transparent); border: 3px dashed var(--accent); display: grid; place-items: center; pointer-events: none; }
 .drop-overlay div { background: var(--panel); padding: 14px 22px; border-radius: 12px; font-weight: 700; font-size: 16px; }
 
 #toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
@@ -549,7 +555,7 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
   /* الدرج يغطي الخط الزمني وجزءاً من المعاينة: نرفع المعاينة فوقه لتبقى ظاهرة كاملة أثناء التعديل */
   body.props-open .stage { padding-bottom: max(0px, calc(var(--sheet-h) - var(--tl-h))); }
   .sheet-only { display: inline-flex; }
-  #btnProps.on { border-color: var(--accent); color: #ffb3c1; }
+  #btnProps.on { border-color: var(--accent); color: var(--accent-soft); }
 
   /* المساعد يملأ الشاشة */
   .chat { position: fixed; inset: 0; width: 100%; z-index: 40; border: 0; box-shadow: none; }
@@ -650,6 +656,8 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 
 /* زر اللغة، وتعديلات الواجهة الإنجليزية (من اليسار إلى اليمين) */
 .btn.lang { font-weight: 700; font-size: 13px; }
+/* زر الألوان: دائرة باللون المميز الحالي */
+.btn.accent-pick .dot { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--panel-2), 0 0 0 3.5px var(--accent); }
 :root[dir="ltr"] .tl-label, :root[dir="ltr"] .tl-hint, :root[dir="ltr"] .item .name { direction: ltr; }
 :root[dir="ltr"] .guide li { padding: 9px 0 9px 40px; }
 :root[dir="ltr"] .guide li::before { right: auto; left: 0; }

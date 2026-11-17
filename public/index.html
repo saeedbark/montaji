@@ -10,7 +10,9 @@
 <meta name="theme-color" content="#14141a">
 <link rel="stylesheet" href="css/style.css">
 <script>/* اتجاه الصفحة قبل رسمها، كي لا تومض بالعربية؛ الترجمة نفسها في js/i18n.js */
-try { const l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('montaji.lang'); if (l === 'en') { document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr'; } } catch (e) { /* وضع خاص */ }</script>
+try { const l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('montaji.lang'); if (l === 'en') { document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr'; } } catch (e) { /* وضع خاص */ }
+/* واللون المميز كذلك (js/theme.js) */
+try { const a = localStorage.getItem('montaji.accent'); if (a === 'violet' || a === 'green') document.documentElement.dataset.accent = a; } catch (e) { /* وضع خاص */ }</script>
 </head>
 <body>
 
@@ -131,6 +133,7 @@ try { const l = new URLSearchParams(location.search).get('lang') || localStorage
   </button>
 
   <button class="btn icon lang" id="btnLang" type="button">EN</button>
+  <button class="btn icon accent-pick" id="btnAccent" type="button"><span class="dot"></span></button>
 
   <a class="btn icon" id="lnkGuide" href="guide.html" target="_blank" rel="noopener" title="دليل الاستخدام" aria-label="دليل الاستخدام"><svg class="ic"><use href="#i-help"/></svg></a>
 
@@ -383,6 +386,7 @@ try { const l = new URLSearchParams(location.search).get('lang') || localStorage
 <div id="toasts"></div>
 
 <script src="js/i18n.js"></script>
+<script src="js/theme.js"></script>
 <script src="vendor/mp4-muxer.js"></script>
 <script src="js/core.js"></script>
 <script src="js/beats.js"></script>
