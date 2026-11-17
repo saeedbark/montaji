@@ -98,4 +98,4 @@ function serveStatic(req, res, p) {
   });
 }
 
-module.exports = { TYPES, MEDIA_EXT, contentType, langOf, pickLang, json, readBody, trusted, serveStatic };
+module.exports = { MEDIA_EXT, contentType, langOf, pickLang, json, readBody, trusted, serveStatic };

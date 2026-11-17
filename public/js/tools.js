@@ -101,7 +101,7 @@ const MONTAJI_TOOLS = (() => {
         speed: num('Video only: playback speed, 0.25 to 4. 1 is normal.'),
         volume: num('Video only: clip sound level, 0 to 100.'),
         muted: bool('Video only: silence the clip sound.'),
-        transition: pick(['none', 'fade', 'slide', 'zoom', 'wipe', 'black'], 'Transition played when this clip enters. Has no visible effect on the first clip.'),
+        transition: pick(['none', 'fade', 'slide', 'zoom', 'wipe', 'black'], 'Transition played when this clip enters. On the first clip it enters from black, so the video opens on a black frame: use none there for a clean first frame.'),
         transition_duration: num('Transition length in seconds, 0.1 to 1.5 (default 0.6). Use 0.15 to 0.3 on fast music so the cut still hits the beat.'),
         pulse: bool('Quick zoom bump on every music beat, strongest on bar starts. Great for energetic music.'),
         motion: pick(['none', 'zoomIn', 'zoomOut', 'panRight', 'panLeft', 'panUp', 'panDown', 'handheld'], 'Camera move over the clip. zoom/pan: slow Ken Burns. panUp/panDown scroll vertically; with fit cover on a tall image (pictures merged in a column) they travel over the whole image. handheld: gentle drifting hand-held camera that makes a still photo feel filmed.'),

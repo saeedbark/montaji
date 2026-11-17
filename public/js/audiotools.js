@@ -185,11 +185,37 @@ const AudioTools = (() => {
     return { bytes, ext: f.ext, mime: f.mime, blob: new Blob([bytes], { type: f.mime }) };
   }
 
+  /**
+   * يجمع ضربات عدة عناصر صوتية في شبكة واحدة بزمن المشروع.
+   * tracks: [{ start, in, out, len, beats: [{ t, s, down }] }] (t بزمن الملف المصدر، len مدة العنصر في المشروع).
+   * الأطول أولاً، وحيث يُسمع لا تُؤخذ ضربات ما هو أقصر منه فوقه: تعليق صوتي فوق الموسيقى لا يضيف
+   * «ضربات» على مقاطع الكلام، وأغنيتان متتاليتان تبقى ضربات كل منهما. الضربتان الأقرب من gap تصيران واحدة (الأقوى).
+   */
+  function mergeBeats(tracks, gap) {
+    const all = [], taken = [];
+    for (const a of [...tracks].sort((p, q) => q.len - p.len)) {
+      for (const x of a.beats) {
+        if (x.t < a.in - 0.02 || x.t >= a.out) continue;
+        const t = a.start + x.t - a.in;
+        if (!taken.some(([s, e]) => t >= s && t < e)) all.push({ t, s: x.s, down: x.down });
+      }
+      taken.push([a.start, a.start + a.len]);
+    }
+    all.sort((p, q) => p.t - q.t);
+    const merged = [];
+    for (const x of all) {
+      const last = merged[merged.length - 1];
+      if (last && x.t - last.t < gap) { if (x.s > last.s) merged[merged.length - 1] = x; }
+      else merged.push(x);
+    }
+    return merged;
+  }
+
   /** الحجم التقريبي للملف الناتج بالبايت */
   const estimate = (seconds, format, bitrate = 192000, channels = 2, sampleRate = 48000) =>
     format === 'wav' ? 44 + seconds * sampleRate * channels * 2 : seconds * bitrate / 8 * 1.02;
 
-  return { FORMATS, BITRATES, process, toMono16k, sttChunks, peaks, wav, canM4A, m4a, encode, estimate };
+  return { FORMATS, BITRATES, process, toMono16k, sttChunks, peaks, wav, canM4A, m4a, encode, estimate, mergeBeats };
 })();
 
 if (typeof module !== 'undefined') module.exports = AudioTools;

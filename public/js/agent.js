@@ -117,7 +117,8 @@ const Agent = (() => {
 
   /* ---------- تطبيق الحقول ---------- */
   function applyText(x, a) {
-    if (has(a.text)) x.text = String(a.text);
+    // بعض العملاء يمرّرون «\n» حرفين (شرطة مائلة ثم n) لا سطراً جديداً، والوصف يَعِد بأنها فاصل أسطر
+    if (has(a.text)) x.text = String(a.text).replace(/\\n/g, '\n');
     if (has(a.start)) x.start = Math.max(0, num(a.start, 'start'));
     if (has(a.duration)) x.dur = Math.max(MIN_LEN, num(a.duration, 'duration'));
     if (has(a.position)) { x.y = { top: 0.15, middle: 0.5, bottom: 0.82 }[oneOf(a.position, ['top', 'middle', 'bottom'], 'position')]; x.x = 0.5; }
@@ -1118,7 +1119,7 @@ const Agent = (() => {
   };
 
   // أدوات لا تعدّل المشروع، أو تسجّل خطوتها في سجل التراجع بنفسها (فتح مشروع، إضافة ملفات)
-  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions', 'analyze_reference', 'view_media']);
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions', 'analyze_reference', 'view_media', 'split_video_file']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {

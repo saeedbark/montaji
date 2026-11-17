@@ -486,18 +486,19 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 }
 @media (hover: none) { .strip-x { opacity: 1; } }
 
-@media (max-width: 1380px) {
+/* الشريط العلوي يحتاج نحو 1540px كاملاً (بالعربية والإنجليزية)؛ كل حد أدناه يضمن بقاءه صفاً واحداً */
+@media (max-width: 1560px) {
   .ratio > span { display: none; }
   .ratio select { max-width: 170px; }
+}
+@media (max-width: 1500px) {
+  #btnProject, #btnTools, #btnChat { width: 36px; padding: 0; }
+  #btnProject span, #btnTools span, #btnChat span { display: none; }
 }
 @media (max-width: 1320px) {
   .brand { margin-inline-end: 0; }
   .brand span { display: none; }
   .ratio select { max-width: 130px; }
-}
-@media (max-width: 1210px) {
-  #btnProject, #btnTools, #btnChat { width: 36px; padding: 0; }
-  #btnProject span, #btnTools span, #btnChat span { display: none; }
 }
 @media (max-width: 1120px) {
   :root { --side-w: 290px; --chat-w: 340px; }
@@ -506,16 +507,19 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
   .workspace { position: relative; }
   .chat { position: absolute; inset-block: 0; inset-inline-start: 0; width: min(var(--chat-w), 100%); z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,.6); }
 }
-@media (max-width: 1040px) {
+@media (max-width: 1215px) {
   .add-group .btn { width: 36px; padding: 0; }
   .add-group .btn span { display: none; }
 }
-@media (max-width: 860px) {
-  :root { --side-w: 264px; }
+@media (max-width: 940px) {
   .topbar { padding: 8px 10px; gap: 6px; }
   #btnExport { width: 36px; padding: 0; }
-  #btnExport span, #imgOpen span, #imgMerge span, #audOpen span, #splitOpen span { display: none; }
+  #btnExport span { display: none; }
   .ratio select { max-width: 120px; }
+}
+@media (max-width: 860px) {
+  :root { --side-w: 264px; }
+  #imgOpen span, #imgMerge span, #audOpen span, #splitOpen span { display: none; }
   .tl-toolbar .hint { display: none; }
   .aud-grid { grid-template-columns: minmax(0, 1fr); }
   .studio-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 46%; }
