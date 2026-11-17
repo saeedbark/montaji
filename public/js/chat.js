@@ -10,6 +10,7 @@
     panel: $('#chat'), log: $('#chatLog'), form: $('#chatForm'), input: $('#chatInput'), send: $('#chatSend'),
     sendIcon: $('#chatSendIcon'), model: $('#chatModel'), fresh: $('#chatFresh'), toggle: $('#btnChat'), file: $('#fileChat'),
     pick: $('#chatPick'), hist: $('#chatHist'), histMenu: $('#chatHistMenu'), dot: $('#chatDot'), resize: $('#chatResize'),
+    target: $('#chatTarget'),
   };
 
   let cfg = null;        // إعدادات الخادم: null = الخادم غير متاح
@@ -20,6 +21,7 @@
   let busy = false;
   let ctl = null;        // لإيقاف الطلب الجاري
   let choice = null;     // النموذج المختار من القائمة { provider, label, model }
+  let target = null;     // العنصر الذي ربطه المستخدم بالمحادثة بزر الذكاء الاصطناعي { kind, id, used }
 
   /* ================= رسالة النظام ================= */
   const SYSTEM = `You are the built-in AI editor of "Montaji" (مونتاجي), a video editor that runs in the user's browser. You edit the user's project directly by calling tools, and the user watches the timeline change live.
@@ -92,10 +94,11 @@ Project model
     .replace(/^#{1,4}\s+(.*)$/gm, '<b>$1</b>')
     .replace(/^(\s*)[-*]\s+/gm, '$1• ');
 
-  function addUser(text, media) {
+  function addUser(text, media, about) {
     const thumbs = media.slice(0, 6).map(m => (m.thumb ? `<img src="${esc(m.thumb)}" alt="">` : `<span>♪ ${esc(m.name)}</span>`)).join('');
     const more = media.length > 6 ? `<span>+${media.length - 6}</span>` : '';
-    return add(div('msg user', esc(text) + (media.length ? `<div class="msg-thumbs">${thumbs}${more}</div>` : '')));
+    const tag = about ? `<div class="msg-tgt"><svg class="ic"><use href="#i-spark"/></svg>${esc(about)}</div>` : '';
+    return add(div('msg user', tag + esc(text) + (media.length ? `<div class="msg-thumbs">${thumbs}${more}</div>` : '')));
   }
   const addBot = text => add(div('msg bot', md(text)));
   const addNote = text => add(div('chat-note', esc(text)));
@@ -395,6 +398,82 @@ Project model
     return c;
   }
 
+  /* ================= العنصر المحدد ================= */
+  // زر الذكاء الاصطناعي على عنصر محدد (الخط الزمني أو لوحة الخصائص) يربط المحادثة به:
+  // تظهر بطاقته فوق حقل الكتابة، وكل رسالة تُرسل معها ملاحظة للنموذج بأن الطلب يخصّه، حتى يلغيها المستخدم
+  const targetObj = () => (target && S.listOf(target.kind).find(o => o.id === target.id)) || null;
+
+  function kindLabel(kind, o) {
+    if (kind === 'clip') return o.type === 'video' ? tt('مقطع فيديو', 'Video clip') : tt('صورة', 'Image');
+    if (kind === 'overlay') return o.type === 'video' ? tt('طبقة فيديو', 'Video overlay') : tt('طبقة صورة', 'Image overlay');
+    if (kind === 'audio') return tt('موسيقى', 'Music');
+    if (kind === 'text') return tt('نص', 'Text');
+    if (kind === 'effect') return tt('تأثير', 'Effect');
+    return tt('ترجمة', 'Caption');
+  }
+  const itemName = (kind, o) => (kind === 'effect' ? (Render.EFFECTS[o.type] || {}).label || o.type
+    : kind === 'text' || kind === 'caption' ? String(o.text || '').split('\n')[0] : o.name);
+  const aboutText = (kind, o) => `${kindLabel(kind, o)}: ${short(itemName(kind, o), 40)}`;
+
+  // اقتراحات جاهزة لكل نوع: نقرة واحدة ترسل الطلب
+  const TARGET_SUGS = {
+    image: [['حرّكها بتقريب بطيء', 'Add a slow zoom in'], ['أزل خلفية هذه الصورة', 'Remove the background of this photo'], ['اجعل ألوانها أدفأ وأوضح', 'Make its colors warmer and crisper']],
+    video: [['اجعله بالحركة البطيئة', 'Make it slow motion'], ['اكتم صوته', 'Mute its sound'], ['أضف انتقالاً ناعماً عند دخوله', 'Add a smooth transition into it']],
+    overlay: [['صغّرها وضعها في الزاوية العليا', 'Make it small in the top corner'], ['اجعلها دائرية مع ظل', 'Make it round with a shadow'], ['أدخلها بحركة ظهور', 'Bring it in with a pop animation']],
+    text: [['اجعله أكبر وأوضح', 'Make it bigger and clearer'], ['غيّر لونه ليناسب الفيديو', 'Change its color to suit the video'], ['أضف له حركة دخول', 'Give it an entry animation']],
+    audio: [['أضف تلاشياً في البداية والنهاية', 'Fade it in and out'], ['اخفض صوتها قليلاً', 'Lower its volume a little'], ['زامن القص مع إيقاعها', 'Sync the cuts to its beat']],
+    effect: [['اجعله أقوى', 'Make it stronger'], ['اجعله أقصر', 'Make it shorter'], ['ضعه على كل القطعات', 'Put it on every cut']],
+    caption: [['صحّح الأخطاء الإملائية', 'Fix the spelling'], ['كبّر خط الترجمة', 'Make the captions bigger'], ['غيّر لون الكلمة المميزة', 'Change the highlight color']],
+  };
+
+  /** ملاحظة للنموذج تحدد العنصر الذي يخصّه الطلب */
+  function targetNote(kind, o) {
+    layout();
+    const r2 = n => Math.round(n * 100) / 100;
+    const what = kind === 'clip' ? `${o.type} clip (number ${state.clips.indexOf(o) + 1} of ${state.clips.length} on the main track)`
+      : kind === 'overlay' ? `${o.type} overlay` : kind === 'audio' ? 'audio track' : kind === 'text' ? 'text'
+        : kind === 'effect' ? `${o.type} effect` : 'caption block';
+    const name = kind === 'effect' ? '' : ` "${short(itemName(kind, o), 60)}"`;
+    const t0 = itemStart(kind, o), t1 = t0 + itemLen(kind, o);
+    return `[Selected item: the user picked this ${what} id=${o.id}${name}, from ${r2(t0)}s to ${r2(t1)}s, with the AI button. `
+      + 'Apply the request to this item only, unless the message clearly asks for more.]';
+  }
+
+  const BASE_PH = () => tt('اطلب ما تريد… مثل: رتّب المقاطع وأضف عنواناً وانتقالات', 'Ask for anything… e.g. order the clips and add a title and transitions');
+  let targetKey = '';
+  /** يرسم بطاقة العنصر المربوط؛ يُلغى الربط تلقائياً إن حُذف العنصر */
+  function renderTarget() {
+    const o = targetObj();
+    if (target && !o) target = null;
+    const kind = o && target.kind;
+    const key = o ? [kind, o.id, aboutText(kind, o), o.thumb || '', target.used ? 1 : 0, I18N.lang].join('|') : '';
+    if (key === targetKey) return;
+    targetKey = key;
+    el.target.hidden = !o;
+    el.input.placeholder = o ? tt('اكتب ما تريد تغييره في هذا العنصر…', 'Tell me what to change in this item…') : BASE_PH();
+    if (!o) return void (el.target.innerHTML = '');
+    const thumb = (kind === 'clip' || kind === 'overlay') && o.thumb;
+    const sugs = target.used ? [] : TARGET_SUGS[kind === 'clip' ? o.type : kind] || [];
+    el.target.innerHTML = `<div class="tgt-row">
+        ${thumb ? `<img src="${esc(thumb)}" alt="">` : '<span class="tgt-ic"><svg class="ic"><use href="#i-spark"/></svg></span>'}
+        <span class="tgt-txt"><small>${tt('طلبك يخصّ هذا العنصر', 'Your request is about this item')}</small><b title="${esc(itemName(kind, o))}">${esc(aboutText(kind, o))}</b></span>
+        <button type="button" class="btn small icon" data-untarget title="${tt('إلغاء الربط بهذا العنصر', 'Stop focusing on this item')}"><svg class="ic"><use href="#i-close"/></svg></button>
+      </div>${sugs.length ? `<div class="tgt-sugs">${sugs.map(([ar, en]) => {
+        const s = tt(ar, en);
+        return `<button type="button" class="tgt-sug" data-sug="${esc(s)}">${esc(s)}</button>`;
+      }).join('')}</div>` : ''}`;
+  }
+
+  /** يفتح المساعد مربوطاً بعنصر من المشروع { kind, id } */
+  function focusOn(t) {
+    if (!t || !S.listOf(t.kind).some(o => o.id === t.id)) return;
+    target = { kind: t.kind, id: t.id, used: false };
+    if (cur.mcp && !busy) show(newChat()); // لا نكتب وسط سجل عميل MCP
+    if (el.panel.hidden) setOpen(true);
+    renderTarget();
+    el.input.focus();
+  }
+
   /* ================= الملفات الجديدة ================= */
   const freshMedia = () => [...state.clips, ...state.audios].filter(m => !seen.has(m.url));
 
@@ -407,11 +486,23 @@ Project model
   /** نص المستخدم + تعريف بالملفات الجديدة (ومعاينات مصغّرة إن كانت الرؤية مفعّلة) */
   async function userContent(text) {
     const media = freshMedia();
-    if (!media.length) return { content: text, media };
+    const o = targetObj();
+    if (!media.length && !o) return { content: text, media };
     layout();
-    let note = '\n\n[New media added to the project since your last turn]';
+    let note = media.length ? '\n\n[New media added to the project since your last turn]' : '';
     const parts = [];
     let budget = 14;
+    if (o) {
+      note = '\n\n' + targetNote(target.kind, o) + note;
+      // صورة العنصر المربوط ليرى النموذج ما يقصده المستخدم (إن لم تكن ضمن الملفات الجديدة)
+      if (cfg.vision && o.el && (o.type === 'image' || o.type === 'video') && !media.some(m => m.url === o.url)) {
+        try {
+          const shots = await Agent.previews(o);
+          budget -= shots.length;
+          parts.push({ type: 'text', text: `Preview of the selected item id=${o.id}:` }, ...shots.map(url => ({ type: 'image_url', image_url: { url } })));
+        } catch (e) { console.warn('preview failed', o.name, e); }
+      }
+    }
     for (const m of media) {
       seen.add(m.url);
       if (!m.type) { note += `\n- audio id=${m.id} "${m.name}" ${audioLen(m).toFixed(1)}s`; continue; }
@@ -513,12 +604,15 @@ Project model
       if (!cfg || !cfg.ready) return;
       el.input.value = '';
       autoGrow();
+      const tObj = targetObj();
+      const about = tObj ? aboutText(target.kind, tObj) : '';
       u = await userContent(text);
       msgs.push({ role: 'user', content: u.content });
       if (!chat.title) chat.title = short(text, 60);
       chat.at = Date.now();
       renderIntro();
-      bubble = addUser(text, u.media);
+      bubble = addUser(text, u.media, about);
+      if (tObj) { target.used = true; renderTarget(); }
       await converse();
     } catch (e) {
       if (e.name === 'AbortError') addNote(tt('أُوقف المساعد.', 'Assistant stopped.'));
@@ -643,7 +737,12 @@ Project model
     const sug = e.target.closest('[data-sug]');
     if (sug) send(sug.dataset.sug);
   });
-  document.addEventListener('studio:change', updateFresh);
+  el.target.addEventListener('click', e => {
+    if (e.target.closest('[data-untarget]')) { target = null; renderTarget(); return void el.input.focus(); }
+    const sug = e.target.closest('[data-sug]');
+    if (sug && !busy) send(sug.dataset.sug);
+  });
+  document.addEventListener('studio:change', () => { updateFresh(); renderTarget(); });
 
   /* سحب الحافة الداخلية للوحة لتوسيعها أو تضييقها؛ يُحفظ العرض في المتصفح، ونقرتان تُرجعانه */
   function initResize() {
@@ -705,7 +804,7 @@ Project model
   window.addEventListener('pagehide', saveChats);
   // تبديل اللغة: شاشة البداية وزر الإرسال وقائمة المحادثات تُرسم من جديد (الرسائل السابقة تبقى كما كُتبت)
   // الإعدادات تُقرأ من جديد لأن رسائل الخادم وتسمياته تأتي بلغة الواجهة
-  I18N.onChange(() => { renderIntro(); setBusy(busy); if (!el.histMenu.hidden) renderHist(); loadConfig(); });
+  I18N.onChange(() => { renderIntro(); setBusy(busy); targetKey = ''; renderTarget(); if (!el.histMenu.hidden) renderHist(); loadConfig(); });
 
   // اللوحة مفتوحة على الشاشات الواسعة ما لم يغلقها المستخدم سابقاً
   let pref = null;
@@ -713,5 +812,5 @@ Project model
   loadConfig().then(c => { if (c) bridge(); });
   // على الهاتف يملأ المساعد الشاشة، فلا يُفتح تلقائياً فوق المحرر
   if (window.innerWidth > 640 && (pref === '1' || (pref === null && window.innerWidth >= 1180))) setOpen(true);
-  window.montajiChat = { send, get messages() { return msgs; } };
+  window.montajiChat = { send, focus: focusOn, get messages() { return msgs; } };
 })();

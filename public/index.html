@@ -163,6 +163,7 @@ try { const l = new URLSearchParams(location.search).get('lang') || localStorage
     <div class="chat-resize" id="chatResize" role="separator" aria-orientation="vertical" aria-label="عرض لوحة المساعد" tabindex="0" title="اسحب لتغيير العرض — نقرتان للعرض الافتراضي"></div>
     <div class="chat-log" id="chatLog" aria-live="polite"></div>
     <div class="chat-fresh" id="chatFresh" hidden></div>
+    <div class="chat-target" id="chatTarget" hidden></div>
     <form class="chat-form" id="chatForm">
       <button type="button" class="btn icon" id="chatAttach" title="إرفاق صور ومقاطع وموسيقى"><svg class="ic"><use href="#i-attach"/></svg></button>
       <textarea id="chatInput" rows="1" dir="auto" placeholder="اطلب ما تريد… مثل: رتّب المقاطع وأضف عنواناً وانتقالات"></textarea>
