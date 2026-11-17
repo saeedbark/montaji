@@ -69,4 +69,4 @@ async function saveKey(req, res) {
   json(res, 200, { ok: true, provider: body.provider });
 }
 
-module.exports = { KEY_TARGETS, setEnvValues, saveKey };
+module.exports = { setEnvValues, saveKey };

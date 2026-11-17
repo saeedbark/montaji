@@ -99,3 +99,25 @@ test('estimate يعطي حجماً معقولاً لكل صيغة', () => {
   const m = AudioTools.estimate(60, 'm4a', 192000);
   assert.ok(m > 1.4e6 && m < 1.5e6, String(m));
 });
+
+test('mergeBeats: تعليق صوتي فوق الموسيقى لا يضيف ضربات، وأغنيتان متتاليتان تبقى ضربات كل منهما', () => {
+  const grid = (from, to, step) => { const b = []; for (let t = from; t < to - 1e-9; t += step) b.push({ t: Math.round(t * 1000) / 1000, s: 0.5, down: false }); return b; };
+  const music = { start: 0, in: 0, out: 20, len: 20, beats: grid(0, 20, 0.5) };
+  // كلام بإيقاع آخر (0.37 ث) يبدأ عند الثانية 3 لمدة 6 ثوانٍ
+  const voice = { start: 3, in: 0, out: 6, len: 6, beats: grid(0, 6, 0.37).map(x => ({ ...x, s: 0.9 })) };
+  const merged = AudioTools.mergeBeats([voice, music], 0.15);
+  assert.deepEqual(merged.map(x => x.t), music.beats.map(x => x.t));
+
+  // أغنية ثانية بعد الأولى: ضرباتها بعد نهاية الأولى تُضاف، وما يقع في مدى الأولى يُترك
+  const song2 = { start: 18, in: 10, out: 20, len: 10, beats: grid(10, 20, 0.6) };
+  const both = AudioTools.mergeBeats([music, song2], 0.15).map(x => x.t);
+  assert.ok(both.filter(t => t < 20).every(t => Math.abs(t * 2 - Math.round(t * 2)) < 1e-6), 'داخل الأولى ضرباتها فقط');
+  assert.ok(both.some(t => t >= 20), 'ضربات الثانية بعد نهاية الأولى');
+  // in/out: لا تُحسب الضربات خارج الجزء المقصوص من الملف
+  assert.ok(both.every(t => t < 28 + 1e-6));
+});
+
+test('mergeBeats: ضربتان أقرب من gap تصيران واحدة هي الأقوى', () => {
+  const a = { start: 0, in: 0, out: 10, len: 10, beats: [{ t: 1, s: 0.2, down: false }, { t: 1.05, s: 0.8, down: true }, { t: 2, s: 0.5, down: false }] };
+  assert.deepEqual(AudioTools.mergeBeats([a], 0.1), [{ t: 1.05, s: 0.8, down: true }, { t: 2, s: 0.5, down: false }]);
+});

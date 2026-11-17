@@ -307,7 +307,8 @@ const AudioExtract = (() => {
     if (fromClip.clip && state.clips.includes(fromClip.clip)) {
       const c = fromClip.clip;
       layout();
-      if (c.speed === 1) item.start = Math.max(0, c._start + (fromClip.start - c.in));
+      // بسرعة غير 1 يبدأ الصوت مع المقطع نفسه ثم ينحرف عنه، لأن الصوت يُشغَّل بسرعته الأصلية
+      item.start = Math.max(0, c._start + (fromClip.start - c.in) / (c.speed || 1));
       if (mute) c.muted = true;
     }
     item.fadeOut = 0; // التلاشي (إن طُلب) مطبّق في الملف نفسه

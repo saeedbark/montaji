@@ -164,21 +164,16 @@ const Beats = (() => {
     const list = state.audios.filter(a => !onlyId || a.id === onlyId);
     const key = list.map(a => `${a.id}:${a.start}:${a.in}:${a.out}`).join('|');
     if (cache.key === key && cache.grid) return cache.grid;
-    const all = [];
+    const tracks = [];
     let period = 0, bpm = 0, longest = 0;
     for (const a of list) {
       const b = ensure(a);
       if (!b || !b.beats.length) continue;
       if (audioLen(a) > longest) { longest = audioLen(a); period = b.period; bpm = b.bpm; }
-      for (const x of b.beats) if (x.t >= a.in - 0.02 && x.t < a.out) all.push({ t: a.start + x.t - a.in, s: x.s, down: x.down });
+      tracks.push({ start: a.start, in: a.in, out: a.out, len: audioLen(a), beats: b.beats });
     }
-    all.sort((p, q) => p.t - q.t);
-    const merged = [];
-    for (const x of all) {
-      const last = merged[merged.length - 1];
-      if (last && x.t - last.t < Math.max(0.08, period * 0.35)) { if (x.s > last.s) merged[merged.length - 1] = x; }
-      else merged.push(x);
-    }
+    // تعليق صوتي فوق الموسيقى لا يضيف ضربات على مقاطع الكلام (انظر AudioTools.mergeBeats)
+    const merged = AudioTools.mergeBeats(tracks, Math.max(0.08, period * 0.35));
     cache = { key, grid: { bpm, period, beats: merged, times: Float64Array.from(merged.map(x => x.t)) } };
     return cache.grid;
   }
