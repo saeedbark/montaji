@@ -106,6 +106,9 @@
   .mock .it.t { background: #4a3611; border: 1.5px solid var(--textc); }
   .mock .it.c { background: #1d2c4d; border: 1.5px solid var(--clip); }
   .mock .it.a { background: #0f3b31; border: 1.5px solid var(--audio); }
+  .mock .it.o { background: #16324a; border: 1.5px solid #4cc2ff; }
+  .mock .it.e { background: #4b1a55; border: 1.5px solid #d946ef; }
+  .mock .it.s { background: #3d2f08; border: 1.5px solid #ffd400; }
   .mock .head { position: absolute; top: 6px; bottom: 6px; left: calc(62px + 8px + 12px + 30%); width: 2px; background: #fff; }
   .pin { position: absolute; z-index: 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #111; font-weight: 800; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
   .legend { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 22px; max-width: none; }
@@ -141,6 +144,7 @@
     section { break-inside: avoid-page; }
   }
 </style>
+</head>
 <body>
 
 <header class="hero">
@@ -149,7 +153,7 @@
     Montaji
   </span>
   <h1>Step-by-step user guide</h1>
-  <p>Everything you need to make a video from your photos and clips: adding files, arranging and trimming, music, text, effects, then downloading the video in high quality.</p>
+  <p>Everything you need to make a video from your photos and clips: adding files, arranging and trimming, music, text, effects and overlays, auto captions, the AI assistant, then saving the project and downloading the video in high quality.</p>
   <div class="cta">
     <a class="btn primary" href="index.html?lang=en">Open the editor</a>
     <a class="btn" href="#quick">Quick start</a>
@@ -157,7 +161,7 @@
   </div>
   <figure class="intro-video">
     <video src="media/guide.mp4" controls playsinline preload="metadata"></video>
-    <figcaption>A short video walkthrough (under a minute) of the whole workflow — the interface shown is in Arabic</figcaption>
+    <figcaption>A short video walkthrough (under a minute) of the basics — the interface shown is in Arabic</figcaption>
   </figure>
 </header>
 
@@ -170,10 +174,17 @@
       <li><a href="#ui">Getting to know the interface</a></li>
       <li><a href="#upload">Adding photos and clips</a></li>
       <li><a href="#arrange">Arranging, trimming and splitting</a></li>
-      <li><a href="#music">Adding music</a></li>
+      <li><a href="#music">Music and the beat</a></li>
       <li><a href="#text">Adding text</a></li>
-      <li><a href="#effects">Transitions and effects</a></li>
+      <li><a href="#look">Transitions and clip look</a></li>
+      <li><a href="#effects">The effects track</a></li>
+      <li><a href="#overlays">Overlays</a></li>
+      <li><a href="#keyframes">Keyframes</a></li>
+      <li><a href="#captions">Auto captions</a></li>
+      <li><a href="#assistant">The AI assistant</a></li>
+      <li><a href="#tools">The Tools menu</a></li>
       <li><a href="#ratio">Video size</a></li>
+      <li><a href="#save">Saving and opening projects</a></li>
       <li><a href="#export">Export and download</a></li>
       <li><a href="#keys">Keyboard shortcuts</a></li>
       <li><a href="#help">Troubleshooting</a></li>
@@ -185,21 +196,22 @@
     <section id="run">
       <h2><span class="n">1</span>Starting the app</h2>
       <ol class="steps">
-        <li>Open the app folder and double-click <code>start.bat</code> (Windows) or <code>start.command</code> (Mac).</li>
-        <li>A small terminal window appears (leave it open), then the editor opens in your browser at <code>http://localhost:4747</code>.</li>
-        <li>When you are done, close the browser tab and then the terminal window.</li>
+        <li><b>Once only:</b> install <b>Node.js</b> (the LTS version) from <code>nodejs.org</code> like any other program.</li>
+        <li>Open the app folder and double-click the start file: <code>start.bat</code> on Windows, <code>start.command</code> on Mac, or <code>start.sh</code> on Linux.</li>
+        <li>A small window appears saying to keep it open, then the editor opens in your browser by itself at <code>http://localhost:4747</code>.</li>
+        <li>When you are done, save your project, then close the browser tab and the small window.</li>
       </ol>
       <div class="note">
         <span class="ico">!</span>
-        <p><b>Which browser:</b> use a recent Google Chrome or Microsoft Edge; export relies on technology not every browser has.</p>
+        <p><b>Which browser:</b> use a recent Google Chrome or Microsoft Edge; export relies on features that not every browser has.</p>
       </div>
       <div class="note tip">
         <span class="ico">✓</span>
-        <p><b>Your privacy is safe:</b> everything runs on your device. Your photos and clips are never uploaded.</p>
+        <p><b>Your files stay private:</b> editing and export run on your device, and your photos and clips are never uploaded. The only exception is what you ask the AI assistant or auto captions to do: they send what they need to the provider whose key you chose.</p>
       </div>
       <div class="note tip">
         <span class="ico">✓</span>
-        <p><b>Language:</b> the <span class="ui">EN</span> / <span class="ui">ع</span> button in the top bar switches the editor between English and Arabic. Your choice is remembered.</p>
+        <p><b>Language:</b> the <span class="ui">EN</span> button in the top bar switches the whole editor to English, and <span class="ui">ع</span> switches it back to Arabic, without losing anything in your project.</p>
       </div>
     </section>
 
@@ -207,29 +219,33 @@
       <h2><span class="n">2</span>Quick start</h2>
       <p>Five steps are enough for your first video:</p>
       <ol class="steps">
-        <li><b>Add your files:</b> press <span class="ui">Media</span> and choose your photos and clips. They are added to the timeline in order.</li>
+        <li><b>Add your files:</b> press <span class="ui">Media</span> and pick your photos and clips. They are added to the timeline in order.</li>
         <li><b>Arrange them:</b> drag any clip left or right to move it, and drag its edge to shorten it.</li>
-        <li><b>Add music:</b> press <span class="ui">Music</span> and choose an audio file.</li>
-        <li><b>Add text:</b> press <span class="ui">Text</span> and type your title, then drag it in the preview to where you want it.</li>
+        <li><b>Add music:</b> press <span class="ui">Music</span> and pick an audio file, then <span class="ui">Sync cuts to the beat</span> if you want the clips to change with the music.</li>
+        <li><b>Add text:</b> press <span class="ui">Text</span> and type the title, then drag it in the preview to where you want it.</li>
         <li><b>Export:</b> press <span class="ui red">Export video</span>, choose the resolution, then <span class="ui red">Download video</span>.</li>
       </ol>
       <div class="note tip">
         <span class="ico">✓</span>
         <p><b>Try it first:</b> press “Try a sample” on the start screen to create a small project with photos, music and text, so you can learn the tools before using your own files.</p>
       </div>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>Or just ask:</b> open the <span class="ui">Assistant</span>, attach your files and write, for example, “make a vertical TikTok video from these photos with a title and transitions”. See <a href="#assistant">The AI assistant</a>.</p>
+      </div>
     </section>
 
     <section id="ui">
       <h2><span class="n">3</span>Getting to know the interface</h2>
-      <p>The screen has four parts:</p>
+      <p>The screen has four parts, plus the assistant panel when you open it:</p>
 
       <div class="mock" role="img" aria-label="Simplified layout of the editor: top bar, preview, properties panel and timeline">
         <div class="bar">
           <span class="pin" style="position:static">1</span>
           <b>Montaji</b>
-          <span class="chip">Media</span><span class="chip">Music</span><span class="chip">Text</span>
+          <span class="chip">Project</span><span class="chip">Media</span><span class="chip">Music</span><span class="chip">Text</span><span class="chip">Overlay</span><span class="chip">Effect</span><span class="chip">Tools</span>
           <span class="sp"></span>
-          <span class="chip">Size</span><span class="chip">↶ ↷</span><span class="chip red">Export video</span>
+          <span class="chip">Size</span><span class="chip">Assistant</span><span class="chip">ع</span><span class="chip">?</span><span class="chip">↶ ↷</span><span class="chip red">Export video</span>
         </div>
         <div class="mid">
           <div class="stage">
@@ -245,49 +261,56 @@
         <div class="tl">
           <span class="pin" style="top:6px;right:8px">4</span>
           <div class="row"><span>Texts</span><div class="lane"><div class="it t" style="left:4%;width:30%"></div><div class="it t" style="left:62%;width:26%"></div></div></div>
+          <div class="row"><span>Overlays</span><div class="lane"><div class="it o" style="left:36%;width:22%"></div></div></div>
           <div class="row"><span>Clips</span><div class="lane big"><div class="it c" style="left:0;width:31%"></div><div class="it c" style="left:32%;width:27%"></div><div class="it c" style="left:60%;width:32%"></div></div></div>
+          <div class="row"><span>Effects</span><div class="lane"><div class="it e" style="left:29%;width:5%"></div><div class="it e" style="left:57%;width:5%"></div></div></div>
           <div class="row"><span>Music</span><div class="lane"><div class="it a" style="left:0;width:92%"></div></div></div>
           <div class="head"></div>
         </div>
       </div>
 
       <ul class="legend">
-        <li><span class="pin">1</span><span><b>Top bar:</b> the add buttons, video size, undo and redo, and the export button.</span></li>
-        <li><span class="pin">2</span><span><b>Preview:</b> shows the video as it will come out, with the play button and time below it.</span></li>
-        <li><span class="pin">3</span><span><b>Properties panel:</b> changes with the item you click (photo, video, music, text).</span></li>
-        <li><span class="pin">4</span><span><b>Timeline:</b> tracks for texts, clips and music; the white line is the playhead.</span></li>
+        <li><span class="pin">1</span><span><b>Top bar:</b> the Project menu, the add buttons, Tools, video size, the assistant, language, this guide, undo and redo, and the export button.</span></li>
+        <li><span class="pin">2</span><span><b>Preview:</b> shows the video as it will come out, with the play button, the time and a camera button that saves the current frame as an image.</span></li>
+        <li><span class="pin">3</span><span><b>Properties panel:</b> changes with the item you click. With nothing selected it shows the project details (duration, size, item counts).</span></li>
+        <li><span class="pin">4</span><span><b>Timeline:</b> tracks for texts, overlays, clips, effects and music (and captions when there are any); the white line is the playhead.</span></li>
       </ul>
 
       <h3>Moving through time</h3>
       <ul>
-        <li>Click or drag on the ruler at the top of the timeline to move the playhead to any moment.</li>
-        <li>The <span class="ui">Zoom</span> slider zooms the timeline in for precise work, or out to see the whole project.</li>
+        <li>Click the ruler at the top of the timeline, or drag along it, to move the playhead to any moment.</li>
+        <li>The <span class="ui">Zoom</span> slider zooms the timeline in for precise work or out to see the whole project.</li>
         <li>The four-arrow button next to the zoom fits the whole project on screen.</li>
+        <li>Drag the top edge of the timeline up or down to make it taller or shorter; double-click it to reset the height.</li>
       </ul>
+
+      <h3>On phones and small screens</h3>
+      <p>The preview and the timeline stay visible together, and the properties become a bottom drawer opened by the <span class="ui">Properties</span> button or by tapping the selected item again. As the window gets narrower, the top bar buttons shrink to icons.</p>
     </section>
 
     <section id="upload">
       <h2><span class="n">4</span>Adding photos and clips</h2>
       <p>There are two ways:</p>
       <ul>
-        <li>Press <span class="ui">Media</span> and choose one or several files.</li>
+        <li>Press <span class="ui">Media</span> and pick one file or several at once.</li>
         <li>Or drag files from your folder and drop them anywhere on the page.</li>
       </ul>
-      <p>Each new file is added at the <b>end</b> of the clips track. A photo shows for 4 seconds by default, a video for its full length.</p>
+      <p>Each new file is added at the <b>end</b> of the clips track. A photo shows for 4 seconds by default, a video for its full length. To put a picture <b>on top of</b> the video (a logo, say) use <span class="ui">Overlay</span> instead.</p>
 
       <div class="tbl">
         <table>
           <thead><tr><th>Type</th><th>Accepted formats</th></tr></thead>
           <tbody>
-            <tr><td>Photos</td><td>JPG, PNG, WebP, GIF, BMP, AVIF</td></tr>
-            <tr><td>Video</td><td>MP4, WebM, MOV, M4V, MKV — MP4 is the safest</td></tr>
-            <tr><td>Audio</td><td>MP3, WAV, M4A, AAC, OGG, FLAC</td></tr>
+            <tr><td>Photos</td><td><span class="ltr">JPG, PNG, WebP, GIF, BMP, AVIF</span></td></tr>
+            <tr><td>Video</td><td><span class="ltr">MP4, WebM, MOV, M4V, MKV</span> — <span class="ltr">MP4</span> is the safest</td></tr>
+            <tr><td>Audio</td><td><span class="ltr">MP3, WAV, M4A, AAC, OGG, FLAC</span></td></tr>
+            <tr><td>Project</td><td><span class="ltr">.montaji</span> — opens with everything in it (see <a href="#save">Saving projects</a>)</td></tr>
           </tbody>
         </table>
       </div>
       <div class="note">
         <span class="ico">!</span>
-        <p>iPhone photos in HEIC format and some MOV clips may not open in the browser. Convert them to JPG or MP4 first.</p>
+        <p>iPhone photos in <span dir="ltr">HEIC</span> and some <span dir="ltr">MOV</span> clips may not open in the browser. Convert them to <span dir="ltr">JPG</span> or <span dir="ltr">MP4</span> first.</p>
       </div>
     </section>
 
@@ -295,30 +318,31 @@
       <h2><span class="n">5</span>Arranging, trimming and splitting</h2>
 
       <div class="cards">
-        <div class="card"><h4>Reorder</h4><p>Drag a clip from its middle to its new place. A pink line shows where it will land.</p></div>
-        <div class="card"><h4>Trim</h4><p>Click the clip, then drag one of its two white edges inwards. For a photo this changes how long it shows.</p></div>
-        <div class="card"><h4>Split</h4><p>Put the playhead at the cut point and press <span class="ui">Split</span>: the clip becomes two independent parts.</p></div>
+        <div class="card"><h4>Reordering</h4><p>Drag a clip from its middle to its new place. A pink line shows where it will land.</p></div>
+        <div class="card"><h4>Trimming</h4><p>Click the clip, then drag one of its two white edges inward. For a photo this changes how long it shows.</p></div>
+        <div class="card"><h4>Splitting</h4><p>Put the playhead at the cut point and press <span class="ui">Split</span>; the clip becomes two independent parts.</p></div>
         <div class="card"><h4>Duplicate and delete</h4><p>Select the item, then press <span class="ui">Duplicate</span> to copy it or <span class="ui">Delete</span> to remove it.</p></div>
       </div>
+      <p>These buttons work on every kind of item: clips, texts, overlays, effects, music and caption blocks.</p>
 
       <h3>Removing a part from the middle of a clip</h3>
       <ol class="steps">
         <li>Put the playhead at the start of the unwanted part and press <span class="ui">Split</span>.</li>
         <li>Put the playhead at its end and press <span class="ui">Split</span> again.</li>
-        <li>Click the middle part, then <span class="ui">Delete</span>. The remaining parts close the gap automatically.</li>
+        <li>Click the middle part, then <span class="ui">Delete</span>. The remaining parts close the gap by themselves.</li>
       </ol>
 
       <div class="note tip">
         <span class="ico">✓</span>
-        <p><b>Made a mistake?</b> Press the undo arrow in the top bar or <kbd>Ctrl</kbd> + <kbd>Z</kbd> to go back a step, and repeat to go back further.</p>
+        <p><b>Made a mistake?</b> Press the undo arrow in the top bar or <kbd>Ctrl</kbd> + <kbd>Z</kbd> to go back a step, and repeat to go back further. This also covers what the AI assistant did.</p>
       </div>
-      <p>Clips always sit next to each other with no gaps. <b>The final video length = the sum of the clip lengths</b> on this track.</p>
+      <p>Clips always sit side by side with no gaps. <b>The final video length = the sum of the clip lengths</b>, unless an overlay runs past them, in which case the video runs on with it.</p>
     </section>
 
     <section id="music">
-      <h2><span class="n">6</span>Adding music</h2>
+      <h2><span class="n">6</span>Music and the beat</h2>
       <ol class="steps">
-        <li>Press <span class="ui">Music</span> and choose the audio file. It appears as a green bar on the music track.</li>
+        <li>Press <span class="ui">Music</span> and pick the audio file. It appears as a green bar in the music track, with small marks for the beats.</li>
         <li>Drag the bar to choose when the music starts, and drag its edges to pick the part you want.</li>
         <li>Click the bar to edit its properties in the side panel.</li>
       </ol>
@@ -326,17 +350,22 @@
         <table>
           <thead><tr><th>Property</th><th>What it does</th></tr></thead>
           <tbody>
-            <tr><td>Volume</td><td>How loud the music is. Lower it if your clips have speech you want to hear.</td></tr>
-            <tr><td>Fade in</td><td>The music starts quiet and rises over the set time.</td></tr>
-            <tr><td>Fade out</td><td>The music fades gently before its end instead of stopping abruptly.</td></tr>
+            <tr><td>Volume</td><td>How loud the music is. Lower it if your clips have speech you want to hear. It can be animated with keyframes (dip under speech, then come back up).</td></tr>
+            <tr><td>Fade in</td><td>The music starts quiet and rises over the chosen time.</td></tr>
+            <tr><td>Fade out</td><td>The music lowers gently before its end instead of stopping abruptly.</td></tr>
           </tbody>
         </table>
       </div>
+
+      <h3>Sync cuts to the beat</h3>
+      <p>The music properties have a <b>Beat</b> section with its tempo (<span dir="ltr">BPM</span>). Choose how many beats per clip (<b>Every beat</b>, <b>Every 2 beats</b>, <b>Every 4 beats</b> or <b>Strong beats only</b>), then press <span class="ui red">Sync cuts to the beat</span>: each clip is timed so that every cut lands on a beat. Run it again after any change to the order or number of clips. The “Pulse on the music beat” option in a clip's properties makes the picture pulse on every beat.</p>
+
       <ul>
-        <li>If the music is <b>longer</b> than the video it is cut at the end automatically, with a fade out.</li>
+        <li>If the music is <b>longer</b> than the video, it is cut at the end automatically with a fade out.</li>
         <li>If it is <b>shorter</b>, select it and press <span class="ui">Duplicate</span> to add a copy right after it.</li>
         <li>You can add more than one audio file, such as music and a voice-over together.</li>
-        <li>To mute or lower a video clip’s own sound: click the clip, then use “Clip volume” or “Mute clip”.</li>
+        <li>To mute or lower a video clip's own sound, click the clip and use “Clip volume” or “Mute clip”.</li>
+        <li>The <span class="ui">Extract the sound</span> button in a video clip's properties moves its sound to the music track, in sync (so you can edit it on its own), or downloads it as a file.</li>
       </ul>
     </section>
 
@@ -344,44 +373,46 @@
       <h2><span class="n">7</span>Adding text</h2>
       <ol class="steps">
         <li>Move the playhead to the moment the text should appear.</li>
-        <li>Press <span class="ui">Text</span> and type in the box in the side panel. Press <kbd>Enter</kbd> for a new line.</li>
+        <li>Press <span class="ui">Text</span> and type in the text box of the side panel. Press <kbd>Enter</kbd> for a new line.</li>
         <li>Drag the text in the preview to place it, or choose “Top / Middle / Bottom”.</li>
-        <li>On the timeline: drag the yellow bar to change when it appears, and drag its edge to change how long it stays.</li>
+        <li>On the timeline: drag the yellow bar to change when it appears, and drag its edge to change how long.</li>
       </ol>
       <div class="tbl">
         <table>
           <thead><tr><th>Property</th><th>What it does</th></tr></thead>
           <tbody>
-            <tr><td>Size, font and color</td><td>The basic look of the text, with a bold option.</td></tr>
+            <tr><td>Size, font and color</td><td>The basic look of the text, with a bold option, and an “Elegant italic” font for Latin words in product ads.</td></tr>
             <tr><td>Outline</td><td>A border around the letters that keeps the text readable over any picture.</td></tr>
             <tr><td>Text background</td><td>A semi-transparent colored box behind the text, good for captions.</td></tr>
             <tr><td>Shadow</td><td>A soft shadow that lifts the text off the background.</td></tr>
-            <tr><td>Entrance animation</td><td>None, fade, rise from below, or a pop.</td></tr>
+            <tr><td>Position, opacity and rotation</td><td>Fine control with sliders; each one can be animated with keyframes.</td></tr>
+            <tr><td>Entrance animation</td><td>None, fade, rise from below, or a zoom pop.</td></tr>
           </tbody>
         </table>
       </div>
+      <p>To turn speech in your video into text automatically, use <a href="#captions">Auto captions</a> instead of typing it.</p>
     </section>
 
-    <section id="effects">
-      <h2><span class="n">8</span>Transitions and effects</h2>
+    <section id="look">
+      <h2><span class="n">8</span>Transitions and clip look</h2>
       <p>Click any photo or clip on the timeline to see its options in the properties panel.</p>
 
       <h3>Entry transition</h3>
-      <p>How a clip appears after the one before it: <b>Fade</b>, <b>Slide</b>, <b>Zoom</b>, <b>Wipe</b> or <b>Dip to black</b>. A clip with a transition shows a ⇄ mark.</p>
+      <p>How the clip comes in after the one before it: <b>Fade</b>, <b>Slide</b>, <b>Zoom</b>, <b>Wipe</b> or <b>Dip to black</b>, with a “Transition length” slider. A clip with a transition shows a ⇄ mark.</p>
       <p>To use the same transition across the whole video, press “Apply this transition to all clips”.</p>
 
       <h3>Camera motion</h3>
-      <p>Brings still photos to life: a slow <b>zoom in</b> or <b>zoom out</b>, or a pan to the <b>right</b> or <b>left</b>.</p>
+      <p>Brings still photos to life: a slow <b>Zoom in</b> or <b>Zoom out</b>, a pan to the <b>Right</b> or <b>Left</b>, <b>Up</b> and <b>Down</b> (travels the full length of a tall image), or <b>Handheld</b>, which makes the photo look filmed by hand.</p>
 
       <h3>Fit</h3>
-      <p>Used when the photo’s shape differs from the video size, such as a portrait photo in a landscape video:</p>
+      <p>Used when the photo's shape differs from the video size, such as a portrait photo in a landscape video:</p>
       <div class="tbl">
         <table>
           <thead><tr><th>Option</th><th>Result</th></tr></thead>
           <tbody>
             <tr><td>Blurred background</td><td>The whole photo shows, and the sides are filled with a blurred copy of it. (Default)</td></tr>
-            <tr><td>Black bars</td><td>The whole photo shows with black bars on the sides.</td></tr>
-            <tr><td>Fill the frame</td><td>The photo is enlarged to cover the whole screen and the excess is cropped.</td></tr>
+            <tr><td>Black bars</td><td>The whole photo shows with black bars at the sides.</td></tr>
+            <tr><td>Fill the frame</td><td>The photo is enlarged to cover the whole screen and the extra is cropped.</td></tr>
           </tbody>
         </table>
       </div>
@@ -389,101 +420,245 @@
       <h3>Filters and color</h3>
       <p>Pick a ready filter (Vivid, Warm, Cool, Black and white, Vintage, Soft), then adjust <b>Brightness</b>, <b>Contrast</b> and <b>Saturation</b> with the sliders if you like.</p>
 
+      <h3>Zoom and position</h3>
+      <p><b>Zoom</b>, <b>Horizontal</b> and <b>Vertical offset</b> and <b>Opacity</b> sliders to frame the picture exactly; all of them can be animated with keyframes. The “Turn into an overlay” button moves the clip to the overlays track.</p>
+
       <h3>Video speed</h3>
-      <p>For video clips only: 0.5× for slow motion, or 1.5× and 2× to speed up. The clip’s length changes accordingly.</p>
+      <p>Video clips only: <span dir="ltr">0.5×</span> for slow motion, or <span dir="ltr">1.5×</span> and <span dir="ltr">2×</span> to speed up. The clip's length changes to match.</p>
+
+      <h3>Editing a photo</h3>
+      <p>Photos in the project have an “Edit image: crop, remove background…” button that opens them in the <a href="#tools">Image studio</a>; the changes apply to the photo in the project right away.</p>
+    </section>
+
+    <section id="effects">
+      <h2><span class="n">9</span>The effects track</h2>
+      <p>Effects sit on their own track over the picture and change everything under them for as long as they last. Press <span class="ui">Effect</span> to add one at the playhead, choose its type, intensity and duration in the panel, and drag it on the timeline like any item.</p>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Group</th><th>Effects</th></tr></thead>
+          <tbody>
+            <tr><td>On the cut (short bursts)</td><td>Zoom blur, Whip, Flash, Shake, Color split</td></tr>
+            <tr><td>Over a stretch of time</td><td>Black and white, Sharpen, Vignette, Darken</td></tr>
+            <tr><td>On the product</td><td>Zoom to product, Spotlight, Shine, Glow, Sparkle</td></tr>
+            <tr><td>On part of the picture</td><td>Area flash, Backlight (a stand, a price tag, a counter)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li><b>Put it on every cut:</b> a button in the effect's properties that copies it onto every cut between two clips. These copies are linked to the cut and follow it when the timing changes (after a beat sync, for example); “Unlink and pin it in place” frees one.</li>
+        <li><b>Product effects:</b> select the effect, then drag the circle in the preview over the product, or set its position and size in the panel.</li>
+        <li><b>Area flash and Backlight:</b> drag the rectangle in the preview over the part that flashes, and set its width and height in the panel.</li>
+      </ul>
+    </section>
+
+    <section id="overlays">
+      <h2><span class="n">10</span>Overlays</h2>
+      <p>An overlay is a photo or video drawn <b>on top of</b> the main track: a logo in the corner, picture-in-picture, a product with its background removed… It can start at any time you choose.</p>
+      <ol class="steps">
+        <li>Press <span class="ui">Overlay</span> and pick a photo or video. It appears in the “Overlays” track at the playhead.</li>
+        <li>In the preview: drag it to move it, drag a corner to resize it, and the top handle to rotate it (with the mouse or by touch).</li>
+        <li>In the panel: opacity, <b>Mask</b> (rounded corners or circle), border and its color, shadow, <b>Blend mode</b>, in and out animation, and filter.</li>
+      </ol>
+      <ul>
+        <li><b>Order:</b> each overlay has its own row, and the higher one is drawn on top. “Bring forward” and “Send backward” change that.</li>
+        <li>Video overlays play in the preview and their sound is mixed into the export; they have speed, volume and mute like clips.</li>
+        <li>“Move to the main track” turns an overlay back into a normal clip, and “Turn into an overlay” in a clip's properties does the opposite.</li>
+      </ul>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>A logo without a background:</b> remove the image background first in the <a href="#tools">Image studio</a> and save it as PNG, then add it as an overlay.</p>
+      </div>
+    </section>
+
+    <section id="keyframes">
+      <h2><span class="n">11</span>Keyframes (animation)</h2>
+      <p>Keyframes make any property change over time: text moving across the screen, an overlay growing, music dipping under speech.</p>
+      <ol class="steps">
+        <li>Select the item and put the playhead where the motion starts.</li>
+        <li>Press <b>◇</b> next to the property (position, size, zoom, opacity, rotation, volume…); its value is pinned here and the mark turns to <b>◆</b>.</li>
+        <li>Move the playhead somewhere else and change the value; a second keyframe is added by itself, and the property animates between the two.</li>
+      </ol>
+      <ul>
+        <li>Keyframes show as dots on the item in the timeline: click one to move the playhead to it, drag it to change its time, or click it then press <kbd>Delete</kbd> to remove it.</li>
+        <li>The “Keyframes” section of the panel has Previous and Next keyframe, the motion to the next keyframe (<b>Smooth</b>, <b>Linear</b> or <b>Hold</b>), and deleting the keyframes at one point or all of them.</li>
+      </ul>
+    </section>
+
+    <section id="captions">
+      <h2><span class="n">12</span>Auto captions</h2>
+      <p>Turns the speech in your video into synced text at the bottom of the screen, highlighting the word being spoken.</p>
+      <ol class="steps">
+        <li>From <span class="ui">Tools</span> choose <b>Auto captions</b>.</li>
+        <li>Choose the source (the whole project sound, or the selected video or audio) and the language, or leave it on “Automatic”.</li>
+        <li>After transcription the blocks appear in a new “Captions” track. Click any block to fix its text, split it or merge it with the next one, and drag its edges to adjust the timing.</li>
+        <li>Under “Caption style”, pick the font, size, position, colors and background for all blocks at once, and the <b>Spoken word highlight</b>: colored word, enlarged word, or word by word.</li>
+      </ol>
+      <p>Captions are burned into the video on export. You can also export them as a separate <span dir="ltr">SRT</span> or <span dir="ltr">VTT</span> file (from a block's properties or from “Project → Export captions”) for YouTube and video players.</p>
+      <div class="note">
+        <span class="ico">!</span>
+        <p><b>Needs a key:</b> transcription runs through a speech-to-text service with your key: Groq (free and good with Arabic), OpenAI or Gemini. Add a Groq key from the settings button in the assistant panel. The audio is sent to that service; for full privacy you can run Whisper on your own computer (see <code>.env.example</code>).</p>
+      </div>
+    </section>
+
+    <section id="assistant">
+      <h2><span class="n">13</span>The AI assistant</h2>
+      <p>Write what you want in your own words, and the assistant does it on the timeline right away: ordering, trimming, text, transitions, effects, beat sync, changing the size…</p>
+
+      <h3>Turning it on the first time</h3>
+      <ol class="steps">
+        <li>Press <span class="ui">Assistant</span> in the top bar to open its panel.</li>
+        <li>Choose the provider and paste your key, then <span class="ui red">Save and enable</span>. Google Gemini gives a key for free; OpenAI, Claude, OpenRouter and others work too.</li>
+        <li>The key is saved in the <code>.env</code> file in the app folder, on your device only. To change it later, press the settings button in the panel header.</li>
+      </ol>
+
+      <h3>Using it</h3>
+      <ul>
+        <li>Attach your photos, clips and music with the paperclip button or by drag and drop, then write your request and press <kbd>Enter</kbd>.</li>
+        <li>Before its first big change the assistant may ask a few short questions with ready answers (where you will post, which music, which words on screen, calm or lively). Answer in a word, or say “you decide”.</li>
+        <li>The stop button halts it at any moment, and <kbd>Ctrl</kbd> + <kbd>Z</kbd> undoes what it did.</li>
+        <li>If you have more than one provider, choose the model from the list at the top of the panel.</li>
+        <li><b>New chat</b> keeps the previous one, and the clock button lists previous chats to go back to.</li>
+        <li>Drag the inner edge of the panel to make it wider or narrower.</li>
+      </ul>
+
+      <h3>Ask about one item</h3>
+      <p>When you select any item (clip, overlay, text, effect, music, caption) a small ✦ button appears on it in the timeline, and an <span class="ui">Ask AI</span> button at the top of its properties. Both open the assistant focused on that item alone, with ready suggestions for its type. Write, say, “make it slower and add a zoom” and it applies to that item only. The × on the card above the text box ends the focus.</p>
+
+      <h3>Remix: “the same as this video, with my photos”</h3>
+      <p>Attach a video you like (a reel, an ad or a template) together with your photos and clips, and write “remix” or “the same as this video with my photos”. The assistant analyzes the reference's cuts, shot lengths, transitions, camera zooms, flashes and music beat, then builds the same edit with your files.</p>
+
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>For developers:</b> the editor runs an <span dir="ltr">MCP</span> server at <code>http://localhost:4747/mcp</code>, so an agent such as Claude Code can edit the open project. Its requests show up in a chat of their own in the panel. Details are in the README.</p>
+      </div>
+    </section>
+
+    <section id="tools">
+      <h2><span class="n">14</span>The Tools menu</h2>
+      <p>The <span class="ui">Tools</span> button in the top bar groups standalone tools that run on your device:</p>
+      <div class="cards">
+        <div class="card"><h4>Auto captions</h4><p>Turn the speech in a video into synced text. See <a href="#captions">Auto captions</a>.</p></div>
+        <div class="card"><h4>Image studio</h4><p>Crop, rotate, flip and resize, filters and color, <b>remove the background</b> (automatically or by clicking the color), and convert between <span dir="ltr">PNG</span>, <span dir="ltr">JPEG</span> and <span dir="ltr">WebP</span>. Open several images and download them together as a <span dir="ltr">ZIP</span>.</p></div>
+        <div class="card"><h4>Merge images</h4><p>Combine two or more images into one: side by side, stacked, or a grid, with spacing, border, rounded corners and background color.</p></div>
+        <div class="card"><h4>Video to audio</h4><p>Extract the sound of any video, pick a part of it on its waveform, then download it as <span dir="ltr">M4A</span> or <span dir="ltr">WAV</span> or add it to the project.</p></div>
+        <div class="card"><h4>Split video</h4><p>Cut a video into separate <span dir="ltr">MP4</span> files: every set length (30 seconds for WhatsApp stories, say), equal parts, or at times you choose. “Exact cut” places each cut exactly where you asked.</p></div>
+        <div class="card"><h4>Save a frame as an image</h4><p>The camera button under the preview saves the current moment of the video as an image on your device.</p></div>
+      </div>
     </section>
 
     <section id="ratio">
-      <h2><span class="n">9</span>Video size</h2>
-      <p>Pick the size from the list in the top bar according to where you will post. You can change it at any time.</p>
+      <h2><span class="n">15</span>Video size</h2>
+      <p>Choose the size from the list in the top bar based on where you will post. You can change it at any time.</p>
       <div class="tbl">
         <table>
           <thead><tr><th>Size</th><th>Shape</th><th>Good for</th></tr></thead>
           <tbody>
-            <tr><td>16:9</td><td>Wide landscape</td><td>YouTube, TV, presentations</td></tr>
-            <tr><td>9:16</td><td>Tall portrait</td><td>TikTok, Reels, Stories, Shorts</td></tr>
-            <tr><td>1:1</td><td>Square</td><td>Instagram and Facebook posts</td></tr>
-            <tr><td>4:5</td><td>Short portrait</td><td>Instagram posts</td></tr>
+            <tr><td><span class="ltr">16:9</span></td><td>Wide landscape</td><td>YouTube, TV, presentations</td></tr>
+            <tr><td><span class="ltr">9:16</span></td><td>Tall portrait</td><td>TikTok, Reels, Stories, Shorts</td></tr>
+            <tr><td><span class="ltr">1:1</span></td><td>Square</td><td>Instagram and Facebook posts</td></tr>
+            <tr><td><span class="ltr">4:5</span></td><td>Short portrait</td><td>Instagram posts</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
+    <section id="save">
+      <h2><span class="n">16</span>Saving and opening projects</h2>
+      <p>Save your work to finish it later or move it to another computer:</p>
+      <ul>
+        <li><b>Save:</b> <span class="ui">Project</span> menu → <b>Save project</b>, or <kbd>Ctrl</kbd> + <kbd>S</kbd>. This downloads one <span dir="ltr">.montaji</span> file with the timeline and all the media, including overlays, captions and keyframes.</li>
+        <li><b>Open:</b> <span class="ui">Project</span> menu → <b>Open project</b>, or <kbd>Ctrl</kbd> + <kbd>O</kbd>, or drag the file onto the editor, or “Open a saved project” on the start screen.</li>
+      </ul>
+      <div class="note warn">
+        <span class="ico">!</span>
+        <p><b>Save before closing:</b> the editor does not save by itself. If you close or reload the page without saving, your work is lost (the browser warns you first).</p>
+      </div>
+    </section>
+
     <section id="export">
-      <h2><span class="n">10</span>Export and download</h2>
+      <h2><span class="n">17</span>Export and download</h2>
       <ol class="steps">
         <li>Press <span class="ui red">Export video</span> in the top bar.</li>
         <li>Choose the <b>Resolution</b>, <b>Frame rate</b> and <b>Quality</b>. The approximate file size shows below them.</li>
         <li>Press <span class="ui red">Start export</span> and wait for the progress bar to finish. Keep the page open.</li>
-        <li>Watch the result in the preview window, then press <span class="ui red">Download video</span> to save an MP4 file to your downloads folder.</li>
+        <li>Watch the result in the preview window, then press <span class="ui red">Download video</span> to save an <span dir="ltr">MP4</span> file to your Downloads folder.</li>
       </ol>
 
       <div class="tbl">
         <table>
           <thead><tr><th>Resolution</th><th>When to choose it</th></tr></thead>
           <tbody>
-            <tr><td>HD — 720p</td><td>Quick sharing on WhatsApp: a small file and a faster export.</td></tr>
-            <tr><td>Full HD — 1080p</td><td>The best choice for most uses and social media. (Default)</td></tr>
-            <tr><td>2K — 1440p</td><td>Sharper for large screens.</td></tr>
-            <tr><td>4K — 2160p</td><td>The highest resolution. Takes longer, needs a strong device, and the file is large.</td></tr>
+            <tr><td><span class="ltr">HD — 720p</span></td><td>Quick sharing over WhatsApp; small file and faster export.</td></tr>
+            <tr><td><span class="ltr">Full HD — 1080p</span></td><td>The best fit for most uses and social media. (Default)</td></tr>
+            <tr><td><span class="ltr">2K — 1440p</span></td><td>Sharper for big screens.</td></tr>
+            <tr><td><span class="ltr">4K — 2160p</span></td><td>The highest resolution. Takes longer, needs a strong computer, and the file is large.</td></tr>
           </tbody>
         </table>
       </div>
       <ul>
-        <li><b>Frame rate:</b> 30 always works. Choose 60 for smoother motion if your clips were filmed at 60.</li>
+        <li><b>Frame rate:</b> 30 always works. Choose 60 for smoother motion if your clips were filmed at 60, or 24 for a cinematic look.</li>
         <li><b>Quality:</b> “High” is a good balance. “Ultra” gives the sharpest result at a larger size, and “Normal” a smaller file.</li>
       </ul>
       <div class="note">
         <span class="ico">!</span>
-        <p><b>Export time:</b> it can take several times the video’s length, more at higher resolutions and with long video clips. You can stop it at any moment with “Stop export”.</p>
+        <p><b>Export time:</b> it can take several times the length of the video, and more at higher resolutions and with long video clips. You can stop it at any moment with “Stop export”.</p>
       </div>
-      <div class="note warn">
-        <span class="ico">!</span>
-        <p><b>Save before closing:</b> if you close or reload the page, unsaved work is lost. Save the project (<kbd>Ctrl</kbd> + <kbd>S</kbd>) or export the video first.</p>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p>An exported video file cannot be edited afterwards. <a href="#save">Save the project</a> too if you may need to change something later.</p>
       </div>
     </section>
 
     <section id="keys">
-      <h2><span class="n">11</span>Keyboard shortcuts</h2>
+      <h2><span class="n">18</span>Keyboard shortcuts</h2>
       <div class="tbl">
         <table>
           <thead><tr><th>Key</th><th>Action</th></tr></thead>
           <tbody>
             <tr><td><kbd>Space</kbd></td><td>Play or pause the preview</td></tr>
             <tr><td><kbd>S</kbd></td><td>Split at the playhead</td></tr>
-            <tr><td><kbd>Delete</kbd></td><td>Delete the selected item</td></tr>
+            <tr><td><kbd>Delete</kbd></td><td>Delete the selected item (or the keyframe you just clicked)</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo</td></tr>
-            <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>Redo</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>Redo (or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>Duplicate the selected item</td></tr>
-            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save the project as a .montaji file (from the “Project” menu)</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save the project as a <span dir="ltr">.montaji</span> file</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd></td><td>Open a saved project with everything in it</td></tr>
             <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Move the playhead one frame</td></tr>
             <tr><td><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd></td><td>Move the playhead one second</td></tr>
-            <tr><td><kbd>Esc</kbd></td><td>Clear the selection</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Deselect, or close the open menu or window</td></tr>
+            <tr><td><kbd>Enter</kbd></td><td>In the assistant panel: send the message (<kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line)</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Shortcuts do not work while you are typing in a text box; click outside the box first.</p>
+      <p>Shortcuts do not work while you are typing in a text box; click outside it first.</p>
     </section>
 
     <section id="help">
-      <h2><span class="n">12</span>Troubleshooting</h2>
+      <h2><span class="n">19</span>Troubleshooting</h2>
 
       <details>
-        <summary>The page does not open after running start.bat</summary>
-        <div><p>Make sure the terminal window is still open, then type <code>http://localhost:4747</code> in the address bar. If the window says the <code>node</code> command is not recognized, Node.js is not installed on the computer.</p></div>
+        <summary>The page does not open after starting the app</summary>
+        <div><p>Make sure the small window is still open, then type <code>http://localhost:4747</code> in the address bar. If <code>start.bat</code> opened the Node.js download page, Node.js is not installed: install it, then run the file again.</p></div>
       </details>
       <details>
-        <summary>A “Could not open the file” message appears</summary>
-        <div><p>The browser does not support that format. Convert photos to JPG and videos to MP4, then try again.</p></div>
+        <summary>A “could not open the file” message appears</summary>
+        <div><p>The browser does not support that format. Convert photos to <span dir="ltr">JPG</span> and videos to <span dir="ltr">MP4</span>, then try again.</p></div>
       </details>
       <details>
-        <summary>“Your browser cannot export”</summary>
+        <summary>The assistant asks for a key or rejects it</summary>
+        <div><p>Make sure you copied the whole key with no spaces, and that it is from the same provider you chose in the list. If the assistant says the local server is not running, start the app again from the start file.</p></div>
+      </details>
+      <details>
+        <summary>Auto captions do not work</summary>
+        <div><p>They need a Groq, OpenAI or Gemini key (add it from the settings button in the assistant panel), and the project needs audible speech: a video whose sound is not muted, or a voice recording.</p></div>
+      </details>
+      <details>
+        <summary>“Your browser does not support export”</summary>
         <div><p>Open the app in Google Chrome or Microsoft Edge updated to the latest version.</p></div>
       </details>
       <details>
         <summary>“This resolution is not supported on your device”</summary>
-        <div><p>Your device cannot encode that resolution. Choose a lower one such as 1080p.</p></div>
+        <div><p>Your computer cannot encode that resolution. Choose a lower one such as <span dir="ltr">1080p</span>.</p></div>
       </details>
       <details>
         <summary>Export is very slow</summary>
@@ -491,15 +666,15 @@
       </details>
       <details>
         <summary>The exported video has no sound</summary>
-        <div><p>Check that the music’s “Volume” is not zero, that “Mute clip” is off, and that the music sits within the video’s length, not after its end.</p></div>
+        <div><p>Check that the music “Volume” is not zero, that “Mute clip” is off, and that the music sits within the video's length, not after its end.</p></div>
       </details>
       <details>
         <summary>The music stops before the video ends</summary>
-        <div><p>The audio file is shorter than the video. Select the music bar and press “Duplicate”, or add another audio file after it.</p></div>
+        <div><p>The audio file is shorter than the video. Select the music bar and press “Duplicate”, add another audio file after it, or pick fewer beats per clip when syncing.</p></div>
       </details>
       <details>
         <summary>The preview stutters while playing</summary>
-        <div><p>This happens with heavy clips on mid-range devices and does not affect the final file; export processes every frame on its own.</p></div>
+        <div><p>This happens with heavy clips or many overlays on mid-range computers and does not affect the final file; export processes every frame on its own.</p></div>
       </details>
     </section>
 
