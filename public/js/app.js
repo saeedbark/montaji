@@ -365,6 +365,32 @@
     return [...skipped];
   }
 
+  /** يبدأ مشروعاً فارغاً مكان الحالي. يُسجَّل في سجل التراجع، فـ Ctrl+Z يعيد المشروع السابق */
+  function newProject() {
+    if (view.exporting) { toast(tt('انتظر انتهاء التصدير أولاً', 'Wait for the export to finish first'), 'err'); return false; }
+    if (isEmpty() && !state.name) return true;
+    if (hist.timer) pushHist(); // آخر تعديل لم يُسجَّل بعد: يُحفظ كي يعيده التراجع
+    if (view.playing) pause();
+    pauseAllMedia();
+    state.name = '';
+    state.clips = [];
+    state.audios = [];
+    state.texts = [];
+    state.effects = [];
+    state.overlays = [];
+    state.captions = emptyCaptions();
+    state.sel = null;
+    setRatio('16:9');
+    view.t = 0;
+    refresh();
+    pushHist();
+    fitTimeline();
+    renderProps();
+    toast(tt('بدأ مشروع جديد. Ctrl+Z يعيد المشروع السابق.', 'New project started. Ctrl+Z brings back the previous one.'), 'ok');
+    return true;
+  }
+  $('#btnProjNew').onclick = () => { if (!ProjectIO.isBusy()) newProject(); };
+
   /* ---------- الطبقات ---------- */
   /** أدنى صف لا تتداخل فيه الطبقة زمنياً مع غيرها */
   function freeTrack(start, len, except) {
@@ -1145,6 +1171,7 @@
       <div class="actions proj-actions">
         <button class="btn small" data-act="projSave"><svg class="ic"><use href="#i-save"/></svg>${tt('حفظ المشروع', 'Save project')}</button>
         <button class="btn small" data-act="projOpen"><svg class="ic"><use href="#i-folder"/></svg>${tt('فتح مشروع', 'Open project')}</button>
+        <button class="btn small" data-act="projNew" title="${tt('مشروع جديد', 'New project')}"><svg class="ic"><use href="#i-plus"/></svg>${tt('جديد', 'New')}</button>
       </div>`;
   }
 
@@ -1440,6 +1467,7 @@
     else if (a === 'vidSplit') { const obj = selObj(); if (obj) VideoSplit.openClip(obj); }
     else if (a === 'projSave') ProjectIO.save();
     else if (a === 'projOpen') ProjectIO.pick();
+    else if (a === 'projNew') { if (!ProjectIO.isBusy()) newProject(); }
     else if (a === 'fxUnlink') { const obj = selObj(); if (obj) { obj.at = null; touch(); renderProps(); } }
     else if (a === 'fxAllCuts') {
       const obj = selObj();
@@ -1907,7 +1935,7 @@
 
   // واجهة يستخدمها المساعد الذكي (js/agent.js) ووحدة التحكم
   window.studio = {
-    state, view, addFiles, loadProject, isEmpty, loadSample, setTime, play, pause,
+    state, view, addFiles, loadProject, newProject, isEmpty, loadSample, setTime, play, pause,
     refresh, commit, pushHist, undo, redo, select, renderProps, fitTimeline, setRatio, cloneItem, exportVideo, toast, addEffect,
     touch, listOf, setList, splitItem, dupItem, addOverlayFiles, asOverlay, toOverlay, toMain, freeTrack,
     // يبني عنصراً من ملف دون وضعه في المشروع (للعنصر الصوتي حقل buf)، أو null لنوع غير مدعوم

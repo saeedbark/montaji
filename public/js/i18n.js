@@ -30,6 +30,8 @@ const I18N = (() => {
     'مونتاجي': 'Montaji',
     'حفظ المشروع أو فتح مشروع محفوظ': 'Save the project or open a saved one',
     'مشروع': 'Project',
+    'مشروع جديد': 'New project',
+    'ابدأ من الصفر · Ctrl+Z يعيد المشروع الحالي': 'Start from scratch · Ctrl+Z brings the current one back',
     'فتح مشروع (استيراد)': 'Open project (import)',
     'افتح ملف مشروع محفوظ .montaji بكل تفاصيله · Ctrl+O': 'Open a saved .montaji project with everything in it · Ctrl+O',
     'حفظ المشروع': 'Save project',
