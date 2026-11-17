@@ -11,6 +11,7 @@
   --accent-hover: #ff7590;
   --accent-soft: #ffb3c1;  /* نص فاتح بلون المميز على الخلفية الداكنة */
   --accent-ink: #2a0a12;
+  --on-accent: #fff;  /* لون النص فوق خلفية المميز */
   --clip: #3d7bff;
   --audio: #17b890;
   --textc: #f2a93b;
@@ -25,8 +26,9 @@
   color-scheme: dark;
 }
 /* الألوان المميزة الأخرى، على ‎<html data-accent>‎ */
-:root[data-accent="violet"] { --accent: #7c5cff; --accent-hover: #9178ff; --accent-soft: #c9bcff; --accent-ink: #160b3a; }
-:root[data-accent="green"]  { --accent: #12a37f; --accent-hover: #1bbf96; --accent-soft: #9ce9d4; --accent-ink: #032a20; }
+/* العنبري فاتح، فالنص فوقه داكن (‎--on-accent‎) */
+:root[data-accent="amber"] { --accent: #f5a524; --accent-hover: #ffb84a; --accent-soft: #ffd98a; --accent-ink: #2e1d00; --on-accent: #1f1400; }
+:root[data-accent="blue"]  { --accent: #3b82f6; --accent-hover: #5b97f8; --accent-soft: #b5d0ff; --accent-ink: #0a1a3d; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -64,7 +66,7 @@ body {
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn:disabled { opacity: .4; cursor: default; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn.icon { width: 36px; padding: 0; }
 .btn.small { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
@@ -149,7 +151,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 13px;
 }
 .chip:hover { border-color: #46506190; background: var(--panel-3); }
-.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 .props .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .link-btn { background: none; border: 0; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; padding: 6px 0 0; }
 .link-btn:hover { text-decoration: underline; }
@@ -206,7 +208,7 @@ body.chat-resizing { cursor: ew-resize; user-select: none; }
 .chat-log { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 9px; user-select: text; }
 .chat-thread { display: flex; flex-direction: column; gap: 9px; }
 .msg { max-width: 92%; padding: 8px 11px; border-radius: 13px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
-.msg.user { align-self: flex-start; background: var(--accent); color: #fff; border-start-start-radius: 4px; }
+.msg.user { align-self: flex-start; background: var(--accent); color: var(--on-accent); border-start-start-radius: 4px; }
 .msg.bot { align-self: flex-end; background: var(--panel-2); border: 1px solid var(--line); border-start-end-radius: 4px; }
 .msg code { background: var(--panel-3); border-radius: 4px; padding: 0 4px; font-size: 12px; }
 .msg-thumbs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
@@ -395,7 +397,7 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 .strip-item .dot { position: absolute; bottom: 4px; inset-inline-start: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgba(0,0,0,.5); }
 .strip-x { position: absolute; top: 2px; inset-inline-end: 2px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.72); color: #fff; font: 14px/1 inherit; cursor: pointer; opacity: 0; }
 .strip-item:hover .strip-x, .strip-x:focus-visible { opacity: 1; }
-.strip-item .num { position: absolute; bottom: 3px; inset-inline-start: 3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font: 700 11px/18px inherit; font-style: normal; text-align: center; }
+.strip-item .num { position: absolute; bottom: 3px; inset-inline-start: 3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font: 700 11px/18px inherit; font-style: normal; text-align: center; }
 .strip-item.dragging { opacity: .4; }
 .strip-item.drop { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
 

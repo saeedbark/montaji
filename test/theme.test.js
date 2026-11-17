@@ -9,16 +9,16 @@ const path = require('node:path');
 const THEME = require('../public/js/theme.js');
 
 test('ثلاثة ألوان، والوردي هو الافتراضي', () => {
-  assert.deepEqual(THEME.ACCENTS.map(a => a.id), ['pink', 'violet', 'green']);
+  assert.deepEqual(THEME.ACCENTS.map(a => a.id), ['pink', 'amber', 'blue']);
   assert.equal(THEME.current, 'pink');
 });
 
 test('الزر يدور على الألوان ويرجع إلى الأول، والقيمة المجهولة تصير الافتراضي', () => {
-  assert.equal(THEME.next('pink'), 'violet');
-  assert.equal(THEME.next('violet'), 'green');
-  assert.equal(THEME.next('green'), 'pink');
+  assert.equal(THEME.next('pink'), 'amber');
+  assert.equal(THEME.next('amber'), 'blue');
+  assert.equal(THEME.next('blue'), 'pink');
   assert.equal(THEME.valid('red'), 'pink');
-  assert.equal(THEME.next(null), 'violet');
+  assert.equal(THEME.next(null), 'amber');
 });
 
 test('لكل لون غير الافتراضي قاعدة في style.css وفي سكربت رأس index.html', () => {
