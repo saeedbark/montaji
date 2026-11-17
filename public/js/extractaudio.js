@@ -190,7 +190,7 @@ const AudioExtract = (() => {
       g.fillRect(x - 4 * dpr, H / 2 - 12 * dpr, 8 * dpr, 24 * dpr);
     }
     const xc = st.cursor / D * W;
-    g.fillStyle = '#ff5c7a';
+    g.fillStyle = THEME.color();
     g.fillRect(xc - dpr, 0, 2 * dpr, H);
 
     const t = $('#audTime');

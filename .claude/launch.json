@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server/index.js"],
       "port": 4747
+    },
+    {
+      "name": "studio-4748",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "process.env.PORT='4748'; require('./server/index.js')"],
+      "port": 4748
     }
   ]
 }
