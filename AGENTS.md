@@ -51,4 +51,10 @@ reference video is in the `مرجع` folder (or dropped in the app folder) and t
   `index.html` is translated from the `STATIC` dictionary there, and fixed label tables go through
   `I18N.localize`. Server messages that reach the page are `{ error: 'عربي', error_en: 'English' }`; `json()` in
   `server/http.js` picks one from the `montaji_lang` cookie. The English user guide is `public/guide.en.html`.
+- Anything third-party that ships with the app (a library, a font, an icon, a sample video) needs a license
+  that allows bundling it, and its full license text goes in the repo next to it (see
+  `public/vendor/mp4-muxer.LICENSE.txt` and `public/fonts/licenses/`), with a line in the README license section.
+- Media you fetch from the internet for a user's video: use only licenses that allow it (CC0, public domain,
+  CC BY, CC BY-SA; never NC or ND), record title, author, license and link in a `المصادر.txt` next to the
+  files, and give the user ready-to-paste credits for every item whose license requires attribution.
 - Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONTRIBUTING.md](CONTRIBUTING.md).

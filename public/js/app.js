@@ -31,7 +31,7 @@
   sheetMode.addEventListener('change', () => setSheet(false));
   let dirty = true;
   let lastTs = 0;
-  // الخط المرفق يُحمَّل بعد أول رسم: أعد رسم المعاينة حين يجهز
+  // الخطوط المرفقة تُحمَّل بعد أول رسم: أعد رسم المعاينة حين تجهز
   window.addEventListener('montaji-fonts', () => { dirty = true; });
 
   /* ================= إشعارات ================= */
@@ -1231,7 +1231,7 @@
             <button class="btn small danger" data-act="del"><svg class="ic"><use href="#i-trash"/></svg>${tt('حذف', 'Delete')}</button>
           </div>`
         + `<h3>${tt('نمط الترجمة', 'Caption style')} <small>(${tt('لكل الكتل', 'all blocks')})</small></h3>`
-        + `<label class="row"><span>${tt('الخط', 'Font')}</span><select data-k="cs.font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === st.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
+        + `<label class="row"><span>${tt('الخط', 'Font')}</span><select data-k="cs.font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}" style='font-family:${f.css}'${k === st.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
         + slider('cs.size', tt('الحجم', 'Size'), 2, 20, 0.5, +(st.size * 100).toFixed(1), '', 0.01)
         + slider('cs.y', tt('الموضع', 'Position'), 5, 95, 1, Math.round(st.y * 100), '%', 0.01)
         + `<label class="row"><span>${tt('لون النص', 'Text color')}</span><input type="color" data-k="cs.color" value="${st.color}"><span></span></label>`
@@ -1282,7 +1282,7 @@
         + `<textarea data-k="text" rows="3" dir="auto">${esc(obj.text)}</textarea>`
         + kslider(obj, 'text', 'size', tt('الحجم', 'Size'), 3, 22, 0.5, '', 0.01)
         + slider('dur', tt('المدة', 'Duration'), 0.5, 20, 0.1, +Math.min(20, obj.dur).toFixed(1), tt('ث', 's'))
-        + `<label class="row"><span>${tt('الخط', 'Font')}</span><select data-k="font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === obj.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
+        + `<label class="row"><span>${tt('الخط', 'Font')}</span><select data-k="font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}" style='font-family:${f.css}'${k === obj.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
         + `<label class="row"><span>${tt('اللون', 'Color')}</span><input type="color" data-k="color" value="${obj.color}"><span></span></label>`
         + check('bold', tt('خط عريض', 'Bold'), obj.bold)
         + check('stroke', tt('حدّ خارجي', 'Outline'), obj.stroke, `<input type="color" data-k="strokeColor" value="${obj.strokeColor}">`)

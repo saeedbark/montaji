@@ -22,16 +22,29 @@ const Render = (() => {
     times:   { label: ['تايمز', 'Times'],     css: '"Times New Roman", "Traditional Arabic", serif' },
     courier: { label: ['كوريير', 'Courier'],    css: '"Courier New", monospace' },
     elegant: { label: ['أنيق مائل', 'Elegant italic'], css: 'Didot, "Bodoni MT", Georgia, "Times New Roman", serif', italic: true },
+    // خطوط عربية مرفقة مع التطبيق في public/fonts (رخصة OFL)، فتظهر في المعاينة والتصدير على أي جهاز
+    cairo:     { label: ['القاهرة', 'Cairo'],             css: '"Cairo", Tahoma, sans-serif',        file: 'cairo' },
+    tajawal:   { label: ['تجوّل', 'Tajawal'],             css: '"Tajawal", Tahoma, sans-serif',      file: 'tajawal' },
+    almarai:   { label: ['المراعي', 'Almarai'],           css: '"Almarai", Tahoma, sans-serif',      file: 'almarai' },
+    changa:    { label: ['تشانغا تقني', 'Changa'],        css: '"Changa", Tahoma, sans-serif',       file: 'changa' },
+    reemkufi:  { label: ['ريم كوفي', 'Reem Kufi'],        css: '"Reem Kufi", Tahoma, sans-serif',    file: 'reemkufi' },
+    elmessiri: { label: ['المسيري', 'El Messiri'],        css: '"El Messiri", Tahoma, sans-serif',   file: 'elmessiri' },
+    amiri:     { label: ['أميري نسخ', 'Amiri (Naskh)'],   css: '"Amiri", "Times New Roman", serif',  file: 'amiri' },
+    lalezar:   { label: ['لاله‌زار عريض', 'Lalezar (bold)'], css: '"Lalezar", Tahoma, sans-serif',   file: 'lalezar', weights: [400] },
   };
 
   /*
-   * اللوحة (Canvas) لا تنتظر الخط: إن رُسم النص قبل تحميل تجوّل ظهر بالخط البديل،
-   * لذلك يُحمَّل وزناه عند فتح الصفحة، ويُعاد رسم المعاينة حين يجهز، وينتظره التصدير (fontsReady).
+   * تحميل الخطوط المرفقة (ومنها تجوّل، الخط الافتراضي على ماك). اللوحة (Canvas) لا تنتظر الخط:
+   * إن رُسم النص قبل تحميله ظهر بالخط البديل، لذلك تُحمَّل كلها عند فتح الصفحة،
+   * ويُعاد رسم المعاينة حين تجهز، وينتظرها التصدير (fontsReady).
    */
-  const fontsReady = !MAC || !document.fonts ? Promise.resolve()
-    : Promise.all(['400', '700'].map(w => document.fonts.load(`${w} 16px "Tajawal"`)))
-        .catch(() => console.warn('تعذّر تحميل خط تجوّل'))
-        .then(() => window.dispatchEvent(new Event('montaji-fonts')));
+  const fontsReady = (typeof FontFace === 'undefined' || typeof document === 'undefined') ? Promise.resolve()
+    : Promise.all(Object.values(FONTS).filter(f => f.file).flatMap(f => (f.weights || [400, 700]).map(w => {
+        const family = f.css.match(/^"([^"]+)"/)[1];
+        return new FontFace(family, `url(fonts/${f.file}-${w}.ttf)`, { weight: String(w) }).load()
+          .then(face => document.fonts.add(face))
+          .catch(() => console.warn('تعذّر تحميل الخط', f.file, w));
+      }))).then(() => window.dispatchEvent(new Event('montaji-fonts')));
 
   /*
    * التأثيرات: طبقة فوق الصورة المركّبة (قبل النصوص)، مثل مسار التأثيرات في CapCut.

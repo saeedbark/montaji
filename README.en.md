@@ -169,4 +169,4 @@ npm test
 
 ## License
 
-[MIT](LICENSE). Bundles [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (MIT) and the [Tajawal](https://fonts.google.com/specimen/Tajawal) font (Copyright 2018 Boutros International), used as the interface font on macOS, under the SIL Open Font License 1.1 ([license text](public/fonts/licenses/tajawal-OFL.txt)).
+[MIT](LICENSE). Bundles [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (MIT) and Arabic fonts from Google Fonts (Cairo, Tajawal, Almarai, Changa, Reem Kufi, El Messiri, Amiri, Lalezar) under the SIL Open Font License 1.1 ([details and license texts](public/fonts/README.md)); Tajawal is also the interface font on macOS.
