@@ -34,18 +34,18 @@ const ProjectIO = (() => {
     busy = true;
     S.pause();
     ui.title.textContent = title;
-    progress(0, 'جارٍ التحضير…');
+    progress(0, tt('جارٍ التحضير…', 'Preparing…'));
     ui.modal.hidden = false;
   }
   function end() { busy = false; ui.modal.hidden = true; }
 
   function stamp() {
     const d = new Date(), p = n => String(n).padStart(2, '0');
-    return `مشروع-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+    return tt('مشروع', 'project') + `-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
   }
   const explain = e => (e && e.name === 'NotReadableError'
-    ? 'تعذّرت قراءة أحد ملفات الوسائط. ربما نُقل أو حُذف من مكانه على جهازك.'
-    : e instanceof SyntaxError ? 'الملف ليس ملف مشروع مونتاجي صالحاً' : String((e && e.message) || e));
+    ? tt('تعذّرت قراءة أحد ملفات الوسائط. ربما نُقل أو حُذف من مكانه على جهازك.', 'One of the media files could not be read. It may have been moved or deleted on your device.')
+    : e instanceof SyntaxError ? tt('الملف ليس ملف مشروع مونتاجي صالحاً', 'This is not a valid Montaji project file') : String((e && e.message) || e));
 
   /* ================= الحفظ ================= */
   /**
@@ -80,8 +80,8 @@ const ProjectIO = (() => {
    * saveAs (من المساعد وعملاء MCP) يحفظه في مجلد projects/ عبر الخادم المحلي؛ وإلا يُنزَّل الملف.
    */
   async function save(o = {}) {
-    if (busy) return { ok: false, error: 'هناك عملية حفظ أو فتح جارية' };
-    if (S.isEmpty()) { S.toast('المشروع فارغ، لا شيء يُحفظ', 'err'); return { ok: false, error: 'المشروع فارغ' }; }
+    if (busy) return { ok: false, error: tt('هناك عملية حفظ أو فتح جارية', 'A save or open is already in progress') };
+    if (S.isEmpty()) { S.toast(tt('المشروع فارغ، لا شيء يُحفظ', 'The project is empty, nothing to save'), 'err'); return { ok: false, error: tt('المشروع فارغ', 'The project is empty') }; }
     const suggested = PT.fileName(state.name || stamp());
 
     // نافذة الحفظ تشترط نقرة من المستخدم، فتُطلب قبل أي عمل طويل
@@ -90,28 +90,28 @@ const ProjectIO = (() => {
       try {
         handle = await window.showSaveFilePicker({
           suggestedName: suggested,
-          types: [{ description: 'مشروع مونتاجي', accept: { 'application/zip': ['.' + PT.EXT] } }],
+          types: [{ description: tt('مشروع مونتاجي', 'Montaji project'), accept: { 'application/zip': ['.' + PT.EXT] } }],
         });
       } catch (e) {
-        if (e.name === 'AbortError') return { ok: false, error: 'ألغى المستخدم الحفظ' };
+        if (e.name === 'AbortError') return { ok: false, error: tt('ألغى المستخدم الحفظ', 'The user cancelled the save') };
         console.warn(e); // المتصفح منع النافذة: ننزّل الملف كالمعتاد
       }
     }
 
-    begin('حفظ المشروع');
+    begin(tt('حفظ المشروع', 'Saving the project'));
     try {
       await tick();
       const writes = !!(handle || o.saveAs);
-      const r = await build((p, name) => progress(p * (writes ? 0.7 : 1), `قراءة ${name}`));
+      const r = await build((p, name) => progress(p * (writes ? 0.7 : 1), tt(`قراءة ${name}`, `Reading ${name}`)));
       const out = { ok: true, file: suggested, size_mb: +(r.blob.size / 1048576).toFixed(1), media_files: r.files };
       if (handle) {
-        progress(0.7, 'جارٍ كتابة الملف…');
+        progress(0.7, tt('جارٍ كتابة الملف…', 'Writing the file…'));
         const w = await handle.createWritable();
         await w.write(r.blob);
         await w.close();
         out.file = handle.name;
       } else if (o.saveAs) {
-        progress(0.7, 'جارٍ الحفظ في مجلد projects…');
+        progress(0.7, tt('جارٍ الحفظ في مجلد projects…', 'Saving to the projects folder…'));
         const res = await fetch('/api/project/save?name=' + encodeURIComponent(o.saveAs), { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: r.blob });
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j.ok) throw new Error(j.error || `HTTP ${res.status}`);
@@ -121,11 +121,11 @@ const ProjectIO = (() => {
       progress(1);
       state.name = baseName(out.file);
       S.refresh();
-      S.toast(out.saved_to ? 'حُفظ المشروع في مجلد projects' : handle ? `حُفظ المشروع: ${out.file}` : `نُزّل ملف المشروع: ${out.file}`, 'ok');
+      S.toast(out.saved_to ? tt('حُفظ المشروع في مجلد projects', 'Project saved in the projects folder') : handle ? tt(`حُفظ المشروع: ${out.file}`, `Project saved: ${out.file}`) : tt(`نُزّل ملف المشروع: ${out.file}`, `Project file downloaded: ${out.file}`), 'ok');
       return out;
     } catch (e) {
       console.error(e);
-      S.toast('تعذّر حفظ المشروع: ' + explain(e), 'err');
+      S.toast(tt('تعذّر حفظ المشروع: ', 'Could not save the project: ') + explain(e), 'err');
       return { ok: false, error: explain(e) };
     } finally { end(); }
   }
@@ -133,14 +133,14 @@ const ProjectIO = (() => {
   /* ================= الفتح (الاستيراد) ================= */
   /** يفتح ملف مشروع مكان المشروع الحالي. ملفات الوسائط شرائح من الملف نفسه، فلا تُنسخ في الذاكرة */
   async function open(file) {
-    if (busy) return { ok: false, error: 'هناك عملية حفظ أو فتح جارية' };
+    if (busy) return { ok: false, error: tt('هناك عملية حفظ أو فتح جارية', 'A save or open is already in progress') };
     const replaced = !S.isEmpty();
-    begin('فتح المشروع');
+    begin(tt('فتح المشروع', 'Opening the project'));
     try {
       await tick();
       const byName = new Map((await PT.readZip(file)).map(e => [e.name, e]));
       const pj = byName.get('project.json');
-      if (!pj || pj.size > 20e6) throw new Error('الملف ليس ملف مشروع مونتاجي صالحاً');
+      if (!pj || pj.size > 20e6) throw new Error(tt('الملف ليس ملف مشروع مونتاجي صالحاً', 'This is not a valid Montaji project file'));
       const raw = JSON.parse(await (await PT.zipData(file, pj)).text());
       const data = PT.normalize(raw, { filters: Object.keys(Render.FILTERS), fonts: Object.keys(Render.FONTS), effects: Object.keys(Render.EFFECTS) });
       data.name = baseName(file.name) || data.name; // الاسم الظاهر هو اسم الملف، ولو أعاد المستخدم تسميته
@@ -150,20 +150,20 @@ const ProjectIO = (() => {
         const e = byName.get(m.path);
         if (e) files.set(m.id, new File([await PT.zipData(file, e)], m.name || 'file', { type: mimeOf(m.name) }));
       }
-      if (data.media.length && !files.size) throw new Error('ملف المشروع لا يحوي ملفات الوسائط');
+      if (data.media.length && !files.size) throw new Error(tt('ملف المشروع لا يحوي ملفات الوسائط', 'The project file has no media files'));
 
-      const skipped = await S.loadProject(data, files, (d, t) => progress(d / t, `تحميل الوسائط ${d} من ${t}`));
-      const n = state.clips.length, parts = [`${n} ${n === 1 ? 'مقطع' : 'مقاطع'}`];
-      if (state.texts.length) parts.push(`${state.texts.length} نص`);
-      if (state.effects.length) parts.push(`${state.effects.length} تأثير`);
-      if (state.audios.length) parts.push(`${state.audios.length} موسيقى`);
-      S.toast(`فُتح المشروع «${data.name}»: ${parts.join(' · ')} · المدة ${fmtTime(view.total)}`, 'ok');
-      if (skipped.length) S.toast(`تعذّر تحميل ${skipped.length} عنصر: ${skipped.slice(0, 3).join('، ')}${skipped.length > 3 ? '…' : ''}`, 'err');
-      else if (replaced) S.toast('استُبدل المشروع السابق. Ctrl+Z يعيده.');
+      const skipped = await S.loadProject(data, files, (d, t) => progress(d / t, tt(`تحميل الوسائط ${d} من ${t}`, `Loading media ${d} of ${t}`)));
+      const n = state.clips.length, parts = [`${n} ${n === 1 ? tt('مقطع', 'clip') : tt('مقاطع', 'clips')}`];
+      if (state.texts.length) parts.push(`${state.texts.length} ${tt('نص', 'text')}`);
+      if (state.effects.length) parts.push(`${state.effects.length} ${tt('تأثير', 'effect')}`);
+      if (state.audios.length) parts.push(`${state.audios.length} ${tt('موسيقى', 'music')}`);
+      S.toast(tt(`فُتح المشروع «${data.name}»: ${parts.join(' · ')} · المدة ${fmtTime(view.total)}`, `Opened “${data.name}”: ${parts.join(' · ')} · duration ${fmtTime(view.total)}`), 'ok');
+      if (skipped.length) S.toast(tt(`تعذّر تحميل ${skipped.length} عنصر: ${skipped.slice(0, 3).join('، ')}${skipped.length > 3 ? '…' : ''}`, `Could not load ${skipped.length} items: ${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? '…' : ''}`), 'err');
+      else if (replaced) S.toast(tt('استُبدل المشروع السابق. Ctrl+Z يعيده.', 'The previous project was replaced. Ctrl+Z brings it back.'));
       return { ok: true, name: data.name, skipped };
     } catch (e) {
       console.error(e);
-      S.toast('تعذّر فتح المشروع: ' + explain(e), 'err');
+      S.toast(tt('تعذّر فتح المشروع: ', 'Could not open the project: ') + explain(e), 'err');
       return { ok: false, error: explain(e) };
     } finally { end(); }
   }

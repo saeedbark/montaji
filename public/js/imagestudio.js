@@ -14,12 +14,12 @@ const ImageStudio = (() => {
   };
   const vctx = el.view.getContext('2d');
   const MAX_UNDO = 6; // كل خطوة تراجع نسخة كاملة من الصورة، فالعدد محدود حفاظاً على الذاكرة
-  const ASPECTS = [['free', 'حر'], ['1:1', '1:1'], ['16:9', '16:9'], ['9:16', '9:16'], ['4:5', '4:5'], ['4:3', '4:3']];
-  const FORMAT_NOTES = {
-    jpeg: 'أصغر حجماً ومناسب للصور الفوتوغرافية. لا يدعم الشفافية.',
-    png: 'بلا فقدان في الجودة ويدعم الشفافية، لكن حجمه أكبر.',
-    webp: 'حجم صغير مع دعم الشفافية. تدعمه المتصفحات الحديثة.',
-  };
+  const ASPECTS = [['free', ['حر', 'Free']], ['1:1', '1:1'], ['16:9', '16:9'], ['9:16', '9:16'], ['4:5', '4:5'], ['4:3', '4:3']];
+  const FORMAT_NOTES = I18N.localize({
+    jpeg: ['أصغر حجماً ومناسب للصور الفوتوغرافية. لا يدعم الشفافية.', 'Smaller, good for photographs. No transparency.'],
+    png: ['بلا فقدان في الجودة ويدعم الشفافية، لكن حجمه أكبر.', 'Lossless with transparency, but larger.'],
+    webp: ['حجم صغير مع دعم الشفافية. تدعمه المتصفحات الحديثة.', 'Small with transparency. Supported by modern browsers.'],
+  });
 
   const st = {
     items: [], cur: -1, tab: 'edit',
@@ -41,7 +41,7 @@ const ImageStudio = (() => {
   const isOpen = () => !el.modal.hidden;
   const pause = ms => new Promise(r => setTimeout(r, ms));
   async function busy(on) { el.busy.hidden = !on; if (on) await pause(30); } // مهلة قصيرة ليُرسم المؤشر قبل العمل الثقيل
-  const fmtSize = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} ك.ب` : `${(n / 1048576).toFixed(1)} م.ب`);
+  const fmtSize = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} ${tt('ك.ب', 'KB')}` : `${(n / 1048576).toFixed(1)} ${tt('م.ب', 'MB')}`);
   const baseName = it => it.name.replace(/\.[^.\\/]+$/, '') || 'image';
 
   function newItem(name, src) {
@@ -143,13 +143,13 @@ const ImageStudio = (() => {
         mergeCache.set(it.id, { w: full.width, h: full.height, f: k, small: k < 1 ? ImageTools.resize(full, full.width * k, full.height * k) : full });
       } catch (e) {
         console.error(e);
-        S.toast(`تعذّر فتح الصورة: ${it.name}`, 'err');
+        S.toast(tt(`تعذّر فتح الصورة: ${it.name}`, `Could not open the image: ${it.name}`), 'err');
         st.items.splice(st.items.indexOf(it), 1);
       }
     }
     mergeLoading = false;
     busy(false);
-    if (st.merge.on && st.items.length < 2) return exitMerge('بقيت صورة واحدة فقط — افتح صوراً أخرى للدمج');
+    if (st.merge.on && st.items.length < 2) return exitMerge(tt('بقيت صورة واحدة فقط — افتح صوراً أخرى للدمج', 'Only one image left — open more images to merge'));
     refresh();
   }
 
@@ -175,7 +175,7 @@ const ImageStudio = (() => {
     if (st.clipId) leaveClip();
     if (st.items.length < 2) {
       st.wantMerge = true;
-      S.toast('اختر صورتين أو أكثر لدمجها');
+      S.toast(tt('اختر صورتين أو أكثر لدمجها', 'Choose two or more images to merge'));
       el.file.click();
       return refresh();
     }
@@ -203,47 +203,47 @@ const ImageStudio = (() => {
     try {
       for (let i = 0; i < st.items.length; i++) {
         const it = st.items[i];
-        el.busy.textContent = `جارٍ الدمج ${i + 1} من ${st.items.length}…`;
+        el.busy.textContent = tt(`جارٍ الدمج ${i + 1} من ${st.items.length}…`, `Merging ${i + 1} of ${st.items.length}…`);
         await pause(20);
         ImageTools.drawCell(g, L.cells[i], finalCanvas(it, it.cv || await ImageTools.load(it.src)));
       }
     } catch (e) {
       console.error(e);
-      el.busy.hidden = true; el.busy.textContent = 'جارٍ المعالجة…';
-      return S.toast('تعذّر دمج الصور: ' + (e.message || e), 'err');
+      el.busy.hidden = true; el.busy.textContent = tt('جارٍ المعالجة…', 'Processing…');
+      return S.toast(tt('تعذّر دمج الصور: ', 'Could not merge the images: ') + (e.message || e), 'err');
     }
-    el.busy.hidden = true; el.busy.textContent = 'جارٍ المعالجة…';
+    el.busy.hidden = true; el.busy.textContent = tt('جارٍ المعالجة…', 'Processing…');
     const n = st.items.length;
     st.merge.on = false;
     mergeCache.clear();
-    st.items.push(newItem(`دمج-${n}-صور.png`, out));
+    st.items.push(newItem(tt(`دمج-${n}-صور.png`, `merged-${n}-images.png`), out));
     st.tab = 'save';
     if (opts.background == null) st.out.format = 'png'; // الخلفية الشفافة تضيع في JPEG
     await setCur(st.items.length - 1);
-    S.toast(`تم دمج ${n} صور في صورة واحدة (${L.width}×${L.height})`, 'ok');
+    S.toast(tt(`تم دمج ${n} صور في صورة واحدة (${L.width}×${L.height})`, `Merged ${n} images into one (${L.width}×${L.height})`), 'ok');
   }
 
   function mergePanel() {
     const m = st.merge, n = st.items.length;
     const cols = m.columns || Math.ceil(Math.sqrt(n));
-    let h = `<h2>دمج الصور</h2>
-      <p class="sub wrap">تُدمج الصور المفتوحة (${n}) بترتيب الشريط أسفل النافذة. اسحب الصور فيه لتغيير ترتيبها، واضغط × لاستبعاد صورة.</p>
-      <h3>التخطيط</h3>` + chips('layout', [['row', 'جنباً إلى جنب'], ['column', 'فوق بعض'], ['grid', 'شبكة']], m.layout);
+    let h = `<h2>${tt('دمج الصور', 'Merge images')}</h2>
+      <p class="sub wrap">${tt(`تُدمج الصور المفتوحة (${n}) بترتيب الشريط أسفل النافذة. اسحب الصور فيه لتغيير ترتيبها، واضغط × لاستبعاد صورة.`, `The ${n} open images are merged in the order of the strip below. Drag images there to reorder, and press × to leave one out.`)}</p>
+      <h3>${tt('التخطيط', 'Layout')}</h3>` + chips('layout', [['row', tt('جنباً إلى جنب', 'Side by side')], ['column', tt('فوق بعض', 'Stacked')], ['grid', tt('شبكة', 'Grid')]], m.layout);
     if (m.layout === 'grid') {
-      h += slider('columns', 'الأعمدة', 1, Math.min(n, 8), 1, cols)
-        + chips('fit', [['cover', 'ملء الخانات'], ['contain', 'الصور كاملة']], m.fit);
+      h += slider('columns', tt('الأعمدة', 'Columns'), 1, Math.min(n, 8), 1, cols)
+        + chips('fit', [['cover', tt('ملء الخانات', 'Fill the cells')], ['contain', tt('الصور كاملة', 'Whole images')]], m.fit);
     }
-    if (m.layout !== 'column') h += `<h3>اتجاه الترتيب</h3>` + chips('dir', [['rtl', 'من اليمين'], ['ltr', 'من اليسار']], m.dir);
-    h += `<h3>المسافات</h3>`
-      + slider('gap', 'بين الصور', 0, 20, 0.5, m.gap)
-      + slider('padding', 'الإطار', 0, 20, 0.5, m.padding)
-      + slider('radius', 'استدارة', 0, 25, 1, m.radius)
-      + `<h3>الخلفية</h3>` + chips('bgMode', [['color', 'لون'], ['none', 'شفافة']], m.transparent ? 'none' : 'color')
-      + (m.transparent ? '' : `<label class="row"><span>اللون</span><input type="color" data-k="mbg" value="${m.bg}"><span></span></label>`)
+    if (m.layout !== 'column') h += `<h3>${tt('اتجاه الترتيب', 'Order direction')}</h3>` + chips('dir', [['rtl', tt('من اليمين', 'From the right')], ['ltr', tt('من اليسار', 'From the left')]], m.dir);
+    h += `<h3>${tt('المسافات', 'Spacing')}</h3>`
+      + slider('gap', tt('بين الصور', 'Between images'), 0, 20, 0.5, m.gap)
+      + slider('padding', tt('الإطار', 'Border'), 0, 20, 0.5, m.padding)
+      + slider('radius', tt('استدارة', 'Rounding'), 0, 25, 1, m.radius)
+      + `<h3>${tt('الخلفية', 'Background')}</h3>` + chips('bgMode', [['color', tt('لون', 'Color')], ['none', tt('شفافة', 'Transparent')]], m.transparent ? 'none' : 'color')
+      + (m.transparent ? '' : `<label class="row"><span>${tt('اللون', 'Color')}</span><input type="color" data-k="mbg" value="${m.bg}"><span></span></label>`)
       + `<p class="ex-summary" id="mergeInfo"></p>
         <div class="save-actions">
-          <button class="btn primary" data-act="mergeDone"><svg class="ic"><use href="#i-grid"/></svg>إنشاء الصورة المدمجة</button>
-          <button class="btn" data-act="mergeCancel">إلغاء</button>
+          <button class="btn primary" data-act="mergeDone"><svg class="ic"><use href="#i-grid"/></svg>${tt('إنشاء الصورة المدمجة', 'Create the merged image')}</button>
+          <button class="btn" data-act="mergeCancel">${tt('إلغاء', 'Cancel')}</button>
         </div>`;
     return h;
   }
@@ -252,7 +252,7 @@ const ImageStudio = (() => {
     const box = $('#mergeInfo');
     if (!box || !mergeReady()) return;
     const L = ImageTools.mergeLayout(mergeSizes(), mergeOpts());
-    box.innerHTML = `حجم الصورة الناتجة <b dir="ltr">${L.width}×${L.height}</b>` + (L.scale < 0.999 ? '<br>صُغّرت كي لا تتجاوز 8192 بكسل' : '');
+    box.innerHTML = `${tt('حجم الصورة الناتجة', 'Output size')} <b dir="ltr">${L.width}×${L.height}</b>` + (L.scale < 0.999 ? '<br>' + tt('صُغّرت كي لا تتجاوز 8192 بكسل', 'Scaled down to stay within 8192 pixels') : '');
   }
 
   /* ================= اللوحة الجانبية ================= */
@@ -270,71 +270,71 @@ const ImageStudio = (() => {
       return mergeInfo();
     }
     if (!it || !it.cv) {
-      el.panel.innerHTML = `<h2>ماذا يفعل الاستوديو؟</h2>
+      el.panel.innerHTML = `<h2>${tt('ماذا يفعل الاستوديو؟', 'What does the studio do?')}</h2>
         <ol class="guide">
-          <li><b>تعديل الصورة</b><br>قص، تدوير، قلب، تغيير الحجم، وفلاتر وألوان.</li>
-          <li><b>إزالة الخلفية</b><br>تلقائياً من الحواف، أو بالنقر على اللون المراد حذفه.</li>
-          <li><b>تحويل الصيغة</b><br>بين PNG و JPEG و WebP، لصورة واحدة أو لعدة صور دفعة واحدة.</li>
-          <li><b>دمج الصور</b><br>افتح صورتين أو أكثر واجمعها في صورة واحدة: جنباً إلى جنب، فوق بعض، أو شبكة.</li>
+          <li>${tt('<b>تعديل الصورة</b><br>قص، تدوير، قلب، تغيير الحجم، وفلاتر وألوان.', '<b>Edit the image</b><br>Crop, rotate, flip, resize, filters and colors.')}</li>
+          <li>${tt('<b>إزالة الخلفية</b><br>تلقائياً من الحواف، أو بالنقر على اللون المراد حذفه.', '<b>Remove the background</b><br>Automatically from the edges, or by clicking the color to remove.')}</li>
+          <li>${tt('<b>تحويل الصيغة</b><br>بين PNG و JPEG و WebP، لصورة واحدة أو لعدة صور دفعة واحدة.', '<b>Convert the format</b><br>Between PNG, JPEG and WebP, for one image or many at once.')}</li>
+          <li>${tt('<b>دمج الصور</b><br>افتح صورتين أو أكثر واجمعها في صورة واحدة: جنباً إلى جنب، فوق بعض، أو شبكة.', '<b>Merge images</b><br>Open two or more images and combine them into one: side by side, stacked, or a grid.')}</li>
         </ol>
-        <p class="sub wrap">كل شيء يجري على جهازك؛ صورك لا تُرفع إلى أي مكان.</p>`;
+        <p class="sub wrap">${tt('كل شيء يجري على جهازك؛ صورك لا تُرفع إلى أي مكان.', 'Everything runs on your device; your images are never uploaded.')}</p>`;
       return;
     }
     const W = it.cv.width, H = it.cv.height, b = st.bg, o = st.out;
-    let h = chips('tab', [['edit', 'تعديل'], ['bg', 'الخلفية'], ['save', 'حفظ وتحويل']], st.tab, 'chips tabs');
+    let h = chips('tab', [['edit', tt('تعديل', 'Edit')], ['bg', tt('الخلفية', 'Background')], ['save', tt('حفظ وتحويل', 'Save and convert')]], st.tab, 'chips tabs');
 
     if (st.tab === 'edit') {
-      h += `<h3>تدوير وقلب</h3><div class="btn-grid">
-          <button class="btn small" data-act="rotL">تدوير يساراً</button>
-          <button class="btn small" data-act="rotR">تدوير يميناً</button>
-          <button class="btn small" data-act="flipH">قلب أفقي</button>
-          <button class="btn small" data-act="flipV">قلب عمودي</button>
+      h += `<h3>${tt('تدوير وقلب', 'Rotate and flip')}</h3><div class="btn-grid">
+          <button class="btn small" data-act="rotL">${tt('تدوير يساراً', 'Rotate left')}</button>
+          <button class="btn small" data-act="rotR">${tt('تدوير يميناً', 'Rotate right')}</button>
+          <button class="btn small" data-act="flipH">${tt('قلب أفقي', 'Flip horizontal')}</button>
+          <button class="btn small" data-act="flipV">${tt('قلب عمودي', 'Flip vertical')}</button>
         </div>
-        <h3>القص</h3>`;
+        <h3>${tt('القص', 'Crop')}</h3>`;
       if (st.cropping) {
-        h += chips('aspect', ASPECTS, st.aspect)
-          + `<p class="sub wrap">اسحب داخل الصورة لتحديد المنطقة، أو اسحب زواياها. المساحة المحددة: <b id="cropSize" dir="ltr"></b></p>
-            <div class="btn-grid"><button class="btn small primary" data-act="cropApply">تطبيق القص</button><button class="btn small" data-act="cropCancel">إلغاء</button></div>`;
-      } else h += `<button class="btn small wide" data-act="cropStart">قص الصورة</button>`;
-      h += `<h3>الحجم <span dir="ltr">(${W}×${H})</span></h3>
+        h += chips('aspect', ASPECTS.map(([k, l]) => [k, Array.isArray(l) ? tt(l[0], l[1]) : l]), st.aspect)
+          + `<p class="sub wrap">${tt('اسحب داخل الصورة لتحديد المنطقة، أو اسحب زواياها. المساحة المحددة:', 'Drag inside the image to select an area, or drag its corners. Selection:')} <b id="cropSize" dir="ltr"></b></p>
+            <div class="btn-grid"><button class="btn small primary" data-act="cropApply">${tt('تطبيق القص', 'Apply crop')}</button><button class="btn small" data-act="cropCancel">${tt('إلغاء', 'Cancel')}</button></div>`;
+      } else h += `<button class="btn small wide" data-act="cropStart">${tt('قص الصورة', 'Crop image')}</button>`;
+      h += `<h3>${tt('الحجم', 'Size')} <span dir="ltr">(${W}×${H})</span></h3>
         <div class="size-row" dir="ltr">
-          <input type="number" data-k="rw" min="1" max="16000" value="${W}" aria-label="العرض">
+          <input type="number" data-k="rw" min="1" max="16000" value="${W}" aria-label="${tt('العرض', 'Width')}">
           <span>×</span>
-          <input type="number" data-k="rh" min="1" max="16000" value="${H}" aria-label="الارتفاع">
-          <button class="btn small" data-act="resize">تطبيق</button>
+          <input type="number" data-k="rh" min="1" max="16000" value="${H}" aria-label="${tt('الارتفاع', 'Height')}">
+          <button class="btn small" data-act="resize">${tt('تطبيق', 'Apply')}</button>
         </div>
         <div class="chips">${[75, 50, 25].map(p => `<button type="button" class="chip" data-act="scale" data-v="${p}">${p}%</button>`).join('')}</div>
-        <h3>الفلتر</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), it.filter)
-        + `<h3>تعديل الألوان</h3>`
-        + slider('bright', 'السطوع', 50, 150, 1, it.bright, '%')
-        + slider('contrast', 'التباين', 50, 150, 1, it.contrast, '%')
-        + slider('sat', 'التشبّع', 0, 200, 1, it.sat, '%')
-        + `<button class="link-btn" data-act="lookReset">إلغاء الفلتر وتعديل الألوان</button>`;
+        <h3>${tt('الفلتر', 'Filter')}</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), it.filter)
+        + `<h3>${tt('تعديل الألوان', 'Color')}</h3>`
+        + slider('bright', tt('السطوع', 'Brightness'), 50, 150, 1, it.bright, '%')
+        + slider('contrast', tt('التباين', 'Contrast'), 50, 150, 1, it.contrast, '%')
+        + slider('sat', tt('التشبّع', 'Saturation'), 0, 200, 1, it.sat, '%')
+        + `<button class="link-btn" data-act="lookReset">${tt('إلغاء الفلتر وتعديل الألوان', 'Reset filter and color')}</button>`;
     } else if (st.tab === 'bg') {
-      h += `<h3>إزالة الخلفية</h3>` + chips('how', [['auto', 'تلقائي'], ['pick', 'بالنقر على اللون']], b.how)
+      h += `<h3>${tt('إزالة الخلفية', 'Remove background')}</h3>` + chips('how', [['auto', tt('تلقائي', 'Automatic')], ['pick', tt('بالنقر على اللون', 'Click on the color')]], b.how)
         + `<p class="sub wrap">${b.how === 'auto'
-          ? 'يحذف اللون المحيط بالصورة ابتداءً من حوافها. يناسب الخلفيات الموحّدة: صور المنتجات، الشعارات، والخلفية الخضراء.'
-          : 'انقر في الصورة على اللون الذي تريد حذفه، وكرّر النقر لحذف مناطق أخرى.'}</p>`
-        + slider('tolerance', 'الحساسية', 1, 100, 1, b.tolerance)
-        + slider('feather', 'نعومة الحواف', 0, 6, 1, b.feather)
-        + `<label class="row check"><input type="checkbox" data-k="contiguous"${b.contiguous ? ' checked' : ''}><span>المناطق المتصلة فقط</span></label>`
-        + (b.how === 'auto' ? `<button class="btn primary wide" data-act="bgRun">إزالة الخلفية</button>` : '')
-        + `<p class="sub wrap">بعد الإزالة حرّك «الحساسية» لضبط النتيجة: زِدها إن بقي جزء من الخلفية، وأنقصها إن حُذف جزء من العنصر.</p>
-          <h3>الخلفية الجديدة</h3>` + chips('fillMode', [['none', 'شفافة'], ['color', 'لون']], it.fill ? 'color' : 'none')
-        + (it.fill ? `<label class="row"><span>اللون</span><input type="color" data-k="fill" value="${it.fill}"><span></span></label>` : '');
+          ? tt('يحذف اللون المحيط بالصورة ابتداءً من حوافها. يناسب الخلفيات الموحّدة: صور المنتجات، الشعارات، والخلفية الخضراء.', 'Removes the color around the image starting from its edges. Best for plain backgrounds: product shots, logos and green screens.')
+          : tt('انقر في الصورة على اللون الذي تريد حذفه، وكرّر النقر لحذف مناطق أخرى.', 'Click the color you want to remove in the image; click again to remove more areas.')}</p>`
+        + slider('tolerance', tt('الحساسية', 'Tolerance'), 1, 100, 1, b.tolerance)
+        + slider('feather', tt('نعومة الحواف', 'Edge softness'), 0, 6, 1, b.feather)
+        + `<label class="row check"><input type="checkbox" data-k="contiguous"${b.contiguous ? ' checked' : ''}><span>${tt('المناطق المتصلة فقط', 'Connected areas only')}</span></label>`
+        + (b.how === 'auto' ? `<button class="btn primary wide" data-act="bgRun">${tt('إزالة الخلفية', 'Remove background')}</button>` : '')
+        + `<p class="sub wrap">${tt('بعد الإزالة حرّك «الحساسية» لضبط النتيجة: زِدها إن بقي جزء من الخلفية، وأنقصها إن حُذف جزء من العنصر.', 'After removing, move “Tolerance” to fine-tune: raise it if some background remains, lower it if part of the subject was removed.')}</p>
+          <h3>${tt('الخلفية الجديدة', 'New background')}</h3>` + chips('fillMode', [['none', tt('شفافة', 'Transparent')], ['color', tt('لون', 'Color')]], it.fill ? 'color' : 'none')
+        + (it.fill ? `<label class="row"><span>${tt('اللون', 'Color')}</span><input type="color" data-k="fill" value="${it.fill}"><span></span></label>` : '');
     } else {
       const lossy = ImageTools.FORMATS[o.format].lossy;
-      h += `<h3>الصيغة</h3>` + chips('format', Object.entries(ImageTools.FORMATS).map(([k, f]) => [k, f.label]), o.format)
+      h += `<h3>${tt('الصيغة', 'Format')}</h3>` + chips('format', Object.entries(ImageTools.FORMATS).map(([k, f]) => [k, f.label]), o.format)
         + `<p class="sub wrap">${FORMAT_NOTES[o.format]}</p>`
-        + (lossy ? slider('quality', 'الجودة', 30, 100, 1, o.quality, '%') : '')
-        + (o.format === 'jpeg' && !it.fill ? `<label class="row"><span>لون الشفافية</span><input type="color" data-k="matte" value="${o.matte}"><span></span></label>` : '')
-        + `<p class="ex-summary" id="imgInfo"><span dir="ltr">${W}×${H}</span> · جارٍ حساب الحجم…</p>
+        + (lossy ? slider('quality', tt('الجودة', 'Quality'), 30, 100, 1, o.quality, '%') : '')
+        + (o.format === 'jpeg' && !it.fill ? `<label class="row"><span>${tt('لون الشفافية', 'Fill for transparency')}</span><input type="color" data-k="matte" value="${o.matte}"><span></span></label>` : '')
+        + `<p class="ex-summary" id="imgInfo"><span dir="ltr">${W}×${H}</span> · ${tt('جارٍ حساب الحجم…', 'Estimating size…')}</p>
           <div class="save-actions">
-            <button class="btn primary" data-act="download"><svg class="ic"><use href="#i-download"/></svg>تنزيل الصورة</button>`
-        + (st.items.length > 1 ? `<button class="btn" data-act="downloadAll">تحويل كل الصور (${st.items.length}) في ملف ZIP</button>
-            <button class="btn" data-act="mergeStart"><svg class="ic"><use href="#i-grid"/></svg>دمج الصور (${st.items.length}) في صورة واحدة</button>` : '')
-        + (st.clipId ? `<button class="btn" data-act="applyClip">تطبيق على المقطع في المشروع</button>`
-          : `<button class="btn" data-act="addProject">إضافة إلى مشروع الفيديو</button>`)
+            <button class="btn primary" data-act="download"><svg class="ic"><use href="#i-download"/></svg>${tt('تنزيل الصورة', 'Download image')}</button>`
+        + (st.items.length > 1 ? `<button class="btn" data-act="downloadAll">${tt(`تحويل كل الصور (${st.items.length}) في ملف ZIP`, `Convert all ${st.items.length} images into a ZIP file`)}</button>
+            <button class="btn" data-act="mergeStart"><svg class="ic"><use href="#i-grid"/></svg>${tt(`دمج الصور (${st.items.length}) في صورة واحدة`, `Merge the ${st.items.length} images into one`)}</button>` : '')
+        + (st.clipId ? `<button class="btn" data-act="applyClip">${tt('تطبيق على المقطع في المشروع', 'Apply to the clip in the project')}</button>`
+          : `<button class="btn" data-act="addProject">${tt('إضافة إلى مشروع الفيديو', 'Add to the video project')}</button>`)
         + `</div>`;
       scheduleInfo();
     }
@@ -353,10 +353,10 @@ const ImageStudio = (() => {
       const size = await ImageTools.sizeOf(finalCanvas(it), o.format, o.quality / 100, o.matte);
       const box = $('#imgInfo');
       if (seq !== infoSeq || !box || cur() !== it) return;
-      let s = `<span dir="ltr">${it.cv.width}×${it.cv.height}</span> · الحجم بعد الحفظ <b>${fmtSize(size)}</b>`;
+      let s = `<span dir="ltr">${it.cv.width}×${it.cv.height}</span> · ${tt('الحجم بعد الحفظ', 'Size after saving')} <b>${fmtSize(size)}</b>`;
       if (it.src instanceof Blob && it.src.size) {
         const d = Math.round((1 - size / it.src.size) * 100);
-        s += `<br>الملف الأصلي ${fmtSize(it.src.size)}` + (d > 0 ? ` — أصغر بنسبة ${d}%` : d < 0 ? ` — أكبر بنسبة ${-d}%` : '');
+        s += `<br>${tt('الملف الأصلي', 'Original file')} ${fmtSize(it.src.size)}` + (d > 0 ? tt(` — أصغر بنسبة ${d}%`, ` — ${d}% smaller`) : d < 0 ? tt(` — أكبر بنسبة ${-d}%`, ` — ${-d}% larger`) : '');
       }
       box.innerHTML = s;
     }, 250);
@@ -365,16 +365,16 @@ const ImageStudio = (() => {
   function renderStrip() {
     el.strip.hidden = st.items.length < 2;
     el.strip.innerHTML = st.items.map((it, i) =>
-      `<div class="strip-item${i === st.cur && !st.merge.on ? ' on' : ''}" data-i="${i}" title="${esc(it.name)} — اسحبها لتغيير الترتيب" draggable="true">
-        <img src="${it.thumb}" alt="" draggable="false">${st.merge.on ? `<i class="num">${i + 1}</i>` : it.edited ? '<i class="dot" title="معدَّلة"></i>' : ''}
-        <button type="button" class="strip-x" data-x="${i}" title="إزالة من القائمة" aria-label="إزالة">×</button>
+      `<div class="strip-item${i === st.cur && !st.merge.on ? ' on' : ''}" data-i="${i}" title="${esc(it.name)} — ${tt('اسحبها لتغيير الترتيب', 'drag to reorder')}" draggable="true">
+        <img src="${it.thumb}" alt="" draggable="false">${st.merge.on ? `<i class="num">${i + 1}</i>` : it.edited ? `<i class="dot" title="${tt('معدَّلة', 'Edited')}"></i>` : ''}
+        <button type="button" class="strip-x" data-x="${i}" title="${tt('إزالة من القائمة', 'Remove from the list')}" aria-label="${tt('إزالة', 'Remove')}">×</button>
       </div>`).join('');
   }
 
   function refresh() {
     const it = cur();
     const m = st.merge.on;
-    el.name.textContent = m ? `دمج ${st.items.length} صور` : it ? it.name : '';
+    el.name.textContent = m ? tt(`دمج ${st.items.length} صور`, `Merge ${st.items.length} images`) : it ? it.name : '';
     el.undo.disabled = m || !(it && it.undo.length);
     el.reset.disabled = m || !(it && it.edited);
     el.merge.disabled = m || !!st.clipId || st.items.length < 2;
@@ -394,7 +394,7 @@ const ImageStudio = (() => {
       await busy(true);
       try { await ensure(it); } catch (e) {
         console.error(e);
-        S.toast(`تعذّر فتح الصورة: ${it.name}`, 'err');
+        S.toast(tt(`تعذّر فتح الصورة: ${it.name}`, `Could not open the image: ${it.name}`), 'err');
         st.items.splice(i, 1);
         st.cur = st.items.length ? Math.min(i, st.items.length - 1) : -1;
         busy(false);
@@ -409,7 +409,7 @@ const ImageStudio = (() => {
 
   async function addFiles(fileList) {
     const files = [...fileList], imgs = files.filter(isImage);
-    if (imgs.length < files.length) S.toast('الاستوديو يفتح الصور فقط', 'err');
+    if (imgs.length < files.length) S.toast(tt('الاستوديو يفتح الصور فقط', 'The studio opens images only'), 'err');
     if (!imgs.length) return;
     if (st.clipId) leaveClip();
     const first = st.items.length;
@@ -485,7 +485,7 @@ const ImageStudio = (() => {
       if (out && out !== it.cv) { pushUndo(it); it.cv = out; it.edited = true; it.thumb = ImageTools.thumb(out); }
     } catch (e) {
       console.error(e);
-      S.toast('تعذّر تنفيذ التعديل: ' + (e.message || e), 'err');
+      S.toast(tt('تعذّر تنفيذ التعديل: ', 'Could not apply the edit: ') + (e.message || e), 'err');
     }
     busy(false);
     st.bg.last = null;
@@ -525,7 +525,7 @@ const ImageStudio = (() => {
     } catch (e) {
       console.error(e);
       busy(false);
-      return S.toast('تعذّرت إزالة الخلفية: ' + (e.message || e), 'err');
+      return S.toast(tt('تعذّرت إزالة الخلفية: ', 'Could not remove the background: ') + (e.message || e), 'err');
     }
     busy(false);
     if (!retune) pushUndo(it);
@@ -534,8 +534,8 @@ const ImageStudio = (() => {
     // الشفافية تضيع في JPEG، فنقترح PNG ما لم يختر المستخدم لوناً للخلفية
     if (!it.fill && st.out.format === 'jpeg') st.out.format = 'png';
     if (!retune) {
-      if (r.share < 0.01) S.toast(seed ? 'لم يُحذف شيء يُذكر — زِد الحساسية' : 'لم أجد خلفية بلون موحّد — زِد الحساسية أو جرّب «بالنقر على اللون»', 'err');
-      else if (r.share > 0.97) S.toast('حُذفت الصورة كلها تقريباً — أنقص الحساسية', 'err');
+      if (r.share < 0.01) S.toast(seed ? tt('لم يُحذف شيء يُذكر — زِد الحساسية', 'Hardly anything was removed — raise the tolerance') : tt('لم أجد خلفية بلون موحّد — زِد الحساسية أو جرّب «بالنقر على اللون»', 'No solid-color background found — raise the tolerance or try “Click on the color”'), 'err');
+      else if (r.share > 0.97) S.toast(tt('حُذفت الصورة كلها تقريباً — أنقص الحساسية', 'Almost the whole image was removed — lower the tolerance'), 'err');
     }
     refresh();
   }
@@ -633,8 +633,8 @@ const ImageStudio = (() => {
     try {
       const r = encodeCur();
       ImageTools.download(r.blob, `${baseName(it)}.${r.ext}`);
-      S.toast(`تم حفظ الصورة بصيغة ${r.ext.toUpperCase()} (${fmtSize(r.bytes.length)})`, 'ok');
-    } catch (e) { console.error(e); S.toast('تعذّر حفظ الصورة: ' + (e.message || e), 'err'); }
+      S.toast(tt(`تم حفظ الصورة بصيغة ${r.ext.toUpperCase()} (${fmtSize(r.bytes.length)})`, `Image saved as ${r.ext.toUpperCase()} (${fmtSize(r.bytes.length)})`), 'ok');
+    } catch (e) { console.error(e); S.toast(tt('تعذّر حفظ الصورة: ', 'Could not save the image: ') + (e.message || e), 'err'); }
     busy(false);
   }
 
@@ -645,7 +645,7 @@ const ImageStudio = (() => {
     el.busy.hidden = false;
     for (let i = 0; i < st.items.length; i++) {
       const it = st.items[i];
-      el.busy.textContent = `جارٍ التحويل ${i + 1} من ${st.items.length}…`;
+      el.busy.textContent = tt(`جارٍ التحويل ${i + 1} من ${st.items.length}…`, `Converting ${i + 1} of ${st.items.length}…`);
       await pause(20);
       try {
         const cv = it.cv || await ImageTools.load(it.src); // غير المفتوحة تُقرأ مؤقتاً ولا تبقى في الذاكرة
@@ -657,10 +657,10 @@ const ImageStudio = (() => {
       } catch (e) { console.error(e); failed++; }
     }
     el.busy.hidden = true;
-    el.busy.textContent = 'جارٍ المعالجة…';
-    if (!files.length) return S.toast('تعذّر تحويل الصور', 'err');
+    el.busy.textContent = tt('جارٍ المعالجة…', 'Processing…');
+    if (!files.length) return S.toast(tt('تعذّر تحويل الصور', 'Could not convert the images'), 'err');
     ImageTools.download(new Blob([ImageTools.zip(files)], { type: 'application/zip' }), 'montaji-images.zip');
-    S.toast(`تم تحويل ${files.length} صورة` + (failed ? ` (تعذّر فتح ${failed})` : ''), failed ? 'err' : 'ok');
+    S.toast(tt(`تم تحويل ${files.length} صورة`, `Converted ${files.length} images`) + (failed ? tt(` (تعذّر فتح ${failed})`, ` (${failed} could not be opened)`) : ''), failed ? 'err' : 'ok');
   }
 
   /** يضع لوحة مكان صورة مقطع في المشروع (يستخدمها المساعد أيضاً). الأصل يبقى في سجل التراجع */
@@ -671,11 +671,11 @@ const ImageStudio = (() => {
 
   function applyClip() {
     const it = cur(), clip = state.clips.find(c => c.id === st.clipId);
-    if (!clip) { S.toast('المقطع لم يعد موجوداً في المشروع', 'err'); return close(); }
+    if (!clip) { S.toast(tt('المقطع لم يعد موجوداً في المشروع', 'The clip is no longer in the project'), 'err'); return close(); }
     setClipImage(clip, ImageTools.fromSource(finalCanvas(it)));
     close();
     S.refresh(); S.pushHist(); S.renderProps();
-    S.toast('تم تحديث الصورة في المشروع', 'ok');
+    S.toast(tt('تم تحديث الصورة في المشروع', 'Image updated in the project'), 'ok');
   }
 
   async function addProject() {
@@ -688,21 +688,21 @@ const ImageStudio = (() => {
       busy(false);
       close();
       await S.addFiles([file]);
-      S.toast('أُضيفت الصورة إلى المشروع', 'ok');
-    } catch (e) { console.error(e); busy(false); S.toast('تعذّرت إضافة الصورة: ' + (e.message || e), 'err'); }
+      S.toast(tt('أُضيفت الصورة إلى المشروع', 'Image added to the project'), 'ok');
+    } catch (e) { console.error(e); busy(false); S.toast(tt('تعذّرت إضافة الصورة: ', 'Could not add the image: ') + (e.message || e), 'err'); }
   }
 
   /** لقطة من المعاينة بدقة 1080 تُفتح في الاستوديو (لصورة مصغّرة للفيديو مثلاً) */
   async function snapshot() {
     layout();
-    if (view.total <= 0) return S.toast('أضف صوراً أو مقاطع أولاً', 'err');
+    if (view.total <= 0) return S.toast(tt('أضف صوراً أو مقاطع أولاً', 'Add photos or clips first'), 'err');
     S.pause();
     for (let i = 0; i < 40 && state.clips.some(c => c.type === 'video' && (c.el.seeking || c.el._pend != null)); i++) await pause(40);
     const [W, H] = outputSize(state.ratio, 1080);
     const cv = ImageTools.canvas(W, H);
     Render.frame(cv.getContext('2d'), W, H, view.t);
     if (st.clipId) leaveClip();
-    return openCanvas(cv, `لقطة-${view.t.toFixed(1)}ث.png`);
+    return openCanvas(cv, tt(`لقطة-${view.t.toFixed(1)}ث.png`, `frame-${view.t.toFixed(1)}s.png`));
   }
 
   /* ================= الأحداث ================= */
@@ -741,7 +741,7 @@ const ImageStudio = (() => {
     scale: b => mutate(cv => ImageTools.resize(cv, cv.width * b.dataset.v / 100, cv.height * b.dataset.v / 100)),
     resize: () => {
       const w = Math.round(+el.panel.querySelector('[data-k="rw"]').value), h = Math.round(+el.panel.querySelector('[data-k="rh"]').value);
-      if (!(w >= 1 && h >= 1 && w <= 16000 && h <= 16000)) return S.toast('اكتب أبعاداً بين 1 و 16000 بكسل', 'err');
+      if (!(w >= 1 && h >= 1 && w <= 16000 && h <= 16000)) return S.toast(tt('اكتب أبعاداً بين 1 و 16000 بكسل', 'Enter a size between 1 and 16000 pixels'), 'err');
       return mutate(cv => (w === cv.width && h === cv.height ? cv : ImageTools.resize(cv, w, h)));
     },
     lookReset: () => { Object.assign(cur(), { filter: 'none', bright: 100, contrast: 100, sat: 100 }); refresh(); },
@@ -784,7 +784,7 @@ const ImageStudio = (() => {
     if (x) {
       const i = +x.dataset.x;
       st.items.splice(i, 1);
-      if (st.merge.on && st.items.length < 2) { st.cur = Math.min(st.cur, st.items.length - 1); return exitMerge('بقيت صورة واحدة — لا يوجد ما يُدمج'); }
+      if (st.merge.on && st.items.length < 2) { st.cur = Math.min(st.cur, st.items.length - 1); return exitMerge(tt('بقيت صورة واحدة — لا يوجد ما يُدمج', 'Only one image left — nothing to merge')); }
       if (i < st.cur) { st.cur--; return refresh(); }
       if (i === st.cur) { st.cur = -1; return st.items.length ? setCur(Math.min(i, st.items.length - 1)) : refresh(); }
       return refresh();

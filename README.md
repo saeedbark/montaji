@@ -260,7 +260,7 @@ npx skills add saeedbark/montaji
 
 ## الشرح
 
-- دليل الاستخدام خطوة بخطوة: زر «؟» داخل المحرر، أو الملف `public/guide.html`
+- دليل الاستخدام خطوة بخطوة: زر «؟» داخل المحرر، أو الملف `public/guide.html` (بالإنجليزية: `public/guide.en.html`)
 - شرح مصوّر قصير: `public/media/guide.mp4`
 
 ## هيكل المشروع
@@ -278,9 +278,10 @@ montaji/
 │  └─ mcp.js               ‎/mcp خادم MCP
 ├─ public/                 كل ما يُحمَّل في المتصفح
 │  ├─ index.html           صفحة المحرر
-│  ├─ guide.html           دليل الاستخدام
+│  ├─ guide.html           دليل الاستخدام (وguide.en.html بالإنجليزية)
 │  ├─ css/style.css
 │  ├─ js/
+│  │  ├─ i18n.js           لغة الواجهة: العربية أو الإنجليزية
 │  │  ├─ core.js           الحالة المشتركة، الإطارات المفتاحية، ودوال مساعدة
 │  │  ├─ beats.js          كشف إيقاع الموسيقى (BPM والضربات)
 │  │  ├─ captiontools.js   الترجمة بلا واجهة: تقطيع الكلمات إلى كتل، SRT و VTT

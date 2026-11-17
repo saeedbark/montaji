@@ -18,7 +18,7 @@ function readBytes(req, limit) {
     let size = 0;
     req.on('data', c => {
       size += c.length;
-      if (size > limit) { reject(new Error('الملف الصوتي أكبر من المسموح')); req.destroy(); } else chunks.push(c);
+      if (size > limit) { reject(Object.assign(new Error('الملف الصوتي أكبر من المسموح'), { en: 'The audio file is too large' })); req.destroy(); } else chunks.push(c);
     });
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
@@ -109,11 +109,11 @@ async function viaChat(p, wav, lang, signal) {
 
 async function transcribe(req, res, query) {
   const p = sttProvider();
-  if (p.error) return json(res, 400, { error: p.error, setup: true });
+  if (p.error) return json(res, 400, { error: p.error, error_en: p.error_en, setup: true });
   if (!/^audio\/(wav|x-wav|wave)/i.test(req.headers['content-type'] || '')) return json(res, 415, { error: 'expected audio/wav' });
-  if (+req.headers['content-length'] > MAX_BYTES) return json(res, 413, { error: 'الملف الصوتي أكبر من المسموح' });
+  if (+req.headers['content-length'] > MAX_BYTES) return json(res, 413, { error: 'الملف الصوتي أكبر من المسموح', error_en: 'The audio file is too large' });
   const wav = await readBytes(req, MAX_BYTES);
-  if (wav.length < 44 || wav.toString('latin1', 0, 4) !== 'RIFF') return json(res, 400, { error: 'ملف WAV غير صالح' });
+  if (wav.length < 44 || wav.toString('latin1', 0, 4) !== 'RIFF') return json(res, 400, { error: 'ملف WAV غير صالح', error_en: 'Invalid WAV file' });
   const lang = cleanLang(query.get('lang'));
 
   const ctrl = new AbortController();
@@ -123,16 +123,19 @@ async function transcribe(req, res, query) {
     out = await (p.kind === 'chat' ? viaChat : viaWhisper)(p, wav, lang, ctrl.signal);
   } catch (e) {
     if (ctrl.signal.aborted) return;
-    return json(res, 502, { error: `تعذّر الاتصال بخدمة التفريغ (${p.label}) — تحقق من الإنترنت أو من أن الخادم المحلي يعمل.` });
+    return json(res, 502, {
+      error: `تعذّر الاتصال بخدمة التفريغ (${p.label}) — تحقق من الإنترنت أو من أن الخادم المحلي يعمل.`,
+      error_en: `Could not reach the transcription service (${p.label_en}) — check your internet connection or that the local server is running.`,
+    });
   }
   if (!out.result) {
     const s = out.status;
-    const hint = s === 401 || s === 403 ? 'المفتاح مرفوض — تأكد من صحته في ملف .env'
-      : s === 404 ? `النموذج «${p.model}» أو نقطة التفريغ غير متاحة لدى ${p.label} — راجع STT_MODEL و STT_BASE_URL في ملف .env`
-      : s === 429 ? 'تجاوزت حد الاستخدام أو انتهى الرصيد لدى المزوّد'
-      : s >= 500 ? `${p.label} مزدحم الآن — أعد المحاولة بعد لحظات`
-      : `خطأ من ${p.label} (${s})`;
-    return json(res, 502, { error: hint, detail: String(out.detail || '').slice(0, 300) });
+    const hint = s === 401 || s === 403 ? ['المفتاح مرفوض — تأكد من صحته في ملف .env', 'The key was rejected — check it in the .env file']
+      : s === 404 ? [`النموذج «${p.model}» أو نقطة التفريغ غير متاحة لدى ${p.label} — راجع STT_MODEL و STT_BASE_URL في ملف .env`, `The model “${p.model}” or the transcription endpoint is not available at ${p.label_en} — check STT_MODEL and STT_BASE_URL in the .env file`]
+      : s === 429 ? ['تجاوزت حد الاستخدام أو انتهى الرصيد لدى المزوّد', 'Usage limit reached or out of credit with the provider']
+      : s >= 500 ? [`${p.label} مزدحم الآن — أعد المحاولة بعد لحظات`, `${p.label_en} is busy right now — try again in a moment`]
+      : [`خطأ من ${p.label} (${s})`, `Error from ${p.label_en} (${s})`];
+    return json(res, 502, { error: hint[0], error_en: hint[1], detail: String(out.detail || '').slice(0, 300) });
   }
   json(res, 200, { ...out.result, provider: p.id, model: p.model });
 }

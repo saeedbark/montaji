@@ -3,6 +3,8 @@
    دوال البكسلات تقبل أي كائن { data, width, height } فتُختبر في Node (يُحمَّل الملف هناك أيضاً). */
 
 const ImageTools = (() => {
+  // في Node لا توجد واجهة: العربي دائماً
+  const tt = typeof I18N !== 'undefined' ? I18N.t : ar => ar;
   const FORMATS = {
     jpeg: { label: 'JPEG', mime: 'image/jpeg', ext: 'jpg', lossy: true, alpha: false },
     png: { label: 'PNG', mime: 'image/png', ext: 'png', lossy: false, alpha: true },
@@ -336,11 +338,11 @@ const ImageTools = (() => {
       const img = new Image();
       await new Promise((res, rej) => {
         img.onload = res;
-        img.onerror = () => rej(new Error('تعذّر قراءة الصورة'));
+        img.onerror = () => rej(new Error(tt('تعذّر قراءة الصورة', 'Could not read the image')));
         img.src = url;
       });
       const w = img.naturalWidth, h = img.naturalHeight;
-      if (!w || !h) throw new Error('الصورة فارغة');
+      if (!w || !h) throw new Error(tt('الصورة فارغة', 'The image is empty'));
       const k = Math.min(1, Math.sqrt(MAX_PIXELS / (w * h)));
       return fromSource(img, w * k, h * k);
     } finally { URL.revokeObjectURL(url); }

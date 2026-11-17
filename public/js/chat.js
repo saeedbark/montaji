@@ -115,60 +115,61 @@ Project model
 
   const short = (s, n = 26) => { s = String(s || '').replace(/\s+/g, ' '); return s.length > n ? s.slice(0, n) + '…' : s; };
   const LABELS = {
-    get_project: () => 'قراءة المشروع',
-    set_ratio: a => `تغيير المقاس إلى ${a.ratio || ''}`,
-    update_clips: () => 'تعديل المقاطع',
-    reorder_clips: () => 'إعادة ترتيب المقاطع',
-    split: () => 'تقسيم',
-    add_text: a => `إضافة نص: «${short(a.text)}»`,
-    update_texts: () => 'تعديل النصوص',
-    add_effect: a => `إضافة تأثير: ${(Render.EFFECTS[a.type] || {}).label || a.type || ''}`,
-    update_effects: () => 'تعديل التأثيرات',
-    add_overlay: () => 'إضافة طبقة فوق الفيديو',
-    update_overlays: () => 'تعديل الطبقات',
-    to_overlay: () => 'تحويل مقطع إلى طبقة',
-    to_main: () => 'تحويل طبقة إلى المسار الرئيسي',
-    set_keyframes: () => 'تحريك بالإطارات المفتاحية',
-    clear_keyframes: () => 'حذف الإطارات المفتاحية',
-    transcribe: () => 'تفريغ الكلام إلى ترجمة',
-    update_captions: () => 'تعديل الترجمة',
-    export_captions: () => 'حفظ ملف الترجمة',
-    update_audio: () => 'ضبط الصوت والموسيقى',
-    analyze_audio: () => 'تحليل إيقاع الموسيقى',
-    sync_to_beat: () => 'مزامنة القص مع الإيقاع',
-    duplicate_item: () => 'تكرار عنصر',
-    delete_items: () => 'حذف عناصر',
-    edit_image: a => (a.remove_background ? 'إزالة خلفية الصورة' : 'تعديل الصورة'),
-    save_image: () => 'حفظ صورة من الفيديو',
-    merge_images: () => 'دمج الصور في صورة واحدة',
-    split_video_file: () => 'تقسيم الفيديو إلى ملفات',
-    extract_audio: a => (a.add_to_project === false ? 'حفظ صوت الفيديو' : 'استخراج صوت الفيديو'),
-    view_frame: () => 'معاينة النتيجة',
-    seek: () => 'تحريك المؤشر',
-    undo: () => 'تراجع',
-    export_video: () => 'تصدير الفيديو…',
-    import_media: () => 'إضافة ملفات',
-    analyze_reference: () => 'تحليل المقطع المرجعي…',
-    view_media: () => 'النظر إلى وسائطك',
-    apply_reference: () => 'بناء المونتاج على نمط المرجع',
+    get_project: () => tt('قراءة المشروع', 'Reading the project'),
+    set_ratio: a => tt('تغيير المقاس إلى ', 'Changing the size to ') + (a.ratio || ''),
+    update_clips: () => tt('تعديل المقاطع', 'Editing clips'),
+    reorder_clips: () => tt('إعادة ترتيب المقاطع', 'Reordering clips'),
+    split: () => tt('تقسيم', 'Splitting'),
+    add_text: a => tt(`إضافة نص: «${short(a.text)}»`, `Adding text: “${short(a.text)}”`),
+    update_texts: () => tt('تعديل النصوص', 'Editing texts'),
+    add_effect: a => tt('إضافة تأثير: ', 'Adding effect: ') + `${(Render.EFFECTS[a.type] || {}).label || a.type || ''}`,
+    update_effects: () => tt('تعديل التأثيرات', 'Editing effects'),
+    add_overlay: () => tt('إضافة طبقة فوق الفيديو', 'Adding an overlay'),
+    update_overlays: () => tt('تعديل الطبقات', 'Editing overlays'),
+    to_overlay: () => tt('تحويل مقطع إلى طبقة', 'Turning a clip into an overlay'),
+    to_main: () => tt('تحويل طبقة إلى المسار الرئيسي', 'Moving an overlay to the main track'),
+    set_keyframes: () => tt('تحريك بالإطارات المفتاحية', 'Animating with keyframes'),
+    clear_keyframes: () => tt('حذف الإطارات المفتاحية', 'Removing keyframes'),
+    transcribe: () => tt('تفريغ الكلام إلى ترجمة', 'Transcribing speech to captions'),
+    update_captions: () => tt('تعديل الترجمة', 'Editing captions'),
+    export_captions: () => tt('حفظ ملف الترجمة', 'Saving the caption file'),
+    update_audio: () => tt('ضبط الصوت والموسيقى', 'Adjusting sound and music'),
+    analyze_audio: () => tt('تحليل إيقاع الموسيقى', 'Analyzing the music beat'),
+    sync_to_beat: () => tt('مزامنة القص مع الإيقاع', 'Syncing cuts to the beat'),
+    duplicate_item: () => tt('تكرار عنصر', 'Duplicating an item'),
+    delete_items: () => tt('حذف عناصر', 'Deleting items'),
+    edit_image: a => (a.remove_background ? tt('إزالة خلفية الصورة', 'Removing the image background') : tt('تعديل الصورة', 'Editing the image')),
+    save_image: () => tt('حفظ صورة من الفيديو', 'Saving a frame as an image'),
+    merge_images: () => tt('دمج الصور في صورة واحدة', 'Merging images into one'),
+    split_video_file: () => tt('تقسيم الفيديو إلى ملفات', 'Splitting the video into files'),
+    extract_audio: a => (a.add_to_project === false ? tt('حفظ صوت الفيديو', 'Saving the video sound') : tt('استخراج صوت الفيديو', 'Extracting the video sound')),
+    view_frame: () => tt('معاينة النتيجة', 'Checking the result'),
+    seek: () => tt('تحريك المؤشر', 'Moving the playhead'),
+    undo: () => tt('تراجع', 'Undo'),
+    export_video: () => tt('تصدير الفيديو…', 'Exporting the video…'),
+    import_media: () => tt('إضافة ملفات', 'Adding files'),
+    analyze_reference: () => tt('تحليل المقطع المرجعي…', 'Analyzing the reference video…'),
+    view_media: () => tt('النظر إلى وسائطك', 'Looking at your media'),
+    apply_reference: () => tt('بناء المونتاج على نمط المرجع', 'Building the edit on the reference pattern'),
   };
   const label = (name, args) => (LABELS[name] ? LABELS[name](args || {}) : name);
 
   /* ================= شاشة البداية والإعداد ================= */
-  const SUGGESTIONS = [
-    'اصنع فيديو جاهزاً من ملفاتي: رتّبها وأضف انتقالات وحركة وعنواناً',
-    'حوّله إلى فيديو عمودي لتيك توك مع نصوص جذابة',
-    'أضف عنواناً في البداية وكلمة ختامية في النهاية',
+  const SUGGESTIONS = () => [
+    tt('اصنع فيديو جاهزاً من ملفاتي: رتّبها وأضف انتقالات وحركة وعنواناً', 'Make a finished video from my files: order them and add transitions, motion and a title'),
+    tt('حوّله إلى فيديو عمودي لتيك توك مع نصوص جذابة', 'Turn it into a vertical TikTok video with catchy text'),
+    tt('أضف عنواناً في البداية وكلمة ختامية في النهاية', 'Add a title at the start and a closing line at the end'),
   ];
 
   // مزوّدو المفاتيح في نموذج الإعداد. groq للترجمة التلقائية فقط، فلا يغيّر مزوّد المحادثة
   const KEY_PROVIDERS = [
-    { id: 'gemini', label: 'Google Gemini (مفتاح مجاني)', site: 'Google AI Studio', url: 'https://aistudio.google.com/apikey' },
+    { id: 'gemini', label: ['Google Gemini (مفتاح مجاني)', 'Google Gemini (free key)'], site: 'Google AI Studio', url: 'https://aistudio.google.com/apikey' },
     { id: 'openai', label: 'OpenAI', site: 'OpenAI', url: 'https://platform.openai.com/api-keys' },
     { id: 'anthropic', label: 'Anthropic Claude', site: 'Anthropic', url: 'https://console.anthropic.com/settings/keys' },
     { id: 'openrouter', label: 'OpenRouter', site: 'OpenRouter', url: 'https://openrouter.ai/keys' },
-    { id: 'groq', label: 'Groq (للترجمة التلقائية فقط، مجاني)', site: 'Groq', url: 'https://console.groq.com/keys' },
+    { id: 'groq', label: ['Groq (للترجمة التلقائية فقط، مجاني)', 'Groq (auto captions only, free)'], site: 'Groq', url: 'https://console.groq.com/keys' },
   ];
+  I18N.localize(KEY_PROVIDERS);
   let keyOpen = false; // نموذج المفتاح مفتوح بطلب المستخدم (زر الإعدادات) والمساعد جاهز
   let keyError = '';
 
@@ -180,16 +181,16 @@ Project model
   function keyForm() {
     const cur = cfg && cfg.ready && KEY_PROVIDERS.some(k => k.id === cfg.provider) ? cfg.provider : 'gemini';
     return `<form class="key-form" data-keyform>
-        <label><span>المزوّد</span><select name="provider">${KEY_PROVIDERS.map(k =>
+        <label><span>${tt('المزوّد', 'Provider')}</span><select name="provider">${KEY_PROVIDERS.map(k =>
           `<option value="${k.id}"${k.id === cur ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}</select></label>
-        <label><span>المفتاح</span><input type="password" name="key" dir="ltr" autocomplete="off" spellcheck="false" placeholder="الصق المفتاح هنا" required></label>
-        <p class="key-get">ليس عندك مفتاح؟ أنشئه من <span data-keylink>${keyLink(cur)}</span> ثم انسخه والصقه هنا.</p>
+        <label><span>${tt('المفتاح', 'Key')}</span><input type="password" name="key" dir="ltr" autocomplete="off" spellcheck="false" placeholder="${tt('الصق المفتاح هنا', 'Paste the key here')}" required></label>
+        <p class="key-get">${tt('ليس عندك مفتاح؟ أنشئه من', 'No key? Create one at')} <span data-keylink>${keyLink(cur)}</span> ${tt('ثم انسخه والصقه هنا.', 'then copy it and paste it here.')}</p>
         <p class="why" data-keyerr>${esc(keyError)}</p>
         <div class="key-actions">
-          <button class="btn small primary">حفظ وتفعيل</button>
-          ${keyOpen ? '<button type="button" class="btn small" data-keycancel>إلغاء</button>' : ''}
+          <button class="btn small primary">${tt('حفظ وتفعيل', 'Save and enable')}</button>
+          ${keyOpen ? `<button type="button" class="btn small" data-keycancel>${tt('إلغاء', 'Cancel')}</button>` : ''}
         </div>
-        <p class="key-note">يُحفظ المفتاح في ملف <code>.env</code> داخل مجلد البرنامج على جهازك، ولا يُرسل إلا إلى المزوّد الذي اخترته.</p>
+        <p class="key-note">${tt('يُحفظ المفتاح في ملف <code>.env</code> داخل مجلد البرنامج على جهازك، ولا يُرسل إلا إلى المزوّد الذي اخترته.', 'The key is saved in the <code>.env</code> file in the app folder on your device, and is only sent to the provider you chose.')}</p>
       </form>`;
   }
 
@@ -204,14 +205,14 @@ Project model
         body: JSON.stringify({ provider: form.provider.value, key: form.key.value }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || 'تعذّر حفظ المفتاح');
+      if (!r.ok) throw new Error(d.error || tt('تعذّر حفظ المفتاح', 'Could not save the key'));
       form.key.value = '';
       keyOpen = false;
       keyError = '';
       await loadConfig();
-      S.toast && S.toast(form.provider.value === 'groq' ? 'حُفظ مفتاح الترجمة التلقائية' : 'تم تفعيل المساعد');
+      S.toast && S.toast(form.provider.value === 'groq' ? tt('حُفظ مفتاح الترجمة التلقائية', 'Auto-caption key saved') : tt('تم تفعيل المساعد', 'Assistant enabled'));
     } catch (e) {
-      keyError = e.message === 'Failed to fetch' ? 'الخادم المحلي لا يعمل — شغّل البرنامج من جديد' : e.message;
+      keyError = e.message === 'Failed to fetch' ? tt('الخادم المحلي لا يعمل — شغّل البرنامج من جديد', 'The local server is not running — start the app again') : e.message;
       err.textContent = keyError;
     } finally { btn.disabled = false; }
   }
@@ -222,22 +223,25 @@ Project model
     if (!isEmpty(cur) && !keyOpen) return;
     let h;
     if (!cfg) {
-      h = `<h3>المساعد يحتاج الخادم المحلي</h3>
+      h = tt(`<h3>المساعد يحتاج الخادم المحلي</h3>
         <p>شغّل البرنامج بالنقر المزدوج على <code>start.bat</code> (ويندوز) أو <code>start.command</code> (ماك)، وأبقِ نافذته السوداء مفتوحة، ثم افتح <code>http://localhost:4747</code>.</p>
-        <button class="btn small" data-retry>إعادة المحاولة</button>`;
+        <button class="btn small" data-retry>إعادة المحاولة</button>`,
+      `<h3>The assistant needs the local server</h3>
+        <p>Start the app by double-clicking <code>start.bat</code> (Windows) or <code>start.command</code> (Mac), keep its terminal window open, then open <code>http://localhost:4747</code>.</p>
+        <button class="btn small" data-retry>Try again</button>`);
     } else if (keyOpen) {
-      h = `<h3>مفتاح الذكاء الاصطناعي</h3>
-        <p>${cfg.ready ? `المساعد يعمل الآن بـ <b>${esc((choice || cfg).label)}</b>. ` : ''}الصق مفتاحاً جديداً لتغييره، أو أضف مفتاح Groq للترجمة التلقائية.</p>
+      h = `<h3>${tt('مفتاح الذكاء الاصطناعي', 'AI key')}</h3>
+        <p>${cfg.ready ? tt(`المساعد يعمل الآن بـ <b>${esc((choice || cfg).label)}</b>. `, `The assistant now runs on <b>${esc((choice || cfg).label)}</b>. `) : ''}${tt('الصق مفتاحاً جديداً لتغييره، أو أضف مفتاح Groq للترجمة التلقائية.', 'Paste a new key to change it, or add a Groq key for auto captions.')}</p>
         ${keyForm()}`;
     } else if (!cfg.ready) {
-      h = `<h3>فعّل المساعد بمفتاحك</h3>
-        <p>المساعد ينفّذ المونتاج بدلاً منك حين تكتب له ما تريد. يلزمه مفتاح من أحد مزوّدي الذكاء الاصطناعي، وGoogle Gemini يعطيه مجاناً.</p>
+      h = `<h3>${tt('فعّل المساعد بمفتاحك', 'Enable the assistant with your key')}</h3>
+        <p>${tt('المساعد ينفّذ المونتاج بدلاً منك حين تكتب له ما تريد. يلزمه مفتاح من أحد مزوّدي الذكاء الاصطناعي، وGoogle Gemini يعطيه مجاناً.', 'The assistant does the editing for you when you write what you want. It needs a key from an AI provider; Google Gemini gives one for free.')}</p>
         ${keyForm()}
-        <p class="key-note">${cfg.error && !/لم يُضبط/.test(cfg.error) ? `<span class="why">${esc(cfg.error)}</span><br>` : ''}أو عدّل ملف <code>${esc(cfg.envFile)}</code> بنفسك ثم <button type="button" class="linkish" data-retry>تحقّق من جديد</button>.</p>`;
+        <p class="key-note">${cfg.error && cfg.code !== 'no_key' ? `<span class="why">${esc(cfg.error)}</span><br>` : ''}${tt('أو عدّل ملف', 'Or edit')} <code>${esc(cfg.envFile)}</code> ${tt('بنفسك ثم', 'yourself, then')} <button type="button" class="linkish" data-retry>${tt('تحقّق من جديد', 'check again')}</button>.</p>`;
     } else {
-      h = `<h3>أهلاً، أنا مساعد المونتاج</h3>
-        <p>ارفع صورك ومقاطعك (بزر المشبك أو بالسحب والإفلات) واكتب ما تريد، وأنا أنفّذه على الخط الزمني مباشرة.</p>
-        <div class="sugs">${SUGGESTIONS.map(s => `<button class="sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
+      h = `<h3>${tt('أهلاً، أنا مساعد المونتاج', 'Hi, I am your editing assistant')}</h3>
+        <p>${tt('ارفع صورك ومقاطعك (بزر المشبك أو بالسحب والإفلات) واكتب ما تريد، وأنا أنفّذه على الخط الزمني مباشرة.', 'Add your photos and clips (with the paperclip button or by drag and drop) and write what you want; I will do it on the timeline right away.')}</p>
+        <div class="sugs">${SUGGESTIONS().map(s => `<button class="sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
     }
     cur.node.prepend(div('chat-intro', h));
   }
@@ -282,7 +286,7 @@ Project model
     if (!o) return;
     try { localStorage.setItem(PICK_KEY, JSON.stringify({ provider: o.provider, model: o.model })); } catch (e) { /* وضع خاص */ }
     renderPick();
-    S.toast && S.toast(`المساعد يعمل الآن بـ ${o.label} — ${o.model}`);
+    S.toast && S.toast(tt(`المساعد يعمل الآن بـ ${o.label} — ${o.model}`, `The assistant now runs on ${o.label} — ${o.model}`));
   });
 
   /* ================= المحادثات ================= */
@@ -320,8 +324,8 @@ Project model
 
   function when(at) {
     const d = new Date(at), now = new Date();
-    const time = d.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
-    return d.toDateString() === now.toDateString() ? time : d.toLocaleDateString('ar', { day: 'numeric', month: 'short' }) + ' · ' + time;
+    const time = d.toLocaleTimeString(I18N.lang, { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === now.toDateString() ? time : d.toLocaleDateString(I18N.lang, { day: 'numeric', month: 'short' }) + ' · ' + time;
   }
 
   const listed = () => chats.filter(c => c === cur || !isEmpty(c)).sort((a, b) => b.at - a.at);
@@ -329,10 +333,10 @@ Project model
   function renderHist() {
     const list = listed();
     el.histMenu.innerHTML = list.length ? list.map(c => `<button type="button" class="menu-item${c === cur ? ' on' : ''}" role="menuitem" data-chat="${c.id}">
-        <span class="txt"><b>${esc(c.title || (c.mcp ? 'عميل MCP' : 'محادثة جديدة'))}</b><small>${esc(when(c.at))}</small></span>
+        <span class="txt"><b>${esc(c.title || (c.mcp ? tt('عميل MCP', 'MCP client') : tt('محادثة جديدة', 'New chat')))}</b><small>${esc(when(c.at))}</small></span>
         ${c.mcp ? '<i class="tag">MCP</i>' : ''}${c.unread && c !== cur ? '<i class="dot"></i>' : ''}
-        <span class="del" data-del="${c.id}" title="حذف المحادثة"><svg class="ic"><use href="#i-close"/></svg></span>
-      </button>`).join('') : '<div class="empty">لا محادثات بعد</div>';
+        <span class="del" data-del="${c.id}" title="${tt('حذف المحادثة', 'Delete chat')}"><svg class="ic"><use href="#i-close"/></svg></span>
+      </button>`).join('') : `<div class="empty">${tt('لا محادثات بعد', 'No chats yet')}</div>`;
   }
 
   function setHist(open) {
@@ -384,7 +388,7 @@ Project model
   function mcpChat() {
     let c = chats.find(x => x.mcp && x.live);
     if (!c || Date.now() - c.at > MCP_IDLE) {
-      c = newChat({ mcp: true, title: 'عميل MCP · ' + new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) });
+      c = newChat({ mcp: true, title: tt('عميل MCP · ', 'MCP client · ') + new Date().toLocaleTimeString(I18N.lang, { hour: '2-digit', minute: '2-digit' }) });
       c.live = true;
     }
     c.at = Date.now();
@@ -397,7 +401,7 @@ Project model
   function updateFresh() {
     const n = busy ? 0 : freshMedia().length;
     el.fresh.hidden = !n;
-    if (n) el.fresh.textContent = n === 1 ? 'ملف جديد سيطّلع عليه المساعد مع رسالتك' : `${n} ملفات جديدة سيطّلع عليها المساعد مع رسالتك`;
+    if (n) el.fresh.textContent = n === 1 ? tt('ملف جديد سيطّلع عليه المساعد مع رسالتك', 'One new file the assistant will see with your message') : tt(`${n} ملفات جديدة سيطّلع عليها المساعد مع رسالتك`, `${n} new files the assistant will see with your message`);
   }
 
   /** نص المستخدم + تعريف بالملفات الجديدة (ومعاينات مصغّرة إن كانت الرؤية مفعّلة) */
@@ -440,8 +444,8 @@ Project model
   /* ================= حلقة المحادثة ================= */
   async function api(body) {
     const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
-    const d = await r.json().catch(() => ({ error: 'رد غير مفهوم من الخادم المحلي' }));
-    if (!r.ok || d.error) throw Object.assign(new Error(d.error || 'حدث خطأ'), { detail: d.detail });
+    const d = await r.json().catch(() => ({ error: tt('رد غير مفهوم من الخادم المحلي', 'Unreadable reply from the local server') }));
+    if (!r.ok || d.error) throw Object.assign(new Error(d.error || tt('حدث خطأ', 'Something went wrong')), { detail: d.detail });
     return d;
   }
   const textOf = c => (typeof c === 'string' ? c : Array.isArray(c) ? c.map(p => p.text || '').join('') : '').trim();
@@ -467,7 +471,7 @@ Project model
 
       const text = textOf(m.content);
       if (text) { addBot(text); box = null; }
-      if (!calls.length) { if (!text) addBot('تم.'); return; }
+      if (!calls.length) { if (!text) addBot(tt('تم.', 'Done.')); return; }
 
       if (!box) box = add(div('chat-steps'));
       const images = [];
@@ -486,13 +490,13 @@ Project model
       }
       if (ctl.signal.aborted) throw aborted();
     }
-    addNote('توقّف المساعد بعد عدد كبير من الخطوات. اكتب «أكمل» إن أردت المتابعة.');
+    addNote(tt('توقّف المساعد بعد عدد كبير من الخطوات. اكتب «أكمل» إن أردت المتابعة.', 'The assistant stopped after many steps. Write “continue” to go on.'));
   }
 
   function setBusy(b) {
     busy = b;
     el.sendIcon.setAttribute('href', b ? '#i-stop' : '#i-send');
-    el.send.title = b ? 'إيقاف المساعد' : 'إرسال (Enter)';
+    el.send.title = b ? tt('إيقاف المساعد', 'Stop the assistant') : tt('إرسال (Enter)', 'Send (Enter)');
     updateFresh();
   }
 
@@ -517,7 +521,7 @@ Project model
       bubble = addUser(text, u.media);
       await converse();
     } catch (e) {
-      if (e.name === 'AbortError') addNote('أُوقف المساعد.');
+      if (e.name === 'AbortError') addNote(tt('أُوقف المساعد.', 'Assistant stopped.'));
       else { console.error(e); addError(e.message || String(e), e.detail); }
       // لم يصل أي رد: نتراجع عن الرسالة ليعيد المستخدم إرسالها كما هي (مع ملفاتها)
       if (u && msgs.length === mark + 1) {
@@ -553,7 +557,7 @@ Project model
       if (!box || !box.classList.contains('mcp')) {
         const intro = chat.node.querySelector('.chat-intro');
         if (intro) intro.remove();
-        box = addTo(chat, div('chat-steps mcp', '<b>عميل MCP خارجي</b>'));
+        box = addTo(chat, div('chat-steps mcp', `<b>${tt('عميل MCP خارجي', 'External MCP client')}</b>`));
       }
       const row = addStep(box, label(call.name, call.args));
       const result = await Agent.run(call.name, call.args, { commit: true });
@@ -595,7 +599,7 @@ Project model
     const item = e.target.closest('[data-chat]');
     if (!item) return;
     const c = chats.find(x => x.id === item.dataset.chat);
-    if (c && c !== cur && busy) return void (S.toast && S.toast('انتظر حتى ينهي المساعد عمله أو أوقفه'));
+    if (c && c !== cur && busy) return void (S.toast && S.toast(tt('انتظر حتى ينهي المساعد عمله أو أوقفه', 'Wait for the assistant to finish, or stop it')));
     setHist(false);
     if (c) show(c);
   });
@@ -699,6 +703,9 @@ Project model
   show(newChat());
   initResize();
   window.addEventListener('pagehide', saveChats);
+  // تبديل اللغة: شاشة البداية وزر الإرسال وقائمة المحادثات تُرسم من جديد (الرسائل السابقة تبقى كما كُتبت)
+  // الإعدادات تُقرأ من جديد لأن رسائل الخادم وتسمياته تأتي بلغة الواجهة
+  I18N.onChange(() => { renderIntro(); setBusy(busy); if (!el.histMenu.hidden) renderHist(); loadConfig(); });
 
   // اللوحة مفتوحة على الشاشات الواسعة ما لم يغلقها المستخدم سابقاً
   let pref = null;

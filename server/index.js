@@ -9,7 +9,7 @@
 
 const http = require('http'), fs = require('fs'), { spawn } = require('child_process');
 const { PORT, ENV_FILE, ENV_TEMPLATE, provider, publicConfig } = require('./config');
-const { json, readBody, trusted, serveStatic } = require('./http');
+const { langOf, json, readBody, trusted, serveStatic } = require('./http');
 const { chat } = require('./chat');
 const { openBridge, resolveResult, serveMedia } = require('./bridge');
 const { mcp } = require('./mcp');
@@ -37,6 +37,7 @@ const server = http.createServer(async (req, res) => {
   let p;
   try { p = decodeURIComponent(req.url.split('?')[0]); } catch (e) { res.writeHead(400); return res.end(); }
   const api = p.startsWith('/api/') || p === '/mcp';
+  res.lang = langOf(req); // لغة رسائل الخطأ (json يختار error_en بالإنجليزية)
   if (!api) return serveStatic(req, res, p);
   if (!trusted(req)) return json(res, 403, { error: 'forbidden' });
   try {
@@ -59,7 +60,7 @@ const server = http.createServer(async (req, res) => {
     }
     json(res, 404, { error: 'not found' });
   } catch (e) {
-    json(res, 500, { error: e.message || String(e) });
+    json(res, 500, { error: e.message || String(e), error_en: e.en });
   }
 });
 

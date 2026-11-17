@@ -50,7 +50,7 @@ const PROVIDERS = {
   anthropic:  { label: 'Anthropic Claude', keys: ['ANTHROPIC_API_KEY'], base: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5-5' },
   openrouter: { label: 'OpenRouter', keys: ['OPENROUTER_API_KEY'], base: 'https://openrouter.ai/api/v1', model: 'openrouter/auto' },
   ollama:     { label: 'Ollama', keys: [], base: 'http://localhost:11434/v1', model: '' },
-  custom:     { label: 'مزوّد مخصّص', keys: ['AI_API_KEY'], base: '', model: '' },
+  custom:     { label: 'مزوّد مخصّص', label_en: 'Custom provider', keys: ['AI_API_KEY'], base: '', model: '' },
 };
 
 const list = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -59,7 +59,7 @@ const keyOf = (env, p) => p.keys.map(env).find(Boolean) || '';
 /** المزوّد الافتراضي: AI_PROVIDER، وإلا أول مزوّد له مفتاح. '' إن لم يوجد، أو { error } لاسم غير معروف */
 function defaultId(env) {
   const id = env('AI_PROVIDER').toLowerCase();
-  if (id && !PROVIDERS[id]) return { error: `المزوّد «${id}» غير معروف. القيم المتاحة: ${Object.keys(PROVIDERS).join(' ، ')}` };
+  if (id && !PROVIDERS[id]) return { error: `المزوّد «${id}» غير معروف. القيم المتاحة: ${Object.keys(PROVIDERS).join(' ، ')}`, error_en: `Unknown provider “${id}”. Available values: ${Object.keys(PROVIDERS).join(', ')}` };
   return id || Object.keys(PROVIDERS).find(k => keyOf(env, PROVIDERS[k])) || (env('AI_BASE_URL') ? 'custom' : '');
 }
 
@@ -77,10 +77,10 @@ function resolve(env, id, model, isDefault) {
   const key = keyOf(env, p) || (shared ? env('AI_API_KEY') : '');
   const base = ((shared && env('AI_BASE_URL')) || p.base).replace(/\/+$/, '');
   model = model || modelsOf(env, id, isDefault)[0] || '';
-  if (!key && id !== 'ollama' && id !== 'custom') return { error: `المفتاح ${p.keys[0]} فارغ في ملف .env` };
-  if (!base) return { error: 'حدّد AI_BASE_URL في ملف .env' };
-  if (!model) return { error: 'حدّد اسم النموذج AI_MODEL في ملف .env' };
-  return { id, label: p.label, key, base, model, vision: !/^(off|false|0|no)$/i.test(env('AI_VISION')) };
+  if (!key && id !== 'ollama' && id !== 'custom') return { error: `المفتاح ${p.keys[0]} فارغ في ملف .env`, error_en: `The key ${p.keys[0]} is empty in the .env file` };
+  if (!base) return { error: 'حدّد AI_BASE_URL في ملف .env', error_en: 'Set AI_BASE_URL in the .env file' };
+  if (!model) return { error: 'حدّد اسم النموذج AI_MODEL في ملف .env', error_en: 'Set the model name AI_MODEL in the .env file' };
+  return { id, label: p.label, label_en: p.label_en || p.label, key, base, model, vision: !/^(off|false|0|no)$/i.test(env('AI_VISION')) };
 }
 
 /**
@@ -96,7 +96,7 @@ function choices(env = readEnv()) {
     // Ollama والمخصّص لا مفتاح لهما: يظهران حين يكونان الافتراضي، أو Ollama حين يُسمّى له نموذج
     const usable = isDefault || (id === 'ollama' ? !!env('OLLAMA_MODEL') : id !== 'custom' && !!keyOf(env, PROVIDERS[id]));
     if (!usable || resolve(env, id, null, isDefault).error) continue;
-    modelsOf(env, id, isDefault).forEach((model, i) => out.push({ provider: id, label: PROVIDERS[id].label, model, default: isDefault && i === 0 }));
+    modelsOf(env, id, isDefault).forEach((model, i) => out.push({ provider: id, label: PROVIDERS[id].label, label_en: PROVIDERS[id].label_en || PROVIDERS[id].label, model, default: isDefault && i === 0 }));
   }
   return out;
 }
@@ -108,7 +108,7 @@ function choices(env = readEnv()) {
 function provider(env = readEnv(), choice = null) {
   const id = defaultId(env);
   if (id && id.error) return id;
-  if (!id) return { error: 'لم يُضبط أي مفتاح بعد' };
+  if (!id) return { error: 'لم يُضبط أي مفتاح بعد', error_en: 'No key has been set yet', code: 'no_key' };
   if (choice && choice.provider) {
     const c = choices(env).find(o => o.provider === choice.provider && o.model === choice.model);
     if (c) return resolve(env, c.provider, c.model, c.provider === id);
@@ -122,32 +122,32 @@ const STT_PROVIDERS = {
   openai: { label: 'OpenAI Whisper', kind: 'whisper', keys: ['OPENAI_API_KEY'], base: 'https://api.openai.com/v1', model: 'whisper-1' },
   groq:   { label: 'Groq Whisper', kind: 'whisper', keys: ['GROQ_API_KEY'], base: 'https://api.groq.com/openai/v1', model: 'whisper-large-v3' },
   gemini: { label: 'Google Gemini', kind: 'chat', keys: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'], base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.6-flash' },
-  custom: { label: 'خادم تفريغ مخصّص', kind: 'whisper', keys: ['STT_API_KEY'], base: '', model: 'whisper-1' },
+  custom: { label: 'خادم تفريغ مخصّص', label_en: 'Custom transcription server', kind: 'whisper', keys: ['STT_API_KEY'], base: '', model: 'whisper-1' },
 };
 
 /** خدمة التفريغ الفعّالة بحسب .env، أو { error } برسالة تُعرض للمستخدم */
 function sttProvider(env = readEnv()) {
   const keyOf = p => p.keys.map(env).find(Boolean) || '';
   let id = env('STT_PROVIDER').toLowerCase();
-  if (id && !STT_PROVIDERS[id]) return { error: `خدمة التفريغ «${id}» غير معروفة. القيم المتاحة: ${Object.keys(STT_PROVIDERS).join(' ، ')}` };
+  if (id && !STT_PROVIDERS[id]) return { error: `خدمة التفريغ «${id}» غير معروفة. القيم المتاحة: ${Object.keys(STT_PROVIDERS).join(' ، ')}`, error_en: `Unknown transcription service “${id}”. Available values: ${Object.keys(STT_PROVIDERS).join(', ')}` };
   // عنوان مخصّص (whisper.cpp أو faster-whisper على جهازك) يتقدّم على المفاتيح: الصوت لا يغادر الجهاز
   if (!id) id = env('STT_BASE_URL') ? 'custom' : Object.keys(STT_PROVIDERS).find(k => keyOf(STT_PROVIDERS[k])) || '';
-  if (!id) return { error: 'الترجمة التلقائية تحتاج مفتاح OpenAI أو Groq أو Gemini في ملف .env، أو خادم Whisper محلياً عبر STT_BASE_URL' };
+  if (!id) return { error: 'الترجمة التلقائية تحتاج مفتاح OpenAI أو Groq أو Gemini في ملف .env، أو خادم Whisper محلياً عبر STT_BASE_URL', error_en: 'Auto captions need an OpenAI, Groq or Gemini key in the .env file, or a local Whisper server set in STT_BASE_URL', code: 'no_key' };
   const p = STT_PROVIDERS[id];
   const key = keyOf(p) || env('STT_API_KEY');
   const base = (env('STT_BASE_URL') || p.base).replace(/\/+$/, '');
-  if (!key && id !== 'custom') return { error: `المفتاح ${p.keys[0]} فارغ في ملف .env` };
-  if (!base) return { error: 'حدّد STT_BASE_URL في ملف .env' };
-  return { id, label: p.label, kind: p.kind, key, base, model: env('STT_MODEL') || p.model };
+  if (!key && id !== 'custom') return { error: `المفتاح ${p.keys[0]} فارغ في ملف .env`, error_en: `The key ${p.keys[0]} is empty in the .env file` };
+  if (!base) return { error: 'حدّد STT_BASE_URL في ملف .env', error_en: 'Set STT_BASE_URL in the .env file' };
+  return { id, label: p.label, label_en: p.label_en || p.label, kind: p.kind, key, base, model: env('STT_MODEL') || p.model };
 }
 
 /** ما يُسمح للمتصفح بمعرفته عن الإعدادات — بلا المفتاح أبداً */
 function publicConfig() {
   const p = provider(), s = sttProvider();
-  const stt = s.error ? { ready: false, error: s.error } : { ready: true, provider: s.id, label: s.label, model: s.model, words: s.kind === 'whisper', local: /\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(s.base + '/') };
+  const stt = s.error ? { ready: false, error: s.error, error_en: s.error_en, code: s.code } : { ready: true, provider: s.id, label: s.label, label_en: s.label_en, model: s.model, words: s.kind === 'whisper', local: /\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(s.base + '/') };
   const base = { envFile: '.env', mcp: `http://localhost:${PORT}/mcp`, stt };
-  return p.error ? { ...base, ready: false, error: p.error }
-    : { ...base, ready: true, provider: p.id, label: p.label, model: p.model, vision: p.vision, choices: choices() };
+  return p.error ? { ...base, ready: false, error: p.error, error_en: p.error_en, code: p.code }
+    : { ...base, ready: true, provider: p.id, label: p.label, label_en: p.label_en, model: p.model, vision: p.vision, choices: choices() };
 }
 
 module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, REF_DIRS, RAW_DIRS, VERSION, PROVIDERS, STT_PROVIDERS, parseEnv, readEnv, provider, choices, sttProvider, publicConfig };

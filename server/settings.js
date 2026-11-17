@@ -38,11 +38,11 @@ function setEnvValues(txt, vals) {
 
 async function saveKey(req, res) {
   let body;
-  try { body = JSON.parse(await readBody(req, 10e3)); } catch (e) { return json(res, 400, { error: 'طلب غير صالح' }); }
+  try { body = JSON.parse(await readBody(req, 10e3)); } catch (e) { return json(res, 400, { error: 'طلب غير صالح', error_en: 'Invalid request' }); }
   const target = KEY_TARGETS[body && body.provider];
-  if (!target) return json(res, 400, { error: 'اختر مزوّداً من القائمة' });
+  if (!target) return json(res, 400, { error: 'اختر مزوّداً من القائمة', error_en: 'Choose a provider from the list' });
   const key = typeof body.key === 'string' ? body.key.trim() : '';
-  if (!KEY_RE.test(key)) return json(res, 400, { error: 'المفتاح غير صالح: انسخه كاملاً بلا مسافات' });
+  if (!KEY_RE.test(key)) return json(res, 400, { error: 'المفتاح غير صالح: انسخه كاملاً بلا مسافات', error_en: 'Invalid key: copy all of it, with no spaces' });
 
   let txt = '';
   try { txt = fs.readFileSync(ENV_FILE, 'utf8'); } catch (e) {
@@ -64,7 +64,7 @@ async function saveKey(req, res) {
     fs.renameSync(tmp, ENV_FILE);
   } catch (e) {
     try { fs.unlinkSync(tmp); } catch (e2) { /* لم يُنشأ */ }
-    return json(res, 500, { error: 'تعذّر حفظ ملف .env — تأكد من أن مجلد البرنامج قابل للكتابة' });
+    return json(res, 500, { error: 'تعذّر حفظ ملف .env — تأكد من أن مجلد البرنامج قابل للكتابة', error_en: 'Could not save the .env file — make sure the app folder is writable' });
   }
   json(res, 200, { ok: true, provider: body.provider });
 }

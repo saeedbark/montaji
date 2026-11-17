@@ -45,7 +45,7 @@ const Exporter = (() => {
         if (r.supported) return { config, mux: tr.mux };
       } catch (e) { /* جرّب التالي */ }
     }
-    throw new Error('هذه الدقة غير مدعومة على جهازك — جرّب دقة أقل.');
+    throw new Error(tt('هذه الدقة غير مدعومة على جهازك — جرّب دقة أقل.', 'This resolution is not supported on your device — try a lower one.'));
   }
 
   async function pickAudioConfig() {
@@ -143,16 +143,16 @@ const Exporter = (() => {
   ]);
 
   async function run({ res, fps, quality, signal, onProgress }) {
-    if (!supported()) throw new Error('متصفحك لا يدعم التصدير. استخدم Chrome أو Edge بإصدار حديث.');
+    if (!supported()) throw new Error(tt('متصفحك لا يدعم التصدير. استخدم Chrome أو Edge بإصدار حديث.', 'Your browser cannot export. Use a recent Chrome or Edge.'));
     const D = layout();
-    if (D <= 0) throw new Error('المشروع فارغ.');
+    if (D <= 0) throw new Error(tt('المشروع فارغ.', 'The project is empty.'));
     const [W, H] = outputSize(state.ratio, res);
     const bitrate = bitrateFor(W, H, fps, quality);
 
-    onProgress(0, 'جارٍ التحضير…');
+    onProgress(0, tt('جارٍ التحضير…', 'Preparing…'));
     const vcfg = await pickVideoConfig(W, H, fps, bitrate);
 
-    onProgress(0, 'جارٍ تجهيز الصوت…');
+    onProgress(0, tt('جارٍ تجهيز الصوت…', 'Preparing the audio…'));
     const mix = await mixAudio(D);
     const acfg = mix ? await pickAudioConfig() : null;
     if (signal.aborted) throw abortError();
@@ -197,7 +197,7 @@ const Exporter = (() => {
         if (i % 4 === 0) {
           const el = (performance.now() - t0) / 1000;
           const left = i > 8 ? el / i * (N - i) : null;
-          onProgress(0.94 * i / N, 'جارٍ تصدير الإطارات…', left);
+          onProgress(0.94 * i / N, tt('جارٍ تصدير الإطارات…', 'Exporting frames…'), left);
           await breathe();
         }
       }
@@ -205,7 +205,7 @@ const Exporter = (() => {
       if (failure) throw failure;
 
       if (mix && acfg) {
-        onProgress(0.95, 'جارٍ ترميز الصوت…');
+        onProgress(0.95, tt('جارٍ ترميز الصوت…', 'Encoding the audio…'));
         const aenc = new AudioEncoder({
           output: (chunk, meta) => { try { muxer.addAudioChunk(chunk, meta); } catch (e) { fail(e); } },
           error: fail,
@@ -231,10 +231,10 @@ const Exporter = (() => {
         if (failure) throw failure;
       }
 
-      onProgress(0.99, 'جارٍ إنهاء الملف…');
+      onProgress(0.99, tt('جارٍ إنهاء الملف…', 'Finishing the file…'));
       muxer.finalize();
       const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
-      onProgress(1, 'تم');
+      onProgress(1, tt('تم', 'Done'));
       return { blob, W, H, fps, hasAudio: !!(mix && acfg), audioDropped: !!(mix && !acfg), codec: vcfg.mux };
     } finally {
       try { if (venc.state !== 'closed') venc.close(); } catch (e) {}
