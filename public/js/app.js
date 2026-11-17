@@ -31,6 +31,8 @@
   sheetMode.addEventListener('change', () => setSheet(false));
   let dirty = true;
   let lastTs = 0;
+  // الخطوط المرفقة تُحمَّل بعد أول رسم: أعد رسم المعاينة حين تجهز
+  window.addEventListener('montaji-fonts', () => { dirty = true; });
 
   /* ================= إشعارات ================= */
   function toast(msg, kind = '') {
@@ -1215,7 +1217,7 @@
             <button class="btn small danger" data-act="del"><svg class="ic"><use href="#i-trash"/></svg>حذف</button>
           </div>`
         + `<h3>نمط الترجمة <small>(لكل الكتل)</small></h3>`
-        + `<label class="row"><span>الخط</span><select data-k="cs.font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === st.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
+        + `<label class="row"><span>الخط</span><select data-k="cs.font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}" style='font-family:${f.css}'${k === st.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
         + slider('cs.size', 'الحجم', 2, 20, 0.5, +(st.size * 100).toFixed(1), '', 0.01)
         + slider('cs.y', 'الموضع', 5, 95, 1, Math.round(st.y * 100), '%', 0.01)
         + `<label class="row"><span>لون النص</span><input type="color" data-k="cs.color" value="${st.color}"><span></span></label>`
@@ -1266,7 +1268,7 @@
         + `<textarea data-k="text" rows="3" dir="auto">${esc(obj.text)}</textarea>`
         + kslider(obj, 'text', 'size', 'الحجم', 3, 22, 0.5, '', 0.01)
         + slider('dur', 'المدة', 0.5, 20, 0.1, +Math.min(20, obj.dur).toFixed(1), 'ث')
-        + `<label class="row"><span>الخط</span><select data-k="font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === obj.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
+        + `<label class="row"><span>الخط</span><select data-k="font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}" style='font-family:${f.css}'${k === obj.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
         + `<label class="row"><span>اللون</span><input type="color" data-k="color" value="${obj.color}"><span></span></label>`
         + check('bold', 'خط عريض', obj.bold)
         + check('stroke', 'حدّ خارجي', obj.stroke, `<input type="color" data-k="strokeColor" value="${obj.strokeColor}">`)

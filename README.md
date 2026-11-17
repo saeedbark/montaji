@@ -302,6 +302,7 @@ montaji/
 │  │  ├─ agent.js          تنفيذ الأدوات على المشروع
 │  │  └─ chat.js           لوحة المساعد وحلقة المحادثة
 │  ├─ vendor/              مكتبة mp4-muxer (رخصة MIT)
+│  ├─ fonts/               خطوط عربية مرفقة (رخصة OFL، نصوصها في fonts/licenses)
 │  └─ media/               فيديو الشرح
 ├─ skills/montaji-remix/   مهارة للوكلاء: ريمكس مقطع مرجعي بوسائط المستخدم
 ├─ .claude-plugin/         تعريف إضافة Claude Code (تحمل المهارة والاتصال بخادم MCP)
@@ -329,4 +330,4 @@ npm test    # يشغّل الاختبارات، بلا أي تثبيت
 
 ## الرخصة
 
-[MIT](LICENSE). يتضمن المشروع مكتبة [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) برخصة MIT ([نص الرخصة](public/vendor/mp4-muxer.LICENSE.txt)).
+[MIT](LICENSE). يتضمن المشروع مكتبة [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) برخصة MIT ([نص الرخصة](public/vendor/mp4-muxer.LICENSE.txt))، وخطوطاً عربية من Google Fonts (Cairo وTajawal وAlmarai وChanga وReem Kufi وEl Messiri وAmiri وLalezar) برخصة SIL Open Font License 1.1 ([التفاصيل ونصوص الرخص](public/fonts/README.md)).

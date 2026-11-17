@@ -165,3 +165,26 @@ test('أسماء الملفات تُنقّى من المسارات والرمو�
   assert.equal(PT.fileName('a/b\\c.'), 'a-b-c.montaji');
   assert.equal(PT.fileName(''), 'مشروع.montaji');
 });
+
+test('قائمة الخطوط واحدة في أدوات المساعد وفي فحص ملف المشروع وفي ملفات الخطوط المرفقة', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const TOOLS = require('../public/js/tools.js');
+  const addText = TOOLS.find(t => t.name === 'add_text');
+  const toolFonts = addText.input_schema ? addText.input_schema.properties.font.enum : addText.parameters.properties.font.enum;
+  assert.deepEqual(toolFonts, PT.ENUMS.fonts);
+  // كل خط مرفق له ملف في public/fonts ونص رخصته في public/fonts/licenses، وتعريفه في render.js يشير إليهما
+  const renderSrc = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'render.js'), 'utf8');
+  const fontsDir = path.join(__dirname, '..', 'public', 'fonts');
+  const bundled = [...renderSrc.matchAll(/^\s+(\w+):\s+\{[^}]*file: '(\w+)'/gm)];
+  assert.ok(bundled.length >= 8, 'لم يُعثر على الخطوط المرفقة في render.js');
+  for (const [, key, file] of bundled) {
+    assert.ok(PT.ENUMS.fonts.includes(key), key);
+    assert.ok(fs.existsSync(path.join(fontsDir, `${file}-400.ttf`)), file);
+    const license = path.join(fontsDir, 'licenses', `${file}-OFL.txt`);
+    assert.ok(fs.existsSync(license), `${file}: نص الرخصة مفقود — الخط لا يُرفق بلا رخصته`);
+    assert.match(fs.readFileSync(license, 'utf8'), /^Copyright .+[\s\S]*SIL OPEN FONT LICENSE Version 1\.1/, file);
+  }
+  const p = PT.normalize({ app: 'montaji', version: 1, texts: [{ id: 't1', text: 'عنوان', font: 'cairo' }], captions: { items: [], style: { font: 'lalezar' } } });
+  assert.equal(p.texts[0].font, 'cairo', 'الخط المرفق يبقى عند فتح الملف');
+  assert.equal(p.captions.style.font, 'lalezar');
+});

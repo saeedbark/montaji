@@ -226,7 +226,7 @@ const ProjectTools = (() => {
     fit: ['blur', 'contain', 'cover'],
     anim: ['none', 'fade', 'rise', 'pop'],
     filters: ['none', 'vivid', 'warm', 'cool', 'bw', 'vintage', 'soft'],
-    fonts: ['segoe', 'tahoma', 'arial', 'times', 'courier', 'elegant'],
+    fonts: ['segoe', 'tahoma', 'arial', 'times', 'courier', 'elegant', 'cairo', 'tajawal', 'almarai', 'changa', 'reemkufi', 'elmessiri', 'amiri', 'lalezar'],
     effects: ['zoomBlur', 'whip', 'flash', 'shake', 'rgb', 'bw', 'sharp', 'vignette', 'darken', 'zoomTo', 'spotlight', 'shine', 'glow', 'sparkle', 'areaFlash', 'backlight'],
   };
   const TEXT_DEFAULTS = {

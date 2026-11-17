@@ -19,7 +19,28 @@ const Render = (() => {
     times:   { label: 'تايمز',     css: '"Times New Roman", "Traditional Arabic", serif' },
     courier: { label: 'كوريير',    css: '"Courier New", monospace' },
     elegant: { label: 'أنيق مائل', css: 'Didot, "Bodoni MT", Georgia, "Times New Roman", serif', italic: true },
+    // خطوط عربية مرفقة مع التطبيق في public/fonts (رخصة OFL)، فتظهر في المعاينة والتصدير على أي جهاز
+    cairo:     { label: 'القاهرة',      css: '"Cairo", Tahoma, sans-serif',        file: 'cairo' },
+    tajawal:   { label: 'تجوّل',        css: '"Tajawal", Tahoma, sans-serif',      file: 'tajawal' },
+    almarai:   { label: 'المراعي',      css: '"Almarai", Tahoma, sans-serif',      file: 'almarai' },
+    changa:    { label: 'تشانغا تقني',  css: '"Changa", Tahoma, sans-serif',       file: 'changa' },
+    reemkufi:  { label: 'ريم كوفي',     css: '"Reem Kufi", Tahoma, sans-serif',    file: 'reemkufi' },
+    elmessiri: { label: 'المسيري',      css: '"El Messiri", Tahoma, sans-serif',   file: 'elmessiri' },
+    amiri:     { label: 'أميري نسخ',    css: '"Amiri", "Times New Roman", serif',  file: 'amiri' },
+    lalezar:   { label: 'لاله‌زار عريض', css: '"Lalezar", Tahoma, sans-serif',      file: 'lalezar', weights: [400] },
   };
+
+  /*
+   * تحميل الخطوط المرفقة. اللوحة (Canvas) لا تنتظر الخط: إن رُسم النص قبل تحميله ظهر بالخط البديل،
+   * لذلك تُحمَّل كلها عند فتح الصفحة، ويُعاد رسم المعاينة حين تجهز، وينتظرها التصدير (fontsReady).
+   */
+  const fontsReady = (typeof FontFace === 'undefined' || typeof document === 'undefined') ? Promise.resolve()
+    : Promise.all(Object.values(FONTS).filter(f => f.file).flatMap(f => (f.weights || [400, 700]).map(w => {
+        const family = f.css.match(/^"([^"]+)"/)[1];
+        return new FontFace(family, `url(fonts/${f.file}-${w}.ttf)`, { weight: String(w) }).load()
+          .then(face => document.fonts.add(face))
+          .catch(() => console.warn('تعذّر تحميل الخط', f.file, w));
+      }))).then(() => window.dispatchEvent(new Event('montaji-fonts')));
 
   /*
    * التأثيرات: طبقة فوق الصورة المركّبة (قبل النصوص)، مثل مسار التأثيرات في CapCut.
@@ -819,5 +840,5 @@ const Render = (() => {
     if (opts.selOverlay) drawOverlayHandle(ctx, state.overlays.find(o => o.id === opts.selOverlay), W, H);
   }
 
-  return { FILTERS, FONTS, EFFECTS, BLENDS, MASKS, CAPTION_MODES, filterCss, frame, unzoom, overlayHit, overlaysInOrder };
+  return { FILTERS, FONTS, fontsReady, EFFECTS, BLENDS, MASKS, CAPTION_MODES, filterCss, frame, unzoom, overlayHit, overlaysInOrder };
 })();

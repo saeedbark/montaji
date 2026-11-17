@@ -10,13 +10,20 @@ const MONTAJI_TOOLS = (() => {
   const ids = description => ({ type: 'array', items: { type: 'string' }, description });
   const obj = (properties, required = []) => ({ type: 'object', properties, required });
 
+  // نفس قائمة Render.FONTS و ENUMS.fonts في projecttools.js (يتحقق منها اختبار)
+  const FONTS = ['segoe', 'tahoma', 'arial', 'times', 'courier', 'elegant', 'cairo', 'tajawal', 'almarai', 'changa', 'reemkufi', 'elmessiri', 'amiri', 'lalezar'];
+  const FONT_HELP = 'Font family. Arabic fonts bundled with the app: cairo (modern clean sans, the best all-round choice for titles and captions), '
+    + 'tajawal (light and airy), almarai (rounded, friendly), changa (geometric, tech and gaming), reemkufi (kufi display, headlines), '
+    + 'elmessiri (elegant, weddings and luxury), amiri (classic naskh, religious and emotional), lalezar (heavy display, one weight, big punchy titles). '
+    + 'System fonts: segoe, tahoma, arial, times, courier; elegant is a thin italic serif for luxury ads (Latin text).';
+
   const textStyle = {
     position: pick(['top', 'middle', 'bottom'], 'Quick vertical placement, horizontally centered.'),
     x: num('Horizontal center, 0 (left) to 1 (right). Overrides position.'),
     y: num('Vertical center, 0 (top) to 1 (bottom). Overrides position.'),
     size: num('Font size as a percent of frame HEIGHT, 3 to 22, so it depends on the ratio. Titles: ~10 on 16:9, ~8 on 1:1, ~7 on 4:5, ~5.5 on 9:16. Captions: ~6 on 16:9, ~4.5 on 1:1, ~4 on 4:5, ~3.5 on 9:16.'),
     color: str('Text color as #rrggbb.'),
-    font: pick(['segoe', 'tahoma', 'arial', 'times', 'courier', 'elegant'], 'Font family. elegant is a thin italic serif for luxury and product ads (Latin text).'),
+    font: pick(FONTS, FONT_HELP),
     bold: bool('Bold weight.'),
     stroke: bool('Draw an outline around the letters.'),
     stroke_color: str('Outline color as #rrggbb.'),
@@ -49,7 +56,7 @@ const MONTAJI_TOOLS = (() => {
   };
 
   const captionStyle = {
-    font: pick(['segoe', 'tahoma', 'arial', 'times', 'courier', 'elegant'], 'Caption font.'),
+    font: pick(FONTS, 'Caption font. ' + FONT_HELP),
     size: num('Caption font size as a percent of frame height, 2 to 20. Default 6 (about 4 on 9:16).'),
     y: num('Vertical center of the captions, 0.05 (top) to 0.95 (bottom). Default 0.82.'),
     color: str('Caption text color as #rrggbb.'),

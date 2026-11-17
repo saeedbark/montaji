@@ -168,4 +168,4 @@ npm test
 
 ## License
 
-[MIT](LICENSE). Bundles [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (MIT).
+[MIT](LICENSE). Bundles [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (MIT) and Arabic fonts from Google Fonts (Cairo, Tajawal, Almarai, Changa, Reem Kufi, El Messiri, Amiri, Lalezar) under the SIL Open Font License 1.1 ([details and license texts](public/fonts/README.md)).

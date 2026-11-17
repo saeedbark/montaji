@@ -150,6 +150,7 @@ const Exporter = (() => {
     const bitrate = bitrateFor(W, H, fps, quality);
 
     onProgress(0, 'جارٍ التحضير…');
+    await Render.fontsReady; // كي لا تُرسم النصوص بالخط البديل
     const vcfg = await pickVideoConfig(W, H, fps, bitrate);
 
     onProgress(0, 'جارٍ تجهيز الصوت…');
