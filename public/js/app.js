@@ -676,12 +676,14 @@
     const isSel = (kind, id) => (sel && sel.kind === kind && sel.id === id ? ' sel' : '');
     // نقاط الإطارات المفتاحية على العنصر: النقر ينقل المؤشر إليها والسحب يغيّر وقتها
     const dots = o => kfTimes(o).map(t => `<i class="kf" data-kt="${t}" style="left:${t * pps}px" title="${tt('إطار مفتاحي', 'Keyframe')}"></i>`).join('');
+    // زر الذكاء الاصطناعي: يظهر على العنصر المحدد وحده (CSS)، ويفتح المساعد على هذا العنصر
+    const ai = `<button type="button" class="ai-btn" title="${tt('اطلب من المساعد تعديل هذا العنصر', 'Ask the assistant to edit this item')}"><svg class="ic"><use href="#i-spark"/></svg></button>`;
 
     // الترجمة: صف واحد، يظهر حين توجد كتل
     const CL = 26;
     const caps = state.captions.items.filter(x => vis(x.start, x.end - x.start)).map(x =>
       `<div class="item caption${isSel('caption', x.id)}" data-kind="caption" data-id="${x.id}" style="left:${x.start * pps}px;width:${Math.max(6, (x.end - x.start) * pps - 1)}px;height:${CL}px">
-        <span class="name">${esc(x.text)}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
+        <span class="name">${esc(x.text)}</span>${ai}<i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // الطبقات: كل صف track، والأعلى يُرسم فوق
     const OL = 40;
@@ -690,7 +692,7 @@
       const len = overlayLen(o);
       return `<div class="item overlay ${o.type}${isSel('overlay', o.id)}" data-kind="overlay" data-id="${o.id}" style="left:${o.start * pps}px;width:${Math.max(6, len * pps)}px;top:${(maxTrack - (o.track || 0)) * (OL + 4)}px;height:${OL}px">
         <div class="thumbs" style="background-image:url('${o.thumb}')"></div>${dots(o)}
-        <span class="name">${esc(o.name)}</span><i class="h l"></i><i class="h r"></i></div>`;
+        <span class="name">${esc(o.name)}</span>${ai}<i class="h l"></i><i class="h r"></i></div>`;
     }).join('');
 
     // المسطرة
@@ -704,7 +706,7 @@
     const tLanes = assignLanes(state.texts, x => x.dur);
     const texts = state.texts.filter(x => vis(x.start, x.dur)).map(x =>
       `<div class="item text${isSel('text', x.id)}" data-kind="text" data-id="${x.id}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (TL + 4)}px;height:${TL}px">
-        ${dots(x)}<span class="name">${esc(x.text.split('\n')[0] || tt('نص', 'Text'))}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
+        ${dots(x)}<span class="name">${esc(x.text.split('\n')[0] || tt('نص', 'Text'))}</span>${ai}<i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // المقاطع
     const clips = state.clips.filter(c => vis(c._start, clipLen(c))).map(c => {
@@ -712,7 +714,7 @@
       return `<div class="item clip ${c.type}${isSel('clip', c.id)}" data-kind="clip" data-id="${c.id}" style="left:${c._start * pps}px;width:${Math.max(6, len * pps - 2)}px">
         <div class="thumbs" style="background-image:url('${c.thumb}')"></div>
         ${c.transition !== 'none' ? `<span class="tr-badge" title="${tt('انتقال', 'Transition')}">⇄</span>` : ''}${dots(c)}
-        <span class="name">${esc(c.name)}</span><span class="dur">${len.toFixed(1)}${tt('ث', 's')}</span><i class="h l"></i><i class="h r"></i></div>`;
+        <span class="name">${esc(c.name)}</span><span class="dur">${len.toFixed(1)}${tt('ث', 's')}</span>${ai}<i class="h l"></i><i class="h r"></i></div>`;
     }).join('');
 
     // التأثيرات
@@ -720,7 +722,7 @@
     const eLanes = assignLanes(state.effects, x => x.dur);
     const effects = state.effects.filter(x => vis(x.start, x.dur)).map(x =>
       `<div class="item effect${x.at ? ' anchored' : ''}${isSel('effect', x.id)}" data-kind="effect" data-id="${x.id}" title="${x.at ? tt('مربوط بالقطع: يتبعه عند تغيير التوقيت', 'Linked to the cut: follows it when the timing changes') : ''}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (EL + 4)}px;height:${EL}px">
-        ${dots(x)}<span class="name">${esc((Render.EFFECTS[x.type] || {}).label || x.type)}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
+        ${dots(x)}<span class="name">${esc((Render.EFFECTS[x.type] || {}).label || x.type)}</span>${ai}<i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // الموسيقى
     const aLanes = assignLanes(state.audios, audioLen);
@@ -731,7 +733,7 @@
       const marks = b && b.period * pps >= 5 ? b.beats.filter(x => x.t >= a.in && x.t < a.out && vis(a.start + x.t - a.in, 0))
         .map(x => `<i class="beat${x.down ? ' down' : ''}" style="left:${(x.t - a.in) * pps}px"></i>`).join('') : '';
       return `<div class="item audio${isSel('audio', a.id)}" data-kind="audio" data-id="${a.id}" style="left:${a.start * pps}px;width:${Math.max(6, len * pps)}px;top:${a._lane * (AL + 4)}px;height:${AL}px;background-image:url('${a.wave}');background-size:${a.srcDur * pps}px 100%;background-position:${-a.in * pps}px 0">
-        ${marks}${dots(a)}<span class="name">${esc(a.name)}</span><i class="h l"></i><i class="h r"></i></div>`;
+        ${marks}${dots(a)}<span class="name">${esc(a.name)}</span>${ai}<i class="h l"></i><i class="h r"></i></div>`;
     }).join('');
 
     els.tlRows.innerHTML =
@@ -800,8 +802,19 @@
     return best;
   }
 
+  /** يفتح المساعد مربوطاً بالعنصر المحدد: رسائل المستخدم تخصّه حتى يُلغى الربط */
+  function askAI() {
+    const obj = selObj();
+    if (!obj || !window.montajiChat) return;
+    if (view.playing) pause();
+    window.montajiChat.focus({ kind: state.sel.kind, id: obj.id });
+  }
+  // زر الذكاء الاصطناعي على العنصر: لا يبدأ سحباً ولا يغيّر التحديد
+  els.tlInner.addEventListener('click', e => { if (e.target.closest('.ai-btn')) askAI(); });
+
   els.tlInner.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
+    if (e.target.closest('.ai-btn')) return void e.stopPropagation();
     const itemEl = e.target.closest('.item');
     if (!itemEl) {
       if (e.target.closest('.tl-label')) return;
@@ -1284,6 +1297,8 @@
     // إعادة بناء لوحة العنصر نفسه (إطار مفتاحي جديد مثلاً) لا تعيد التمرير إلى الأعلى
     const keep = obj && lastProps === obj.id ? els.props.scrollTop : 0;
     lastProps = obj ? obj.id : null;
+    // زر «اسأل المساعد» أعلى خصائص كل عنصر محدد
+    if (obj) h = `<button class="btn small props-ai" data-act="askAI" title="${tt('اطلب من المساعد تعديل هذا العنصر', 'Ask the assistant to edit this item')}"><svg class="ic"><use href="#i-spark"/></svg>${tt('اسأل المساعد', 'Ask AI')}</button>` + h;
     els.props.innerHTML = h;
     els.props.scrollTop = keep;
     els.btnProps.classList.toggle('on', !!obj);
@@ -1417,6 +1432,7 @@
     else if (a === 'dup') dupSel();
     else if (a === 'del') removeSel();
     else if (a === 'beatSync') beatSync(state.sel.id);
+    else if (a === 'askAI') askAI();
     else if (a === 'imgEdit') { const obj = selObj(); if (obj) ImageStudio.openClip(obj); }
     else if (a === 'audExtract') { const obj = selObj(); if (obj) AudioExtract.openClip(obj); }
     else if (a === 'vidSplit') { const obj = selObj(); if (obj) VideoSplit.openClip(obj); }
