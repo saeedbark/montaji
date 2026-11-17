@@ -25,9 +25,9 @@ const VideoSplit = (() => {
   const isOpen = () => !el.modal.hidden;
   const pause = ms => new Promise(r => setTimeout(r, ms));
   const r1 = n => Math.round(n * 10) / 10;
-  const fmtSize = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} ك.ب` : `${(n / 1048576).toFixed(1)} م.ب`);
+  const fmtSize = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} ${tt('ك.ب', 'KB')}` : `${(n / 1048576).toFixed(1)} ${tt('م.ب', 'MB')}`);
   const abortError = () => { const e = new Error('aborted'); e.name = 'AbortError'; return e; };
-  const nParts = n => (n === 2 ? 'جزأين' : n <= 10 ? `${n} أجزاء` : `${n} جزءاً`);
+  const nParts = n => (I18N.lang === 'en' ? `${n} parts` : n === 2 ? 'جزأين' : n <= 10 ? `${n} أجزاء` : `${n} جزءاً`);
   const baseName = name => String(name || '').replace(/\.[^.\\/]+$/, '') || 'video';
   function partNames(name, n) {
     const w = Math.max(2, String(n).length);
@@ -77,7 +77,7 @@ const VideoSplit = (() => {
     const playable = await loadMeta(v, url);
     if (!playable && !copy) {
       URL.revokeObjectURL(url);
-      throw new Error('تعذّرت قراءة هذا الفيديو، أو أن صيغته غير مدعومة في المتصفح');
+      throw new Error(tt('تعذّرت قراءة هذا الفيديو، أو أن صيغته غير مدعومة في المتصفح', 'This video could not be read, or its format is not supported by the browser'));
     }
     return {
       file, url, v, playable, info: copy ? info : null,
@@ -122,8 +122,8 @@ const VideoSplit = (() => {
   }
 
   async function encodePart(ctx, part, { audio, signal, onProgress }) {
-    if (!Exporter.supported()) throw new Error('متصفحك لا يدعم ترميز الفيديو. استخدم Chrome أو Edge بإصدار حديث.');
-    if (!ctx.playable) throw new Error('المتصفح لا يستطيع عرض هذا الفيديو، فلا يمكن إعادة ترميزه');
+    if (!Exporter.supported()) throw new Error(tt('متصفحك لا يدعم ترميز الفيديو. استخدم Chrome أو Edge بإصدار حديث.', 'Your browser cannot encode video. Use a recent Chrome or Edge.'));
+    if (!ctx.playable) throw new Error(tt('المتصفح لا يستطيع عرض هذا الفيديو، فلا يمكن إعادة ترميزه', 'The browser cannot play this video, so it cannot be re-encoded'));
     const v = ctx.v;
     v.pause();
     const k = Math.min(1, 3840 / Math.max(v.videoWidth, v.videoHeight), 2160 / Math.min(v.videoWidth, v.videoHeight));
@@ -287,14 +287,14 @@ const VideoSplit = (() => {
 
   function addFiles(list) {
     const files = [...list].filter(isVideo);
-    if (!files.length) return S.toast('اختر ملف فيديو', 'err');
-    if (files.length > 1) S.toast('يُفتح فيديو واحد في كل مرة — فُتح الأول', 'err');
+    if (!files.length) return S.toast(tt('اختر ملف فيديو', 'Choose a video file'), 'err');
+    if (files.length > 1) S.toast(tt('يُفتح فيديو واحد في كل مرة — فُتح الأول', 'One video at a time — the first one was opened'), 'err');
     return load(files[0]);
   }
 
   async function load(file, range, clipId = null) {
     stopPlay();
-    busy('جارٍ قراءة الفيديو…');
+    busy(tt('جارٍ قراءة الفيديو…', 'Reading the video…'));
     try {
       const ctx = await prepare(file);
       release(st.ctx);
@@ -341,61 +341,61 @@ const VideoSplit = (() => {
       el.name.textContent = '';
       el.body.innerHTML = `<div class="empty-card aud-empty">
           <svg class="ic big"><use href="#i-split"/></svg>
-          <h1>قسّم فيديو إلى أجزاء</h1>
-          <p>اسحب ملف فيديو وأفلته هنا، أو اختره من جهازك. اختر بعدها كيف تقسمه — كل 30 ثانية مثلاً لحالات واتساب وإنستغرام — ونزّل كل جزء ملف MP4 مستقلاً.</p>
-          <div class="empty-actions"><button class="btn primary" data-act="pick">اختيار فيديو</button></div>
-          <small>يجري كل شيء على جهازك — لا يُرفع شيء إلى الإنترنت.</small>
+          <h1>${tt('قسّم فيديو إلى أجزاء', 'Split a video into parts')}</h1>
+          <p>${tt('اسحب ملف فيديو وأفلته هنا، أو اختره من جهازك. اختر بعدها كيف تقسمه — كل 30 ثانية مثلاً لحالات واتساب وإنستغرام — ونزّل كل جزء ملف MP4 مستقلاً.', 'Drag and drop a video file here, or pick it from your device. Then choose how to split it — every 30 seconds for WhatsApp or Instagram stories, say — and download each part as its own MP4 file.')}</p>
+          <div class="empty-actions"><button class="btn primary" data-act="pick">${tt('اختيار فيديو', 'Choose video')}</button></div>
+          <small>${tt('يجري كل شيء على جهازك — لا يُرفع شيء إلى الإنترنت.', 'Everything runs on your device — nothing is uploaded.')}</small>
         </div>`;
       return;
     }
     el.name.textContent = ctx.file.name;
     let how = '';
     if (st.mode === 'every') {
-      how = chips('every', EVERY.map(s => [s, `${s} ث`]), st.every) + numRow('every', 'مدة الجزء', r1(st.every), 'ث', VideoTools.MIN_PART, 1);
+      how = chips('every', EVERY.map(s => [s, `${s} ${tt('ث', 's')}`]), st.every) + numRow('every', tt('مدة الجزء', 'Part length'), r1(st.every), tt('ث', 's'), VideoTools.MIN_PART, 1);
     } else if (st.mode === 'count') {
-      how = numRow('count', 'عدد الأجزاء', st.count, '', 2, 1);
+      how = numRow('count', tt('عدد الأجزاء', 'Number of parts'), st.count, '', 2, 1);
     } else {
       how = `<textarea class="split-times" data-k="times" rows="2" dir="ltr" placeholder="0:30, 1:15, 2:00">${esc(st.timesText)}</textarea>
-        <p class="sub wrap">اكتب مواضع القطع مفصولة بفواصل، أو شغّل الفيديو واضغط «قطع هنا» عند كل موضع.</p>`;
+        <p class="sub wrap">${tt('اكتب مواضع القطع مفصولة بفواصل، أو شغّل الفيديو واضغط «قطع هنا» عند كل موضع.', 'Write the cut points separated by commas, or play the video and press “Cut here” at each point.')}</p>`;
     }
     const exact = st.exact && canExact(ctx), inProject = projectClip(ctx);
     const method = !ctx.info
-      ? `<b>إعادة ترميز</b> — صيغة هذا الملف لا تسمح بالنسخ المباشر، فيُرمَّز كل جزء من جديد (30 إطاراً/ث). القطع دقيق لكنه أبطأ.`
+      ? tt(`<b>إعادة ترميز</b> — صيغة هذا الملف لا تسمح بالنسخ المباشر، فيُرمَّز كل جزء من جديد (30 إطاراً/ث). القطع دقيق لكنه أبطأ.`, `<b>Re-encode</b> — this file’s format does not allow a direct copy, so each part is encoded again (30 fps). Cuts are exact but slower.`)
       : exact
-        ? `<b>قطع دقيق بإعادة الترميز</b> — يقع كل قطع عند الموضع المطلوب تماماً، لكن التقسيم أبطأ ويُضغط الفيديو من جديد (30 إطاراً/ث).`
-        : `<b>نسخ مباشر بلا إعادة ترميز</b> — سريع وبالجودة الأصلية نفسها. يقع كل قطع عند أقرب إطار مفتاحي قبله، لذا قد تختلف المواضع قليلاً عمّا طلبت.`;
-    const ranges = [['all', 'الفيديو كاملاً']];
-    if (ctx.clipRange) ranges.push(['clip', 'الجزء المستخدم في المشروع']);
+        ? tt(`<b>قطع دقيق بإعادة الترميز</b> — يقع كل قطع عند الموضع المطلوب تماماً، لكن التقسيم أبطأ ويُضغط الفيديو من جديد (30 إطاراً/ث).`, `<b>Exact cuts by re-encoding</b> — every cut lands exactly where you asked, but splitting is slower and the video is compressed again (30 fps).`)
+        : tt(`<b>نسخ مباشر بلا إعادة ترميز</b> — سريع وبالجودة الأصلية نفسها. يقع كل قطع عند أقرب إطار مفتاحي قبله، لذا قد تختلف المواضع قليلاً عمّا طلبت.`, `<b>Direct copy, no re-encoding</b> — fast and at the original quality. Each cut lands on the nearest keyframe before it, so points may differ slightly from what you asked.`);
+    const ranges = [['all', tt('الفيديو كاملاً', 'Whole video')]];
+    if (ctx.clipRange) ranges.push(['clip', tt('الجزء المستخدم في المشروع', 'Part used in the project')]);
     el.body.innerHTML = `
-      <div class="split-stage" id="splitStage">${ctx.playable ? '' : '<p class="sub">المتصفح لا يستطيع عرض هذا الفيديو، لكن يمكن تقسيمه.</p>'}</div>
+      <div class="split-stage" id="splitStage">${ctx.playable ? '' : `<p class="sub">${tt('المتصفح لا يستطيع عرض هذا الفيديو، لكن يمكن تقسيمه.', 'The browser cannot play this video, but it can still be split.')}</p>`}</div>
       <div class="split-track" id="splitTrack" dir="ltr"></div>
       <div class="aud-transport">
-        <button class="btn icon play" data-act="play" title="تشغيل / إيقاف (مسافة)"${ctx.playable ? '' : ' disabled'}><svg class="ic"><use id="splitPlayIcon" href="#i-play"/></svg></button>
+        <button class="btn icon play" data-act="play" title="${tt('تشغيل / إيقاف (مسافة)', 'Play / pause (Space)')}"${ctx.playable ? '' : ' disabled'}><svg class="ic"><use id="splitPlayIcon" href="#i-play"/></svg></button>
         <span class="time" id="splitTime" dir="ltr"></span>
         <div class="spacer"></div>
-        ${st.mode === 'times' ? '<button class="btn small" data-act="cut" title="إضافة موضع قطع عند المؤشر (C)"><svg class="ic"><use href="#i-split"/></svg>قطع هنا</button>' : ''}
+        ${st.mode === 'times' ? `<button class="btn small" data-act="cut" title="${tt('إضافة موضع قطع عند المؤشر (C)', 'Add a cut point at the playhead (C)')}"><svg class="ic"><use href="#i-split"/></svg>${tt('قطع هنا', 'Cut here')}</button>` : ''}
       </div>
       <div class="aud-grid">
         <div>
-          <h3>طريقة التقسيم</h3>
-          ${chips('mode', [['every', 'كل مدة'], ['count', 'أجزاء متساوية'], ['times', 'أوقات محددة']], st.mode, 'tabs')}
+          <h3>${tt('طريقة التقسيم', 'How to split')}</h3>
+          ${chips('mode', [['every', tt('كل مدة', 'Every…')], ['count', tt('أجزاء متساوية', 'Equal parts')], ['times', tt('أوقات محددة', 'Set times')]], st.mode, 'tabs')}
           <div class="split-how">${how}</div>
-          <h3>النطاق</h3>
+          <h3>${tt('النطاق', 'Range')}</h3>
           ${chips('range', ranges, rangeKind())}
-          ${numRow('s', 'من', r1(st.range.s), 'ث', 0, 0.1)}
-          ${numRow('e', 'إلى', r1(st.range.e), 'ث', 0, 0.1)}
-          <label class="row check"><input type="checkbox" data-k="audio"${st.audio ? ' checked' : ''}${ctx.hasAudio === false ? ' disabled' : ''}><span>${ctx.hasAudio === false ? 'هذا الفيديو بلا صوت' : 'إبقاء الصوت'}</span></label>
-          ${canExact(ctx) ? `<label class="row check" title="بلا هذا الخيار يُنسخ الفيديو كما هو، فيقع القطع عند أقرب إطار مفتاحي"><input type="checkbox" data-k="exact"${st.exact ? ' checked' : ''}><span>قطع دقيق عند المواضع المطلوبة (إعادة ترميز، أبطأ)</span></label>` : ''}
+          ${numRow('s', tt('من', 'From'), r1(st.range.s), tt('ث', 's'), 0, 0.1)}
+          ${numRow('e', tt('إلى', 'To'), r1(st.range.e), tt('ث', 's'), 0, 0.1)}
+          <label class="row check"><input type="checkbox" data-k="audio"${st.audio ? ' checked' : ''}${ctx.hasAudio === false ? ' disabled' : ''}><span>${ctx.hasAudio === false ? tt('هذا الفيديو بلا صوت', 'This video has no sound') : tt('إبقاء الصوت', 'Keep the sound')}</span></label>
+          ${canExact(ctx) ? `<label class="row check" title="${tt('بلا هذا الخيار يُنسخ الفيديو كما هو، فيقع القطع عند أقرب إطار مفتاحي', 'Without this the video is copied as is, so cuts land on the nearest keyframe')}"><input type="checkbox" data-k="exact"${st.exact ? ' checked' : ''}><span>${tt('قطع دقيق عند المواضع المطلوبة (إعادة ترميز، أبطأ)', 'Exact cuts at the requested points (re-encode, slower)')}</span></label>` : ''}
         </div>
         <div>
-          <h3>الأجزاء <span id="splitCount"></span></h3>
+          <h3>${tt('الأجزاء', 'Parts')} <span id="splitCount"></span></h3>
           <ol class="split-list" id="splitList"></ol>
           <p class="ex-summary">${method}</p>
         </div>
       </div>
       <div class="dialog-actions split-actions">
-        <button class="btn" data-act="add"${ctx.playable ? '' : ' disabled'} title="${inProject ? 'يُقسَّم المقطع في مكانه على الخط الزمني' : 'يُضاف الفيديو إلى آخر الخط الزمني مقسَّماً'} — القطع في المشروع عند المواضع المطلوبة تماماً"><svg class="ic"><use href="#i-media"/></svg><span>${inProject ? 'تقسيم المقطع في المشروع' : 'إضافة الأجزاء إلى المشروع'}</span></button>
-        <button class="btn primary" data-act="all"><svg class="ic"><use href="#i-download"/></svg><span id="splitAllLabel">تنزيل كل الأجزاء</span></button>
+        <button class="btn" data-act="add"${ctx.playable ? '' : ' disabled'} title="${inProject ? tt('يُقسَّم المقطع في مكانه على الخط الزمني', 'The clip is split in place on the timeline') : tt('يُضاف الفيديو إلى آخر الخط الزمني مقسَّماً', 'The video is added, split, at the end of the timeline')} — ${tt('القطع في المشروع عند المواضع المطلوبة تماماً', 'cuts in the project land exactly where asked')}"><svg class="ic"><use href="#i-media"/></svg><span>${inProject ? tt('تقسيم المقطع في المشروع', 'Split the clip in the project') : tt('إضافة الأجزاء إلى المشروع', 'Add the parts to the project')}</span></button>
+        <button class="btn primary" data-act="all"><svg class="ic"><use href="#i-download"/></svg><span id="splitAllLabel">${tt('تنزيل كل الأجزاء', 'Download all parts')}</span></button>
       </div>`;
     if (ctx.playable) $('#splitStage').append(ctx.v);
     update();
@@ -408,7 +408,7 @@ const VideoSplit = (() => {
     st.parts = partsFor(ctx, opts());
     const n = st.parts.length, names = partNames(ctx.file.name, n);
     $('#splitCount').textContent = `(${n})`;
-    $('#splitAllLabel').textContent = n > 1 ? `تنزيل كل الأجزاء (${n})` : 'تنزيل الجزء';
+    $('#splitAllLabel').textContent = n > 1 ? tt(`تنزيل كل الأجزاء (${n})`, `Download all parts (${n})`) : tt('تنزيل الجزء', 'Download the part');
     el.body.querySelector('[data-act="all"]').disabled = !n;
     el.body.querySelector('[data-act="add"]').disabled = !n || !ctx.playable;
     const kind = rangeKind();
@@ -418,8 +418,8 @@ const VideoSplit = (() => {
         <span class="n">${i + 1}</span>
         <span class="t" dir="ltr">${fmtTime(p.start)} – ${fmtTime(p.end)}</span>
         <span class="d" dir="ltr">${fmtTime(p.end - p.start)}</span>
-        <button class="btn small icon" data-act="one" data-i="${i}" title="تنزيل هذا الجزء" aria-label="تنزيل الجزء ${i + 1}"><svg class="ic"><use href="#i-download"/></svg></button>
-      </li>`).join('') : '<li class="none">النطاق أقصر من أن يُقسم</li>';
+        <button class="btn small icon" data-act="one" data-i="${i}" title="${tt('تنزيل هذا الجزء', 'Download this part')}" aria-label="${tt('تنزيل الجزء', 'Download part')} ${i + 1}"><svg class="ic"><use href="#i-download"/></svg></button>
+      </li>`).join('') : `<li class="none">${tt('النطاق أقصر من أن يُقسم', 'The range is too short to split')}</li>`;
 
     const D = ctx.dur || 1, pc = t => `${(t / D * 100).toFixed(3)}%`;
     $('#splitTrack').innerHTML =
@@ -495,17 +495,17 @@ const VideoSplit = (() => {
     const ctx = st.ctx;
     if (!ctx || st.job || !indices.length) return;
     const exact = opts().exact;
-    if ((!ctx.info || exact) && !Exporter.supported()) return S.toast('متصفحك لا يدعم ترميز الفيديو. استخدم Chrome أو Edge بإصدار حديث.', 'err');
+    if ((!ctx.info || exact) && !Exporter.supported()) return S.toast(tt('متصفحك لا يدعم ترميز الفيديو. استخدم Chrome أو Edge بإصدار حديث.', 'Your browser cannot encode video. Use a recent Chrome or Edge.'), 'err');
     stopPlay();
     const ctl = new AbortController();
     st.job = ctl;
     const total = st.parts.length, parts = st.parts.slice();
     let bytes = 0;
-    busy('جارٍ التحضير…', 0);
+    busy(tt('جارٍ التحضير…', 'Preparing…'), 0);
     try {
       const files = await run(ctx, parts, indices, {
         audio: st.audio, exact, signal: ctl.signal,
-        onProgress: (p, i) => busy(`جارٍ تجهيز الجزء ${i + 1} من ${total}…`, p),
+        onProgress: (p, i) => busy(tt(`جارٍ تجهيز الجزء ${i + 1} من ${total}…`, `Preparing part ${i + 1} of ${total}…`), p),
         sink: async (blob, name) => {
           bytes += blob.size;
           ImageTools.download(blob, name);
@@ -513,11 +513,11 @@ const VideoSplit = (() => {
           return {};
         },
       });
-      S.toast(files.length > 1 ? `نُزّل ${nParts(files.length)} (${fmtSize(bytes)})` : `نُزّل الجزء (${fmtSize(bytes)})`, 'ok');
+      S.toast(files.length > 1 ? tt(`نُزّل ${nParts(files.length)} (${fmtSize(bytes)})`, `Downloaded ${nParts(files.length)} (${fmtSize(bytes)})`) : tt(`نُزّل الجزء (${fmtSize(bytes)})`, `Part downloaded (${fmtSize(bytes)})`), 'ok');
       if (st.audio && ctx.hasAudio === false) render(); // عرفنا الآن أن الفيديو بلا صوت
     } catch (e) {
-      if (e.name === 'AbortError') S.toast('أُوقف التقسيم');
-      else { console.error(e); S.toast('تعذّر التقسيم: ' + (e.message || e), 'err'); }
+      if (e.name === 'AbortError') S.toast(tt('أُوقف التقسيم', 'Splitting stopped'));
+      else { console.error(e); S.toast(tt('تعذّر التقسيم: ', 'Could not split: ') + (e.message || e), 'err'); }
     } finally {
       st.job = null;
       busy(false);
@@ -533,7 +533,7 @@ const VideoSplit = (() => {
     if (!ctx || st.job || !ctx.playable) return;
     const o = opts();
     stopPlay();
-    busy('جارٍ الإضافة إلى المشروع…');
+    busy(tt('جارٍ الإضافة إلى المشروع…', 'Adding to the project…'));
     try {
       let base = projectClip(ctx);
       const inPlace = !!base;
@@ -541,7 +541,7 @@ const VideoSplit = (() => {
         const before = new Set(state.clips.map(c => c.id));
         await S.addFiles([ctx.file]);
         base = state.clips.find(c => !before.has(c.id) && c.type === 'video');
-        if (!base) throw new Error('تعذّر فتح الفيديو في المحرر');
+        if (!base) throw new Error(tt('تعذّر فتح الفيديو في المحرر', 'Could not open the video in the editor'));
       }
       const max = base.srcDur || ctx.dur, start = Math.min(o.start, max), end = Math.min(o.end, max);
       const parts = VideoTools.exactParts(start, end, VideoTools.planCuts({ ...o, start, end }));
@@ -558,11 +558,11 @@ const VideoSplit = (() => {
       S.select({ kind: 'clip', id: clips[0].id });
       S.renderProps();
       S.toast(clips.length > 1
-        ? (inPlace ? `قُسّم المقطع إلى ${nParts(clips.length)} على الخط الزمني` : `أُضيف الفيديو إلى المشروع في ${nParts(clips.length)}`)
-        : (inPlace ? 'ضُبط المقطع على النطاق المختار' : 'أُضيف الفيديو إلى المشروع'), 'ok');
+        ? (inPlace ? tt(`قُسّم المقطع إلى ${nParts(clips.length)} على الخط الزمني`, `Clip split into ${nParts(clips.length)} on the timeline`) : tt(`أُضيف الفيديو إلى المشروع في ${nParts(clips.length)}`, `Video added to the project in ${nParts(clips.length)}`))
+        : (inPlace ? tt('ضُبط المقطع على النطاق المختار', 'Clip trimmed to the chosen range') : tt('أُضيف الفيديو إلى المشروع', 'Video added to the project')), 'ok');
     } catch (e) {
       console.error(e);
-      S.toast('تعذّرت الإضافة: ' + (e.message || e), 'err');
+      S.toast(tt('تعذّرت الإضافة: ', 'Could not add: ') + (e.message || e), 'err');
       busy(false);
     }
   }
@@ -602,7 +602,7 @@ const VideoSplit = (() => {
       update();
     } else if (k === 'times') {
       const { bad } = VideoTools.parseTimes(st.timesText);
-      if (bad.length) S.toast(`مواضع غير مفهومة: ${bad.join('، ')} — اكتبها هكذا: 1:30 أو 90`, 'err');
+      if (bad.length) S.toast(tt(`مواضع غير مفهومة: ${bad.join('، ')} — اكتبها هكذا: 1:30 أو 90`, `Could not read: ${bad.join(', ')} — write them like 1:30 or 90`), 'err');
     } else if (k === 'every' || k === 'count') t.value = k === 'every' ? r1(st.every) : st.count;
   });
 

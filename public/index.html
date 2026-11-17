@@ -9,6 +9,8 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="theme-color" content="#14141a">
 <link rel="stylesheet" href="css/style.css">
+<script>/* اتجاه الصفحة قبل رسمها، كي لا تومض بالعربية؛ الترجمة نفسها في js/i18n.js */
+try { const l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('montaji.lang'); if (l === 'en') { document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr'; } } catch (e) { /* وضع خاص */ }</script>
 </head>
 <body>
 
@@ -128,7 +130,9 @@
     <svg class="ic"><use href="#i-spark"/></svg><span>المساعد</span>
   </button>
 
-  <a class="btn icon" href="guide.html" target="_blank" rel="noopener" title="دليل الاستخدام" aria-label="دليل الاستخدام"><svg class="ic"><use href="#i-help"/></svg></a>
+  <button class="btn icon lang" id="btnLang" type="button">EN</button>
+
+  <a class="btn icon" id="lnkGuide" href="guide.html" target="_blank" rel="noopener" title="دليل الاستخدام" aria-label="دليل الاستخدام"><svg class="ic"><use href="#i-help"/></svg></a>
 
   <div class="hist">
     <button class="btn icon" id="btnUndo" title="تراجع (Ctrl+Z)" disabled><svg class="ic"><use href="#i-undo"/></svg></button>
@@ -377,6 +381,7 @@
 <div class="drop-overlay" id="dropOverlay" hidden><div>أفلت الملفات هنا لإضافتها</div></div>
 <div id="toasts"></div>
 
+<script src="js/i18n.js"></script>
 <script src="vendor/mp4-muxer.js"></script>
 <script src="js/core.js"></script>
 <script src="js/beats.js"></script>

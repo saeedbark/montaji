@@ -3,22 +3,22 @@
 
 const Render = (() => {
   const FILTERS = {
-    none:    { label: 'بدون',        css: '' },
-    vivid:   { label: 'زاهٍ',         css: 'saturate(1.5) contrast(1.08)' },
-    warm:    { label: 'دافئ',        css: 'sepia(0.28) saturate(1.3) hue-rotate(-8deg)' },
-    cool:    { label: 'بارد',        css: 'saturate(1.1) hue-rotate(14deg) brightness(1.03)' },
-    bw:      { label: 'أبيض وأسود',  css: 'grayscale(1) contrast(1.12)' },
-    vintage: { label: 'قديم',        css: 'sepia(0.55) contrast(0.92) brightness(1.05) saturate(0.85)' },
-    soft:    { label: 'ناعم',        css: 'contrast(0.86) brightness(1.08) saturate(0.82)' },
+    none:    { label: ['بدون', 'None'],        css: '' },
+    vivid:   { label: ['زاهٍ', 'Vivid'],         css: 'saturate(1.5) contrast(1.08)' },
+    warm:    { label: ['دافئ', 'Warm'],        css: 'sepia(0.28) saturate(1.3) hue-rotate(-8deg)' },
+    cool:    { label: ['بارد', 'Cool'],        css: 'saturate(1.1) hue-rotate(14deg) brightness(1.03)' },
+    bw:      { label: ['أبيض وأسود', 'Black and white'],  css: 'grayscale(1) contrast(1.12)' },
+    vintage: { label: ['قديم', 'Vintage'],        css: 'sepia(0.55) contrast(0.92) brightness(1.05) saturate(0.85)' },
+    soft:    { label: ['ناعم', 'Soft'],        css: 'contrast(0.86) brightness(1.08) saturate(0.82)' },
   };
 
   const FONTS = {
-    segoe:   { label: 'الافتراضي', css: '"Segoe UI", Tahoma, Arial, sans-serif' },
-    tahoma:  { label: 'تاهوما',    css: 'Tahoma, "Segoe UI", sans-serif' },
-    arial:   { label: 'آريال',     css: 'Arial, "Segoe UI", sans-serif' },
-    times:   { label: 'تايمز',     css: '"Times New Roman", "Traditional Arabic", serif' },
-    courier: { label: 'كوريير',    css: '"Courier New", monospace' },
-    elegant: { label: 'أنيق مائل', css: 'Didot, "Bodoni MT", Georgia, "Times New Roman", serif', italic: true },
+    segoe:   { label: ['الافتراضي', 'Default'], css: '"Segoe UI", Tahoma, Arial, sans-serif' },
+    tahoma:  { label: ['تاهوما', 'Tahoma'],    css: 'Tahoma, "Segoe UI", sans-serif' },
+    arial:   { label: ['آريال', 'Arial'],     css: 'Arial, "Segoe UI", sans-serif' },
+    times:   { label: ['تايمز', 'Times'],     css: '"Times New Roman", "Traditional Arabic", serif' },
+    courier: { label: ['كوريير', 'Courier'],    css: '"Courier New", monospace' },
+    elegant: { label: ['أنيق مائل', 'Elegant italic'], css: 'Didot, "Bodoni MT", Georgia, "Times New Roman", serif', italic: true },
   };
 
   /*
@@ -27,35 +27,37 @@ const Render = (() => {
    * hold = ثابت طوال المدة، rise = يشتد في أوله ثم يثبت (للتعتيم في الختام).
    */
   const EFFECTS = {
-    zoomBlur: { label: 'تكبير ضبابي',    shape: 'burst', dur: 0.4 },
-    whip:     { label: 'سحب سريع',       shape: 'burst', dur: 0.35 },
-    flash:    { label: 'وميض',           shape: 'burst', dur: 0.25 },
-    shake:    { label: 'اهتزاز',         shape: 'burst', dur: 0.4 },
-    rgb:      { label: 'انقسام الألوان', shape: 'burst', dur: 0.3 },
-    bw:       { label: 'أبيض وأسود',     shape: 'hold',  dur: 2 },
-    sharp:    { label: 'وضوح عالٍ',      shape: 'hold',  dur: 3 },
-    vignette: { label: 'إطار داكن',      shape: 'hold',  dur: 3 },
-    darken:   { label: 'تعتيم',          shape: 'rise',  dur: 1.2 },
+    zoomBlur: { label: ['تكبير ضبابي', 'Zoom blur'],    shape: 'burst', dur: 0.4 },
+    whip:     { label: ['سحب سريع', 'Whip'],       shape: 'burst', dur: 0.35 },
+    flash:    { label: ['وميض', 'Flash'],           shape: 'burst', dur: 0.25 },
+    shake:    { label: ['اهتزاز', 'Shake'],         shape: 'burst', dur: 0.4 },
+    rgb:      { label: ['انقسام الألوان', 'Color split'], shape: 'burst', dur: 0.3 },
+    bw:       { label: ['أبيض وأسود', 'Black and white'],     shape: 'hold',  dur: 2 },
+    sharp:    { label: ['وضوح عالٍ', 'Sharpen'],      shape: 'hold',  dur: 3 },
+    vignette: { label: ['إطار داكن', 'Vignette'],      shape: 'hold',  dur: 3 },
+    darken:   { label: ['تعتيم', 'Darken'],          shape: 'rise',  dur: 1.2 },
     // تأثيرات على المنتج نفسه: لها موضع (x, y من 0 إلى 1) وحجم r (نسبة من عرض الإطار) يُسحب في المعاينة
-    zoomTo:   { label: 'تقريب على المنتج', shape: 'focus', dur: 1.2, region: true },
-    spotlight:{ label: 'إضاءة المنتج',    shape: 'focus', dur: 1.5, region: true },
-    shine:    { label: 'لمعة',            shape: 'sweep', dur: 0.9, region: true },
-    glow:     { label: 'توهج',            shape: 'focus', dur: 1.5, region: true },
-    sparkle:  { label: 'بريق',            shape: 'hold',  dur: 1.5, region: true },
+    zoomTo:   { label: ['تقريب على المنتج', 'Zoom to product'], shape: 'focus', dur: 1.2, region: true },
+    spotlight:{ label: ['إضاءة المنتج', 'Spotlight'],    shape: 'focus', dur: 1.5, region: true },
+    shine:    { label: ['لمعة', 'Shine'],            shape: 'sweep', dur: 0.9, region: true },
+    glow:     { label: ['توهج', 'Glow'],            shape: 'focus', dur: 1.5, region: true },
+    sparkle:  { label: ['بريق', 'Sparkle'],            shape: 'hold',  dur: 1.5, region: true },
     // على مستطيل من الصورة (w, h نسبة من عرض الإطار وارتفاعه): ومضة تشتعل فجأة ثم تنطفئ، كما في ريلز المحلات
-    areaFlash:{ label: 'وميض جزئي',       shape: 'blink', dur: 0.22, region: true, rect: true },
-    backlight:{ label: 'إضاءة خلفية',     shape: 'blink', dur: 0.3,  region: true, rect: true },
+    areaFlash:{ label: ['وميض جزئي', 'Area flash'],       shape: 'blink', dur: 0.22, region: true, rect: true },
+    backlight:{ label: ['إضاءة خلفية', 'Backlight'],     shape: 'blink', dur: 0.3,  region: true, rect: true },
   };
 
   // أوضاع مزج الطبقات ← عملية التركيب في Canvas
   const BLENDS = {
-    normal:   { label: 'عادي',   op: 'source-over' },
-    screen:   { label: 'إضاءة',  op: 'screen' },
-    multiply: { label: 'ضرب',    op: 'multiply' },
-    lighten:  { label: 'تفتيح',  op: 'lighten' },
+    normal:   { label: ['عادي', 'Normal'],   op: 'source-over' },
+    screen:   { label: ['إضاءة', 'Screen'],  op: 'screen' },
+    multiply: { label: ['ضرب', 'Multiply'],    op: 'multiply' },
+    lighten:  { label: ['تفتيح', 'Lighten'],  op: 'lighten' },
   };
-  const MASKS = { none: 'بدون', round: 'زوايا مستديرة', circle: 'دائرة' };
-  const CAPTION_MODES = { none: 'بلا تمييز', word: 'كلمة ملوّنة', pop: 'كلمة مكبّرة', reveal: 'كلمة كلمة' };
+  const MASKS = { none: ['بدون', 'None'], round: ['زوايا مستديرة', 'Rounded corners'], circle: ['دائرة', 'Circle'] };
+  const CAPTION_MODES = { none: ['بلا تمييز', 'No highlight'], word: ['كلمة ملوّنة', 'Colored word'], pop: ['كلمة مكبّرة', 'Enlarged word'], reveal: ['كلمة كلمة', 'Word by word'] };
+  // التسميات تتبع لغة الواجهة
+  for (const tb of [FILTERS, FONTS, EFFECTS, BLENDS, MASKS, CAPTION_MODES]) I18N.localize(tb);
   const RTL = /[֐-ࣿיִ-ﻼ]/;
 
   let curT = 0; // زمن الإطار الجاري رسمه (لنبضة الإيقاع)

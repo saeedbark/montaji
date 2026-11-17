@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Montaji user guide</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #0d0f13; --panel: #14171d; --panel-2: #1b1f27; --panel-3: #232833; --line: #2a303c;
+    --text: #e9ebf1; --soft: #c5cad6; --muted: #8c94a5;
+    --accent: #ff5c7a; --clip: #3d7bff; --audio: #17b890; --textc: #f2a93b;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.85 "Segoe UI", Tahoma, system-ui, sans-serif; }
+  a { color: var(--accent); }
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 36px; max-width: 1120px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* Header */
+  .hero { max-width: 1120px; margin: 0 auto; padding: 44px 20px 28px; }
+  .hero .tag { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 700; font-size: 14px; }
+  .hero .tag svg { width: 22px; height: 22px; }
+  .hero h1 { margin: 8px 0 8px; font-size: clamp(28px, 4.5vw, 42px); line-height: 1.3; text-wrap: balance; }
+  .hero p { margin: 0; color: var(--soft); max-width: 62ch; font-size: 17px; }
+  .hero .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  .btn { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 10px; font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); }
+  .btn:hover { background: var(--panel-3); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #ff7590; }
+
+  .intro-video { margin: 26px 0 0; max-width: 860px; }
+  .intro-video video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+  .intro-video figcaption { margin-top: 8px; color: var(--muted); font-size: 14px; }
+  @media print { .intro-video { display: none; } }
+
+  /* Contents */
+  nav.toc { position: sticky; top: 20px; align-self: start; max-height: calc(100vh - 40px); overflow: auto; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  nav.toc ol { margin: 0; padding: 0; list-style: none; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; }
+  nav.toc a { display: flex; gap: 10px; padding: 6px 8px; border-radius: 8px; color: var(--soft); text-decoration: none; font-size: 14.5px; line-height: 1.5; }
+  nav.toc a::before { content: counter(toc); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 14px; }
+  nav.toc a:hover { background: var(--panel-2); color: var(--text); }
+
+  /* Content */
+  main { min-width: 0; }
+  section { padding-top: 12px; margin-bottom: 44px; }
+  section > h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: 25px; line-height: 1.4; }
+  section > h2 .n { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 17px; }
+  h3 { margin: 26px 0 8px; font-size: 18px; }
+  p { margin: 0 0 12px; color: var(--soft); max-width: 70ch; }
+  ul, ol { color: var(--soft); padding-inline-start: 22px; margin: 0 0 14px; max-width: 70ch; }
+  li { margin: 4px 0; }
+  b, strong { color: var(--text); }
+  .ui { display: inline-block; padding: 0 9px; border-radius: 7px; background: var(--panel-3); border: 1px solid var(--line); color: var(--text); font-weight: 600; font-size: .9em; line-height: 1.7; white-space: nowrap; }
+  .ui.red { background: var(--accent); border-color: var(--accent); color: #fff; }
+  kbd { display: inline-block; min-width: 26px; text-align: center; padding: 1px 8px; border-radius: 6px; background: var(--panel-3); border: 1px solid #3a4251; border-bottom-width: 2px; font: inherit; font-size: .85em; color: var(--text); direction: ltr; }
+  code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-family: Consolas, monospace; font-size: .9em; direction: ltr; unicode-bidi: isolate; }
+
+  .note { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 13px 16px; margin: 16px 0; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); border-inline-start: 4px solid var(--textc); max-width: 74ch; }
+  .note.tip { border-inline-start-color: var(--audio); }
+  .note.warn { border-inline-start-color: var(--accent); }
+  .note .ico { font-weight: 800; color: var(--textc); }
+  .note.tip .ico { color: var(--audio); }
+  .note.warn .ico { color: var(--accent); }
+  .note p { margin: 0; color: var(--soft); }
+
+  /* Numbered steps */
+  .steps { list-style: none; padding: 0; counter-reset: st; max-width: 74ch; }
+  .steps > li { counter-increment: st; position: relative; padding: 2px 0 16px 46px; margin: 0; }
+  .steps > li::before { content: counter(st); position: absolute; left: 0; top: 2px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-3); border: 1px solid var(--line); color: var(--accent); font-weight: 700; font-size: 15px; }
+  .steps > li:not(:last-child)::after { content: ""; position: absolute; left: 14.5px; top: 36px; bottom: 2px; width: 1px; background: var(--line); }
+
+  /* Tables */
+  .tbl { overflow-x: auto; margin: 14px 0 18px; border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 460px; font-size: 15px; }
+  th, td { padding: 10px 14px; text-align: start; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+  td { color: var(--soft); }
+  td:first-child { color: var(--text); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td .ltr { direction: ltr; unicode-bidi: isolate; }
+
+  /* Interface sketch */
+  .mock { direction: ltr; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); margin: 16px 0 10px; font-size: 13px; line-height: 1.4; }
+  .mock .bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .mock .chip { padding: 5px 10px; border-radius: 8px; background: var(--panel-3); border: 1px solid var(--line); white-space: nowrap; }
+  .mock .chip.red { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .mock .sp { flex: 1; }
+  .mock .mid { display: grid; grid-template-columns: minmax(0, 1fr) 30%; min-height: 190px; }
+  .mock .stage { position: relative; display: grid; place-items: center; padding: 16px; }
+  .mock .screen { width: min(78%, 330px); aspect-ratio: 16 / 9; border-radius: 8px; background: linear-gradient(135deg, #ff7a59, #7a1f5c); display: grid; place-items: center; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+  .mock .side { position: relative; border-inline-start: 1px solid var(--line); padding: 14px; color: var(--muted); }
+  .mock .side i { display: block; height: 9px; border-radius: 5px; background: var(--panel-3); margin: 9px 0; }
+  .mock .side i:nth-child(odd) { width: 70%; }
+  .mock .tl { position: relative; border-top: 1px solid var(--line); padding: 10px 12px 12px; direction: ltr; }
+  .mock .row { display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 8px; margin-top: 7px; }
+  .mock .row > span { color: var(--muted); font-size: 12px; text-align: center; }
+  .mock .lane { position: relative; height: 26px; }
+  .mock .lane.big { height: 40px; }
+  .mock .it { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+  .mock .it.t { background: #4a3611; border: 1.5px solid var(--textc); }
+  .mock .it.c { background: #1d2c4d; border: 1.5px solid var(--clip); }
+  .mock .it.a { background: #0f3b31; border: 1.5px solid var(--audio); }
+  .mock .head { position: absolute; top: 6px; bottom: 6px; left: calc(62px + 8px + 12px + 30%); width: 2px; background: #fff; }
+  .pin { position: absolute; z-index: 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #111; font-weight: 800; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .legend { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 22px; max-width: none; }
+  .legend li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; margin: 0; }
+  .legend .pin { position: static; margin-top: 3px; box-shadow: none; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 14px 0; }
+  .card { padding: 14px 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+  .card h4 { margin: 0 0 4px; font-size: 16px; }
+  .card p { margin: 0; font-size: 14.5px; line-height: 1.7; }
+
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 8px 0; max-width: 76ch; }
+  summary { cursor: pointer; padding: 12px 16px; font-weight: 700; }
+  details > div { padding: 0 16px 12px; }
+  details p:last-child { margin-bottom: 0; }
+
+  footer { max-width: 1120px; margin: 0 auto; padding: 22px 20px 46px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 0 16px 60px; }
+    nav.toc { position: static; max-height: none; }
+    nav.toc ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .hero { padding: 30px 16px 20px; }
+    .mock .mid { grid-template-columns: minmax(0, 1fr); }
+    .mock .side { border-inline-start: 0; border-top: 1px solid var(--line); }
+    section > h2 { font-size: 22px; }
+  }
+  @media print {
+    :root { --bg: #fff; --panel: #fff; --panel-2: #f3f4f6; --panel-3: #e9ebef; --line: #cfd3da; --text: #111; --soft: #222; --muted: #555; color-scheme: light; }
+    nav.toc, .hero .cta { display: none; }
+    .layout { display: block; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+<body>
+
+<header class="hero">
+  <span class="tag">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></svg>
+    Montaji
+  </span>
+  <h1>Step-by-step user guide</h1>
+  <p>Everything you need to make a video from your photos and clips: adding files, arranging and trimming, music, text, effects, then downloading the video in high quality.</p>
+  <div class="cta">
+    <a class="btn primary" href="index.html?lang=en">Open the editor</a>
+    <a class="btn" href="#quick">Quick start</a>
+    <a class="btn" href="guide.html" lang="ar" hreflang="ar">العربية</a>
+  </div>
+  <figure class="intro-video">
+    <video src="media/guide.mp4" controls playsinline preload="metadata"></video>
+    <figcaption>A short video walkthrough (under a minute) of the whole workflow — the interface shown is in Arabic</figcaption>
+  </figure>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Guide contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#run">Starting the app</a></li>
+      <li><a href="#quick">Quick start</a></li>
+      <li><a href="#ui">Getting to know the interface</a></li>
+      <li><a href="#upload">Adding photos and clips</a></li>
+      <li><a href="#arrange">Arranging, trimming and splitting</a></li>
+      <li><a href="#music">Adding music</a></li>
+      <li><a href="#text">Adding text</a></li>
+      <li><a href="#effects">Transitions and effects</a></li>
+      <li><a href="#ratio">Video size</a></li>
+      <li><a href="#export">Export and download</a></li>
+      <li><a href="#keys">Keyboard shortcuts</a></li>
+      <li><a href="#help">Troubleshooting</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="run">
+      <h2><span class="n">1</span>Starting the app</h2>
+      <ol class="steps">
+        <li>Open the app folder and double-click <code>start.bat</code> (Windows) or <code>start.command</code> (Mac).</li>
+        <li>A small terminal window appears (leave it open), then the editor opens in your browser at <code>http://localhost:4747</code>.</li>
+        <li>When you are done, close the browser tab and then the terminal window.</li>
+      </ol>
+      <div class="note">
+        <span class="ico">!</span>
+        <p><b>Which browser:</b> use a recent Google Chrome or Microsoft Edge; export relies on technology not every browser has.</p>
+      </div>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>Your privacy is safe:</b> everything runs on your device. Your photos and clips are never uploaded.</p>
+      </div>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>Language:</b> the <span class="ui">EN</span> / <span class="ui">ع</span> button in the top bar switches the editor between English and Arabic. Your choice is remembered.</p>
+      </div>
+    </section>
+
+    <section id="quick">
+      <h2><span class="n">2</span>Quick start</h2>
+      <p>Five steps are enough for your first video:</p>
+      <ol class="steps">
+        <li><b>Add your files:</b> press <span class="ui">Media</span> and choose your photos and clips. They are added to the timeline in order.</li>
+        <li><b>Arrange them:</b> drag any clip left or right to move it, and drag its edge to shorten it.</li>
+        <li><b>Add music:</b> press <span class="ui">Music</span> and choose an audio file.</li>
+        <li><b>Add text:</b> press <span class="ui">Text</span> and type your title, then drag it in the preview to where you want it.</li>
+        <li><b>Export:</b> press <span class="ui red">Export video</span>, choose the resolution, then <span class="ui red">Download video</span>.</li>
+      </ol>
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>Try it first:</b> press “Try a sample” on the start screen to create a small project with photos, music and text, so you can learn the tools before using your own files.</p>
+      </div>
+    </section>
+
+    <section id="ui">
+      <h2><span class="n">3</span>Getting to know the interface</h2>
+      <p>The screen has four parts:</p>
+
+      <div class="mock" role="img" aria-label="Simplified layout of the editor: top bar, preview, properties panel and timeline">
+        <div class="bar">
+          <span class="pin" style="position:static">1</span>
+          <b>Montaji</b>
+          <span class="chip">Media</span><span class="chip">Music</span><span class="chip">Text</span>
+          <span class="sp"></span>
+          <span class="chip">Size</span><span class="chip">↶ ↷</span><span class="chip red">Export video</span>
+        </div>
+        <div class="mid">
+          <div class="stage">
+            <div class="screen">Preview</div>
+            <span class="pin" style="top:8px;left:8px">2</span>
+          </div>
+          <div class="side">
+            <span class="pin" style="top:8px;right:8px">3</span>
+            Properties
+            <i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </div>
+        <div class="tl">
+          <span class="pin" style="top:6px;right:8px">4</span>
+          <div class="row"><span>Texts</span><div class="lane"><div class="it t" style="left:4%;width:30%"></div><div class="it t" style="left:62%;width:26%"></div></div></div>
+          <div class="row"><span>Clips</span><div class="lane big"><div class="it c" style="left:0;width:31%"></div><div class="it c" style="left:32%;width:27%"></div><div class="it c" style="left:60%;width:32%"></div></div></div>
+          <div class="row"><span>Music</span><div class="lane"><div class="it a" style="left:0;width:92%"></div></div></div>
+          <div class="head"></div>
+        </div>
+      </div>
+
+      <ul class="legend">
+        <li><span class="pin">1</span><span><b>Top bar:</b> the add buttons, video size, undo and redo, and the export button.</span></li>
+        <li><span class="pin">2</span><span><b>Preview:</b> shows the video as it will come out, with the play button and time below it.</span></li>
+        <li><span class="pin">3</span><span><b>Properties panel:</b> changes with the item you click (photo, video, music, text).</span></li>
+        <li><span class="pin">4</span><span><b>Timeline:</b> tracks for texts, clips and music; the white line is the playhead.</span></li>
+      </ul>
+
+      <h3>Moving through time</h3>
+      <ul>
+        <li>Click or drag on the ruler at the top of the timeline to move the playhead to any moment.</li>
+        <li>The <span class="ui">Zoom</span> slider zooms the timeline in for precise work, or out to see the whole project.</li>
+        <li>The four-arrow button next to the zoom fits the whole project on screen.</li>
+      </ul>
+    </section>
+
+    <section id="upload">
+      <h2><span class="n">4</span>Adding photos and clips</h2>
+      <p>There are two ways:</p>
+      <ul>
+        <li>Press <span class="ui">Media</span> and choose one or several files.</li>
+        <li>Or drag files from your folder and drop them anywhere on the page.</li>
+      </ul>
+      <p>Each new file is added at the <b>end</b> of the clips track. A photo shows for 4 seconds by default, a video for its full length.</p>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Type</th><th>Accepted formats</th></tr></thead>
+          <tbody>
+            <tr><td>Photos</td><td>JPG, PNG, WebP, GIF, BMP, AVIF</td></tr>
+            <tr><td>Video</td><td>MP4, WebM, MOV, M4V, MKV — MP4 is the safest</td></tr>
+            <tr><td>Audio</td><td>MP3, WAV, M4A, AAC, OGG, FLAC</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <span class="ico">!</span>
+        <p>iPhone photos in HEIC format and some MOV clips may not open in the browser. Convert them to JPG or MP4 first.</p>
+      </div>
+    </section>
+
+    <section id="arrange">
+      <h2><span class="n">5</span>Arranging, trimming and splitting</h2>
+
+      <div class="cards">
+        <div class="card"><h4>Reorder</h4><p>Drag a clip from its middle to its new place. A pink line shows where it will land.</p></div>
+        <div class="card"><h4>Trim</h4><p>Click the clip, then drag one of its two white edges inwards. For a photo this changes how long it shows.</p></div>
+        <div class="card"><h4>Split</h4><p>Put the playhead at the cut point and press <span class="ui">Split</span>: the clip becomes two independent parts.</p></div>
+        <div class="card"><h4>Duplicate and delete</h4><p>Select the item, then press <span class="ui">Duplicate</span> to copy it or <span class="ui">Delete</span> to remove it.</p></div>
+      </div>
+
+      <h3>Removing a part from the middle of a clip</h3>
+      <ol class="steps">
+        <li>Put the playhead at the start of the unwanted part and press <span class="ui">Split</span>.</li>
+        <li>Put the playhead at its end and press <span class="ui">Split</span> again.</li>
+        <li>Click the middle part, then <span class="ui">Delete</span>. The remaining parts close the gap automatically.</li>
+      </ol>
+
+      <div class="note tip">
+        <span class="ico">✓</span>
+        <p><b>Made a mistake?</b> Press the undo arrow in the top bar or <kbd>Ctrl</kbd> + <kbd>Z</kbd> to go back a step, and repeat to go back further.</p>
+      </div>
+      <p>Clips always sit next to each other with no gaps. <b>The final video length = the sum of the clip lengths</b> on this track.</p>
+    </section>
+
+    <section id="music">
+      <h2><span class="n">6</span>Adding music</h2>
+      <ol class="steps">
+        <li>Press <span class="ui">Music</span> and choose the audio file. It appears as a green bar on the music track.</li>
+        <li>Drag the bar to choose when the music starts, and drag its edges to pick the part you want.</li>
+        <li>Click the bar to edit its properties in the side panel.</li>
+      </ol>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Property</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>Volume</td><td>How loud the music is. Lower it if your clips have speech you want to hear.</td></tr>
+            <tr><td>Fade in</td><td>The music starts quiet and rises over the set time.</td></tr>
+            <tr><td>Fade out</td><td>The music fades gently before its end instead of stopping abruptly.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>If the music is <b>longer</b> than the video it is cut at the end automatically, with a fade out.</li>
+        <li>If it is <b>shorter</b>, select it and press <span class="ui">Duplicate</span> to add a copy right after it.</li>
+        <li>You can add more than one audio file, such as music and a voice-over together.</li>
+        <li>To mute or lower a video clip’s own sound: click the clip, then use “Clip volume” or “Mute clip”.</li>
+      </ul>
+    </section>
+
+    <section id="text">
+      <h2><span class="n">7</span>Adding text</h2>
+      <ol class="steps">
+        <li>Move the playhead to the moment the text should appear.</li>
+        <li>Press <span class="ui">Text</span> and type in the box in the side panel. Press <kbd>Enter</kbd> for a new line.</li>
+        <li>Drag the text in the preview to place it, or choose “Top / Middle / Bottom”.</li>
+        <li>On the timeline: drag the yellow bar to change when it appears, and drag its edge to change how long it stays.</li>
+      </ol>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Property</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>Size, font and color</td><td>The basic look of the text, with a bold option.</td></tr>
+            <tr><td>Outline</td><td>A border around the letters that keeps the text readable over any picture.</td></tr>
+            <tr><td>Text background</td><td>A semi-transparent colored box behind the text, good for captions.</td></tr>
+            <tr><td>Shadow</td><td>A soft shadow that lifts the text off the background.</td></tr>
+            <tr><td>Entrance animation</td><td>None, fade, rise from below, or a pop.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="effects">
+      <h2><span class="n">8</span>Transitions and effects</h2>
+      <p>Click any photo or clip on the timeline to see its options in the properties panel.</p>
+
+      <h3>Entry transition</h3>
+      <p>How a clip appears after the one before it: <b>Fade</b>, <b>Slide</b>, <b>Zoom</b>, <b>Wipe</b> or <b>Dip to black</b>. A clip with a transition shows a ⇄ mark.</p>
+      <p>To use the same transition across the whole video, press “Apply this transition to all clips”.</p>
+
+      <h3>Camera motion</h3>
+      <p>Brings still photos to life: a slow <b>zoom in</b> or <b>zoom out</b>, or a pan to the <b>right</b> or <b>left</b>.</p>
+
+      <h3>Fit</h3>
+      <p>Used when the photo’s shape differs from the video size, such as a portrait photo in a landscape video:</p>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Option</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>Blurred background</td><td>The whole photo shows, and the sides are filled with a blurred copy of it. (Default)</td></tr>
+            <tr><td>Black bars</td><td>The whole photo shows with black bars on the sides.</td></tr>
+            <tr><td>Fill the frame</td><td>The photo is enlarged to cover the whole screen and the excess is cropped.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Filters and color</h3>
+      <p>Pick a ready filter (Vivid, Warm, Cool, Black and white, Vintage, Soft), then adjust <b>Brightness</b>, <b>Contrast</b> and <b>Saturation</b> with the sliders if you like.</p>
+
+      <h3>Video speed</h3>
+      <p>For video clips only: 0.5× for slow motion, or 1.5× and 2× to speed up. The clip’s length changes accordingly.</p>
+    </section>
+
+    <section id="ratio">
+      <h2><span class="n">9</span>Video size</h2>
+      <p>Pick the size from the list in the top bar according to where you will post. You can change it at any time.</p>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Size</th><th>Shape</th><th>Good for</th></tr></thead>
+          <tbody>
+            <tr><td>16:9</td><td>Wide landscape</td><td>YouTube, TV, presentations</td></tr>
+            <tr><td>9:16</td><td>Tall portrait</td><td>TikTok, Reels, Stories, Shorts</td></tr>
+            <tr><td>1:1</td><td>Square</td><td>Instagram and Facebook posts</td></tr>
+            <tr><td>4:5</td><td>Short portrait</td><td>Instagram posts</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="export">
+      <h2><span class="n">10</span>Export and download</h2>
+      <ol class="steps">
+        <li>Press <span class="ui red">Export video</span> in the top bar.</li>
+        <li>Choose the <b>Resolution</b>, <b>Frame rate</b> and <b>Quality</b>. The approximate file size shows below them.</li>
+        <li>Press <span class="ui red">Start export</span> and wait for the progress bar to finish. Keep the page open.</li>
+        <li>Watch the result in the preview window, then press <span class="ui red">Download video</span> to save an MP4 file to your downloads folder.</li>
+      </ol>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Resolution</th><th>When to choose it</th></tr></thead>
+          <tbody>
+            <tr><td>HD — 720p</td><td>Quick sharing on WhatsApp: a small file and a faster export.</td></tr>
+            <tr><td>Full HD — 1080p</td><td>The best choice for most uses and social media. (Default)</td></tr>
+            <tr><td>2K — 1440p</td><td>Sharper for large screens.</td></tr>
+            <tr><td>4K — 2160p</td><td>The highest resolution. Takes longer, needs a strong device, and the file is large.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li><b>Frame rate:</b> 30 always works. Choose 60 for smoother motion if your clips were filmed at 60.</li>
+        <li><b>Quality:</b> “High” is a good balance. “Ultra” gives the sharpest result at a larger size, and “Normal” a smaller file.</li>
+      </ul>
+      <div class="note">
+        <span class="ico">!</span>
+        <p><b>Export time:</b> it can take several times the video’s length, more at higher resolutions and with long video clips. You can stop it at any moment with “Stop export”.</p>
+      </div>
+      <div class="note warn">
+        <span class="ico">!</span>
+        <p><b>Save before closing:</b> if you close or reload the page, unsaved work is lost. Save the project (<kbd>Ctrl</kbd> + <kbd>S</kbd>) or export the video first.</p>
+      </div>
+    </section>
+
+    <section id="keys">
+      <h2><span class="n">11</span>Keyboard shortcuts</h2>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Key</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>Space</kbd></td><td>Play or pause the preview</td></tr>
+            <tr><td><kbd>S</kbd></td><td>Split at the playhead</td></tr>
+            <tr><td><kbd>Delete</kbd></td><td>Delete the selected item</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>Redo</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>Duplicate the selected item</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save the project as a .montaji file (from the “Project” menu)</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd></td><td>Open a saved project with everything in it</td></tr>
+            <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Move the playhead one frame</td></tr>
+            <tr><td><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd></td><td>Move the playhead one second</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Clear the selection</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Shortcuts do not work while you are typing in a text box; click outside the box first.</p>
+    </section>
+
+    <section id="help">
+      <h2><span class="n">12</span>Troubleshooting</h2>
+
+      <details>
+        <summary>The page does not open after running start.bat</summary>
+        <div><p>Make sure the terminal window is still open, then type <code>http://localhost:4747</code> in the address bar. If the window says the <code>node</code> command is not recognized, Node.js is not installed on the computer.</p></div>
+      </details>
+      <details>
+        <summary>A “Could not open the file” message appears</summary>
+        <div><p>The browser does not support that format. Convert photos to JPG and videos to MP4, then try again.</p></div>
+      </details>
+      <details>
+        <summary>“Your browser cannot export”</summary>
+        <div><p>Open the app in Google Chrome or Microsoft Edge updated to the latest version.</p></div>
+      </details>
+      <details>
+        <summary>“This resolution is not supported on your device”</summary>
+        <div><p>Your device cannot encode that resolution. Choose a lower one such as 1080p.</p></div>
+      </details>
+      <details>
+        <summary>Export is very slow</summary>
+        <div><p>Choose a lower resolution or 30 frames instead of 60, close other programs and tabs, and keep the editor window visible until it finishes.</p></div>
+      </details>
+      <details>
+        <summary>The exported video has no sound</summary>
+        <div><p>Check that the music’s “Volume” is not zero, that “Mute clip” is off, and that the music sits within the video’s length, not after its end.</p></div>
+      </details>
+      <details>
+        <summary>The music stops before the video ends</summary>
+        <div><p>The audio file is shorter than the video. Select the music bar and press “Duplicate”, or add another audio file after it.</p></div>
+      </details>
+      <details>
+        <summary>The preview stutters while playing</summary>
+        <div><p>This happens with heavy clips on mid-range devices and does not affect the final file; export processes every frame on its own.</p></div>
+      </details>
+    </section>
+
+  </main>
+</div>
+
+<footer>Montaji user guide — you can print it or save it as a PDF from the browser menu (Ctrl + P).</footer>
+
+</body>
+</html>

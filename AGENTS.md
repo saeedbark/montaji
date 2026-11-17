@@ -46,5 +46,9 @@ reference video is in the `مرجع` folder (or dropped in the app folder) and t
   modules and is tested there; keep new logic testable the same way.
 - A tool for the assistant is declared in `public/js/tools.js` and implemented in `public/js/agent.js`;
   the MCP server and the in-page assistant share both.
-- Code comments and user-facing text are in Arabic, tool descriptions in English.
+- Code comments are in Arabic, tool descriptions in English. The interface is Arabic (default) and English:
+  write user-facing text as `tt('النص العربي', 'English text')` (from `public/js/i18n.js`); static text in
+  `index.html` is translated from the `STATIC` dictionary there, and fixed label tables go through
+  `I18N.localize`. Server messages that reach the page are `{ error: 'عربي', error_en: 'English' }`; `json()` in
+  `server/http.js` picks one from the `montaji_lang` cookie. The English user guide is `public/guide.en.html`.
 - Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -17,8 +17,29 @@ const MEDIA_EXT = /\.(jpe?g|png|webp|gif|bmp|avif|mp4|m4v|mov|webm|mkv|avi|mp3|w
 
 const contentType = file => TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream';
 
+/** لغة الطلب: كوكي montaji_lang التي تضبطها الواجهة. العربية افتراضياً (وللطرفية وعملاء MCP) */
+const langOf = req => (/(?:^|;\s*)montaji_lang=en(?:;|$)/.test(req.headers.cookie || '') ? 'en' : 'ar');
+
+/**
+ * رسائل الخادم ثنائية اللغة: الحقل X_en بجانب X يحل محله في الواجهة الإنجليزية، ويُحذف في الحالتين.
+ * تكفي ثلاثة مستويات (الرد، وأجزاؤه مثل stt و choices في /api/config، وعناصرها)، فلا تُمسح الردود الكبيرة كلها
+ */
+function pickLang(data, en, depth = 0) {
+  if (!data || typeof data !== 'object' || depth > 2) return data;
+  if (Array.isArray(data)) return depth > 1 ? data : data.map(v => pickLang(v, en, depth + 1));
+  if (!Object.keys(data).some(k => k.endsWith('_en')) && depth) return data;
+  const out = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (k.endsWith('_en') && k.slice(0, -3) in data) continue;
+    const e = data[k + '_en'];
+    out[k] = en && e != null ? e : pickLang(v, en, depth + 1);
+  }
+  return out;
+}
+
 function json(res, status, data) {
   if (res.headersSent) return;
+  data = pickLang(data, res.lang === 'en');
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(data));
 }
@@ -29,7 +50,7 @@ function readBody(req, limit) {
     let size = 0;
     req.on('data', c => {
       size += c.length;
-      if (size > limit) { reject(new Error('الطلب أكبر من المسموح')); req.destroy(); } else chunks.push(c);
+      if (size > limit) { reject(Object.assign(new Error('الطلب أكبر من المسموح'), { en: 'The request is too large' })); req.destroy(); } else chunks.push(c);
     });
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
@@ -76,4 +97,4 @@ function serveStatic(req, res, p) {
   });
 }
 
-module.exports = { TYPES, MEDIA_EXT, contentType, json, readBody, trusted, serveStatic };
+module.exports = { TYPES, MEDIA_EXT, contentType, langOf, pickLang, json, readBody, trusted, serveStatic };

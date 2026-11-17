@@ -621,3 +621,9 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
   .item .kf { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
   .kf-btn { font-size: 19px; padding: 4px 4px; }
 }
+
+/* زر اللغة، وتعديلات الواجهة الإنجليزية (من اليسار إلى اليمين) */
+.btn.lang { font-weight: 700; font-size: 13px; }
+:root[dir="ltr"] .tl-label, :root[dir="ltr"] .tl-hint, :root[dir="ltr"] .item .name { direction: ltr; }
+:root[dir="ltr"] .guide li { padding: 9px 0 9px 40px; }
+:root[dir="ltr"] .guide li::before { right: auto; left: 0; }

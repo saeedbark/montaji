@@ -642,7 +642,7 @@ const Agent = (() => {
         file = c.file; clipId = c.id;
       }
       const sensitivity = has(a.sensitivity) ? oneOf(a.sensitivity, Object.keys(RefTools.SENSITIVITY), 'sensitivity') : 'normal';
-      S.toast('جارٍ تحليل المقطع المرجعي…');
+      S.toast(tt('جارٍ تحليل المقطع المرجعي…', 'Analyzing the reference video…'));
       const r = await Reference.analyze(file, { sensitivity, clipId });
       const P = r.beats && r.beats.period, avg = r.duration / r.shots.length;
       const shotOf = t => r.shots.findIndex(s => t >= s.start && t < s.end);

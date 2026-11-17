@@ -299,6 +299,20 @@ describe('الخادم', () => {
     assert.doesNotMatch(r.text, /do-not-leak/);
   });
 
+  test('رسائل الخادم بلغة الواجهة: العربية افتراضياً، والإنجليزية مع كوكي montaji_lang=en', async () => {
+    const ar = await request('/api/config');
+    assert.match(ar.data.error, /[؀-ۿ]/);
+    assert.equal(ar.data.code, 'no_key');
+    assert.ok(!('error_en' in ar.data) && !('error_en' in ar.data.stt), 'الحقل الإنجليزي لا يُرسل');
+    const en = await request('/api/config', { headers: { Cookie: 'x=1; montaji_lang=en' } });
+    assert.equal(en.data.error, 'No key has been set yet');
+    assert.match(en.data.stt.error, /^Auto captions need/);
+    assert.equal(en.data.code, 'no_key');
+    const key = await request('/api/settings/key', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: 'montaji_lang=en' }, body: { provider: 'nope', key: 'x' } });
+    assert.equal(key.status, 400);
+    assert.equal(key.data.error, 'Choose a provider from the list');
+  });
+
   test('/api/chat بلا مفتاح يعيد خطأ إعداد لا عطلاً', async () => {
     const r = await request('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { messages: [] } });
     assert.equal(r.status, 400);

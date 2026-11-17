@@ -4,9 +4,11 @@
    فيفتحه أي برنامج ZIP وتُستخرج منه الملفات إن لزم. */
 
 const ProjectTools = (() => {
+  // في Node لا توجد واجهة: العربي دائماً
+  const tt = typeof I18N !== 'undefined' ? I18N.t : ar => ar;
   const VERSION = 1, EXT = 'montaji', MIN_LEN = 0.2;
   const MAX32 = 0xFFFFFFFF;
-  const invalid = () => new Error('الملف ليس ملف مشروع مونتاجي صالحاً');
+  const invalid = () => new Error(tt('الملف ليس ملف مشروع مونتاجي صالحاً', 'This is not a valid Montaji project file'));
 
   /* ================= CRC-32 على دفعات ================= */
   const CRC = (() => {
@@ -152,7 +154,7 @@ const ProjectTools = (() => {
     if (e.method === 8 && canInflate()) {
       return new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
     }
-    throw new Error('طريقة ضغط غير مدعومة في ملف المشروع');
+    throw new Error(tt('طريقة ضغط غير مدعومة في ملف المشروع', 'Unsupported compression method in the project file'));
   }
 
   /** هل تفك بيئة التشغيل ضغط deflate؟ كل المتصفحات الحديثة نعم، و Node قبل 20.12 لا يعرف صيغة deflate-raw */
@@ -311,7 +313,7 @@ const ProjectTools = (() => {
   function normalize(data, enums = {}) {
     if (!data || typeof data !== 'object' || data.app !== 'montaji') throw invalid();
     if (!(data.version >= 1)) throw invalid();
-    if (data.version > VERSION) throw new Error('هذا المشروع محفوظ بإصدار أحدث من مونتاجي. حدّث البرنامج لفتحه.');
+    if (data.version > VERSION) throw new Error(tt('هذا المشروع محفوظ بإصدار أحدث من مونتاجي. حدّث البرنامج لفتحه.', 'This project was saved by a newer Montaji. Update the app to open it.'));
     const sp = specs({ ...ENUMS, ...enums });
     const list = v => (Array.isArray(v) ? v.slice(0, 5000) : []);
     const used = new Set();
@@ -371,7 +373,7 @@ const ProjectTools = (() => {
   /** اسم ملف المشروع من اسمه: بلا مسارات ولا رموز محجوزة، وبالامتداد */
   function fileName(name) {
     const n = cleanName(String(name || '').replace(new RegExp('\\.' + EXT + '$', 'i'), '')).replace(/[. ]+$/, '');
-    return (n || 'مشروع') + '.' + EXT;
+    return (n || tt('مشروع', 'project')) + '.' + EXT;
   }
 
   return { VERSION, EXT, crc32, crcUpdate, crcOfBlob, zipParts, readZip, zipData, canInflate, serialize, normalize, entryName, fileName, ENUMS };

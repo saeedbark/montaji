@@ -117,7 +117,8 @@
     updateTransport();
     els.empty.hidden = !isEmpty();
     dirty = true;
-    document.title = state.name ? `${state.name} — مونتاجي` : 'مونتاجي';
+    const app = tt('مونتاجي', 'Montaji');
+    document.title = state.name ? `${state.name} — ${app}` : app;
     const info = $('#projInfo');
     if (info) info.innerHTML = projectInfo();
     document.dispatchEvent(new Event('studio:change'));
@@ -154,7 +155,7 @@
   const loadVideo = url => new Promise((res, rej) => {
     const v = createVideo(url);
     v.addEventListener('loadeddata', () => res(v), { once: true });
-    v.addEventListener('error', () => rej(new Error('تعذّر قراءة الفيديو')), { once: true });
+    v.addEventListener('error', () => rej(new Error(tt('تعذّر قراءة الفيديو', 'Could not read the video'))), { once: true });
   });
 
   async function videoDuration(v) {
@@ -203,7 +204,7 @@
     const img = new Image();
     await new Promise((res, rej) => {
       img.onload = res;
-      img.onerror = () => rej(new Error('تعذّر قراءة الصورة'));
+      img.onerror = () => rej(new Error(tt('تعذّر قراءة الصورة', 'Could not read the image')));
       img.src = url;
     });
     return {
@@ -269,14 +270,14 @@
     for (const f of files) {
       try {
         const k = kindOf(f);
-        if (!k) { toast(`نوع الملف غير مدعوم: ${f.name}`, 'err'); continue; }
+        if (!k) { toast(tt(`نوع الملف غير مدعوم: ${f.name}`, `Unsupported file type: ${f.name}`), 'err'); continue; }
         const it = await makers[k](f);
         (isAudioItem(it) ? state.audios : state.clips).push(it);
         added++;
         refresh();
       } catch (e) {
         console.error(e);
-        toast(`تعذّر فتح الملف: ${f.name}`, 'err');
+        toast(tt(`تعذّر فتح الملف: ${f.name}`, `Could not open the file: ${f.name}`), 'err');
       }
     }
     els.busy.hidden = true;
@@ -294,7 +295,7 @@
    * ← أسماء العناصر التي تعذّر تحميل ملفها فتُركت
    */
   async function loadProject(data, files, onProgress) {
-    if (view.exporting) throw new Error('انتظر انتهاء التصدير أولاً');
+    if (view.exporting) throw new Error(tt('انتظر انتهاء التصدير أولاً', 'Wait for the export to finish first'));
     const templates = new Map(), skipped = new Set();
     const wanted = new Set([...data.clips, ...(data.overlays || []), ...data.audios].map(o => o.media));
     let done = 0;
@@ -402,9 +403,9 @@
     for (const f of files) {
       try {
         const k = kindOf(f);
-        if (k !== 'image' && k !== 'video') { toast(`الطبقة صورة أو فيديو فقط: ${f.name}`, 'err'); continue; }
+        if (k !== 'image' && k !== 'video') { toast(tt(`الطبقة صورة أو فيديو فقط: ${f.name}`, `An overlay must be an image or a video: ${f.name}`), 'err'); continue; }
         const it = await makers[k](f);
-        if (isAudioItem(it)) { toast(`الملف صوت بلا صورة: ${f.name}`, 'err'); continue; }
+        if (isAudioItem(it)) { toast(tt(`الملف صوت بلا صورة: ${f.name}`, `This file is audio with no picture: ${f.name}`), 'err'); continue; }
         const o = asOverlay(it, clamp(view.t, 0, Math.max(0, view.total - 0.5)));
         if (o.type === 'image' && view.total > 0) o.out = clamp(view.total - o.start, 1, 4);
         o.track = freeTrack(o.start, overlayLen(o));
@@ -412,7 +413,7 @@
         made.push(o);
       } catch (e) {
         console.error(e);
-        toast(`تعذّر فتح الملف: ${f.name}`, 'err');
+        toast(tt(`تعذّر فتح الملف: ${f.name}`, `Could not open the file: ${f.name}`), 'err');
       }
     }
     els.busy.hidden = true;
@@ -455,7 +456,7 @@
     const start = clamp(view.t, 0, Math.max(0, view.total - 0.5));
     const dur = view.total > 0 ? clamp(view.total - start, 1, 3) : 3;
     const tx = {
-      id: uid(), text: 'اكتب نصك هنا', start, dur,
+      id: uid(), text: tt('اكتب نصك هنا', 'Type your text here'), start, dur,
       x: 0.5, y: 0.82, size: 0.08, color: '#ffffff', font: 'segoe', bold: true,
       stroke: true, strokeColor: '#000000', bg: false, bgColor: '#000000', shadow: true, anim: 'fade',
     };
@@ -508,7 +509,7 @@
       const v = o.el, lt = t - o.start, on = lt >= 0 && lt < overlayLen(o);
       if (on && ++active > MAX_LIVE) {
         if (!v.paused) v.pause();
-        if (!warnedLive) { warnedLive = true; toast(`أكثر من ${MAX_LIVE} فيديوهات فوق بعضها: المعاينة تشغّل ${MAX_LIVE} منها فقط، والتصدير يشملها كلها`, 'err'); }
+        if (!warnedLive) { warnedLive = true; toast(tt(`أكثر من ${MAX_LIVE} فيديوهات فوق بعضها: المعاينة تشغّل ${MAX_LIVE} منها فقط، والتصدير يشملها كلها`, `More than ${MAX_LIVE} videos stacked: the preview plays only ${MAX_LIVE} of them, the export includes them all`), 'err'); }
         continue;
       }
       if (!on) {
@@ -674,7 +675,7 @@
     const sel = state.sel;
     const isSel = (kind, id) => (sel && sel.kind === kind && sel.id === id ? ' sel' : '');
     // نقاط الإطارات المفتاحية على العنصر: النقر ينقل المؤشر إليها والسحب يغيّر وقتها
-    const dots = o => kfTimes(o).map(t => `<i class="kf" data-kt="${t}" style="left:${t * pps}px" title="إطار مفتاحي"></i>`).join('');
+    const dots = o => kfTimes(o).map(t => `<i class="kf" data-kt="${t}" style="left:${t * pps}px" title="${tt('إطار مفتاحي', 'Keyframe')}"></i>`).join('');
 
     // الترجمة: صف واحد، يظهر حين توجد كتل
     const CL = 26;
@@ -703,22 +704,22 @@
     const tLanes = assignLanes(state.texts, x => x.dur);
     const texts = state.texts.filter(x => vis(x.start, x.dur)).map(x =>
       `<div class="item text${isSel('text', x.id)}" data-kind="text" data-id="${x.id}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (TL + 4)}px;height:${TL}px">
-        ${dots(x)}<span class="name">${esc(x.text.split('\n')[0] || 'نص')}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
+        ${dots(x)}<span class="name">${esc(x.text.split('\n')[0] || tt('نص', 'Text'))}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // المقاطع
     const clips = state.clips.filter(c => vis(c._start, clipLen(c))).map(c => {
       const len = clipLen(c);
       return `<div class="item clip ${c.type}${isSel('clip', c.id)}" data-kind="clip" data-id="${c.id}" style="left:${c._start * pps}px;width:${Math.max(6, len * pps - 2)}px">
         <div class="thumbs" style="background-image:url('${c.thumb}')"></div>
-        ${c.transition !== 'none' ? '<span class="tr-badge" title="انتقال">⇄</span>' : ''}${dots(c)}
-        <span class="name">${esc(c.name)}</span><span class="dur">${len.toFixed(1)}ث</span><i class="h l"></i><i class="h r"></i></div>`;
+        ${c.transition !== 'none' ? `<span class="tr-badge" title="${tt('انتقال', 'Transition')}">⇄</span>` : ''}${dots(c)}
+        <span class="name">${esc(c.name)}</span><span class="dur">${len.toFixed(1)}${tt('ث', 's')}</span><i class="h l"></i><i class="h r"></i></div>`;
     }).join('');
 
     // التأثيرات
     const EL = 26;
     const eLanes = assignLanes(state.effects, x => x.dur);
     const effects = state.effects.filter(x => vis(x.start, x.dur)).map(x =>
-      `<div class="item effect${x.at ? ' anchored' : ''}${isSel('effect', x.id)}" data-kind="effect" data-id="${x.id}" title="${x.at ? 'مربوط بالقطع: يتبعه عند تغيير التوقيت' : ''}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (EL + 4)}px;height:${EL}px">
+      `<div class="item effect${x.at ? ' anchored' : ''}${isSel('effect', x.id)}" data-kind="effect" data-id="${x.id}" title="${x.at ? tt('مربوط بالقطع: يتبعه عند تغيير التوقيت', 'Linked to the cut: follows it when the timing changes') : ''}" style="left:${x.start * pps}px;width:${Math.max(6, x.dur * pps)}px;top:${x._lane * (EL + 4)}px;height:${EL}px">
         ${dots(x)}<span class="name">${esc((Render.EFFECTS[x.type] || {}).label || x.type)}</span><i class="h l"></i><i class="h r"></i></div>`).join('');
 
     // الموسيقى
@@ -735,12 +736,12 @@
 
     els.tlRows.innerHTML =
       `<div class="tl-ruler"><div class="tl-label"></div><div class="tl-lane" style="width:${W}px">${ticks}</div></div>
-       ${state.captions.items.length ? `<div class="tl-track caption"><div class="tl-label">الترجمة</div><div class="tl-lane" style="width:${W}px;height:${CL}px">${caps}</div></div>` : ''}
-       <div class="tl-track text"><div class="tl-label">النصوص</div><div class="tl-lane" style="width:${W}px;height:${tLanes * (TL + 4) - 4}px">${state.texts.length ? texts : '<span class="tl-hint">اضغط «نص» لإضافة عنوان أو تعليق</span>'}</div></div>
-       ${state.overlays.length ? `<div class="tl-track overlay"><div class="tl-label">الطبقات</div><div class="tl-lane" style="width:${W}px;height:${(maxTrack + 1) * (OL + 4) - 4}px">${overlays}</div></div>` : ''}
-       <div class="tl-track main"><div class="tl-label">المقاطع</div><div class="tl-lane" style="width:${W}px">${state.clips.length ? clips : '<span class="tl-hint">ارفع صوراً أو مقاطع فيديو لتظهر هنا</span>'}</div></div>
-       <div class="tl-track effect"><div class="tl-label">التأثيرات</div><div class="tl-lane" style="width:${W}px;height:${eLanes * (EL + 4) - 4}px">${state.effects.length ? effects : '<span class="tl-hint">اضغط «تأثير» لإضافة تكبير ضبابي أو وميض أو أبيض وأسود</span>'}</div></div>
-       <div class="tl-track audio"><div class="tl-label">الموسيقى</div><div class="tl-lane" style="width:${W}px;height:${aLanes * (AL + 4) - 4}px">${state.audios.length ? audios : '<span class="tl-hint">اضغط «موسيقى» لإضافة مقطع صوتي</span>'}</div></div>
+       ${state.captions.items.length ? `<div class="tl-track caption"><div class="tl-label">${tt('الترجمة', 'Captions')}</div><div class="tl-lane" style="width:${W}px;height:${CL}px">${caps}</div></div>` : ''}
+       <div class="tl-track text"><div class="tl-label">${tt('النصوص', 'Texts')}</div><div class="tl-lane" style="width:${W}px;height:${tLanes * (TL + 4) - 4}px">${state.texts.length ? texts : tt('<span class="tl-hint">اضغط «نص» لإضافة عنوان أو تعليق</span>', '<span class="tl-hint">Press “Text” to add a title or a caption</span>')}</div></div>
+       ${state.overlays.length ? `<div class="tl-track overlay"><div class="tl-label">${tt('الطبقات', 'Overlays')}</div><div class="tl-lane" style="width:${W}px;height:${(maxTrack + 1) * (OL + 4) - 4}px">${overlays}</div></div>` : ''}
+       <div class="tl-track main"><div class="tl-label">${tt('المقاطع', 'Clips')}</div><div class="tl-lane" style="width:${W}px">${state.clips.length ? clips : tt('<span class="tl-hint">ارفع صوراً أو مقاطع فيديو لتظهر هنا</span>', '<span class="tl-hint">Add photos or video clips to see them here</span>')}</div></div>
+       <div class="tl-track effect"><div class="tl-label">${tt('التأثيرات', 'Effects')}</div><div class="tl-lane" style="width:${W}px;height:${eLanes * (EL + 4) - 4}px">${state.effects.length ? effects : tt('<span class="tl-hint">اضغط «تأثير» لإضافة تكبير ضبابي أو وميض أو أبيض وأسود</span>', '<span class="tl-hint">Press “Effect” to add a zoom blur, a flash or black and white</span>')}</div></div>
+       <div class="tl-track audio"><div class="tl-label">${tt('الموسيقى', 'Music')}</div><div class="tl-lane" style="width:${W}px;height:${aLanes * (AL + 4) - 4}px">${state.audios.length ? audios : tt('<span class="tl-hint">اضغط «موسيقى» لإضافة مقطع صوتي</span>', '<span class="tl-hint">Press “Music” to add an audio track</span>')}</div></div>
        ${total > 0 ? `<div class="tl-end" style="left:${LABEL_W + total * pps}px;right:0"></div>` : ''}`;
     els.tlInner.style.width = (LABEL_W + W) + 'px';
     updateTransport();
@@ -1024,10 +1025,10 @@
 
   function dupSel() {
     const obj = selObj();
-    if (!obj) return toast('حدّد عنصراً أولاً لتكراره');
+    if (!obj) return toast(tt('حدّد عنصراً أولاً لتكراره', 'Select an item to duplicate first'));
     const k = state.sel.kind;
     const n = dupItem(k, obj);
-    if (!n) return toast('لا مكان لنسخة بعد هذه الكتلة');
+    if (!n) return toast(tt('لا مكان لنسخة بعد هذه الكتلة', 'No room for a copy after this block'));
     state.sel = { kind: k, id: n.id };
     touch();
     renderProps();
@@ -1042,10 +1043,10 @@
     if (!covers()) {
       const i = clipIndexAt(t);
       obj = i >= 0 ? state.clips[i] : null; kind = 'clip';
-      if (!covers()) return toast('ضع المؤشر داخل المقطع الذي تريد تقسيمه');
+      if (!covers()) return toast(tt('ضع المؤشر داخل المقطع الذي تريد تقسيمه', 'Put the playhead inside the clip you want to split'));
     }
     const n = splitItem(kind, obj, t);
-    if (!n) return toast(kind === 'caption' ? 'هذه الكتلة كلمة واحدة فلا تُقسم' : 'ضع المؤشر داخل المقطع الذي تريد تقسيمه');
+    if (!n) return toast(kind === 'caption' ? tt('هذه الكتلة كلمة واحدة فلا تُقسم', 'This block is a single word, so it cannot be split') : tt('ضع المؤشر داخل المقطع الذي تريد تقسيمه', 'Put the playhead inside the clip you want to split'));
     state.sel = { kind, id: n.id };
     touch();
     renderProps();
@@ -1063,24 +1064,24 @@
   /** شريط لخاصية قابلة للتحريك: يعرض قيمتها عند المؤشر، ومعه زر ◇ يثبّتها إطاراً مفتاحياً */
   const kslider = (obj, kind, key, label, min, max, step, unit = '', scale = 1) => {
     const lt = ltOf(kind, obj), val = fmtK(prop(obj, key, lt) / scale, step);
-    return `<label class="row"><span><button type="button" class="kf-btn${hasKf(obj, key) ? ' on' : ''}" data-kf="${key}" title="إطار مفتاحي عند المؤشر">${keyHere(obj, key, lt) ? '◆' : '◇'}</button>${label}</span><input type="range" data-k="${key}" data-kfk="1" data-scale="${scale}" data-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${clamp(val, min, max)}"><output>${val}${unit}</output></label>`;
+    return `<label class="row"><span><button type="button" class="kf-btn${hasKf(obj, key) ? ' on' : ''}" data-kf="${key}" title="${tt('إطار مفتاحي عند المؤشر', 'Keyframe at the playhead')}">${keyHere(obj, key, lt) ? '◆' : '◇'}</button>${label}</span><input type="range" data-k="${key}" data-kfk="1" data-scale="${scale}" data-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${clamp(val, min, max)}"><output>${val}${unit}</output></label>`;
   };
   function kfHereHtml(obj, lt) {
     const times = kfTimes(obj);
     if (!times.length) return '';
     const at = times.find(t => Math.abs(t - lt) < KF_NEAR);
-    let h = `<div class="actions"><button class="btn small" data-act="kfPrev">الإطار السابق</button><button class="btn small" data-act="kfNext">الإطار التالي</button></div>`;
+    let h = `<div class="actions"><button class="btn small" data-act="kfPrev">${tt('الإطار السابق', 'Previous keyframe')}</button><button class="btn small" data-act="kfNext">${tt('الإطار التالي', 'Next keyframe')}</button></div>`;
     if (at != null) {
       let e = 'smooth';
       for (const k in obj.kf) { const x = obj.kf[k].find(q => Math.abs(q.t - at) < KF_NEAR); if (x) { e = x.e; break; } }
-      h += `<p class="sub" style="white-space:normal;margin-top:8px">الحركة من هذا الإطار إلى الذي يليه:</p>`
-        + chips('kfEase', [['smooth', 'ناعمة'], ['linear', 'خطية'], ['hold', 'قفزة']], e)
-        + `<button class="link-btn" data-act="kfDelHere">حذف إطارات هذا الموضع</button>`;
+      h += `<p class="sub" style="white-space:normal;margin-top:8px">${tt('الحركة من هذا الإطار إلى الذي يليه:', 'Motion from this keyframe to the next:')}</p>`
+        + chips('kfEase', [['smooth', tt('ناعمة', 'Smooth')], ['linear', tt('خطية', 'Linear')], ['hold', tt('قفزة', 'Hold')]], e)
+        + `<button class="link-btn" data-act="kfDelHere">${tt('حذف إطارات هذا الموضع', 'Delete keyframes here')}</button>`;
     }
-    return h + `<button class="link-btn" data-act="kfClear">حذف كل الإطارات (${times.length})</button>`;
+    return h + `<button class="link-btn" data-act="kfClear">${tt('حذف كل الإطارات', 'Delete all keyframes')} (${times.length})</button>`;
   }
-  const kfSection = (obj, kind) => `<h3>الإطارات المفتاحية</h3>
-    <p class="sub" style="white-space:normal">اضغط ◇ بجانب خاصية لتثبيت قيمتها عند المؤشر، ثم انقل المؤشر وغيّر القيمة فتتحرك بين الموضعين.</p>
+  const kfSection = (obj, kind) => `<h3>${tt('الإطارات المفتاحية', 'Keyframes')}</h3>
+    <p class="sub" style="white-space:normal">${tt('اضغط ◇ بجانب خاصية لتثبيت قيمتها عند المؤشر، ثم انقل المؤشر وغيّر القيمة فتتحرك بين الموضعين.', 'Press ◇ next to a property to pin its value at the playhead, then move the playhead and change the value: it animates between the two.')}</p>
     <div id="kfHere">${kfHereHtml(obj, ltOf(kind, obj))}</div>`;
 
   /** يحدّث أشرطة الخصائص المتحركة وأزرارها عند تحرك المؤشر، دون إعادة بناء اللوحة */
@@ -1104,9 +1105,9 @@
     `<label class="row check"><input type="checkbox" data-k="${k}"${on ? ' checked' : ''}><span>${label}</span>${extra}</label>`;
   const actions = () =>
     `<div class="actions">
-      <button class="btn small" data-act="split"><svg class="ic"><use href="#i-split"/></svg>تقسيم</button>
-      <button class="btn small" data-act="dup"><svg class="ic"><use href="#i-copy"/></svg>تكرار</button>
-      <button class="btn small danger" data-act="del"><svg class="ic"><use href="#i-trash"/></svg>حذف</button>
+      <button class="btn small" data-act="split"><svg class="ic"><use href="#i-split"/></svg>${tt('تقسيم', 'Split')}</button>
+      <button class="btn small" data-act="dup"><svg class="ic"><use href="#i-copy"/></svg>${tt('تكرار', 'Duplicate')}</button>
+      <button class="btn small danger" data-act="del"><svg class="ic"><use href="#i-trash"/></svg>${tt('حذف', 'Delete')}</button>
     </div>`;
 
   /** تفاصيل المشروع في لوحة الخصائص حين لا يكون عنصر محدداً. تُحدَّث مع كل تغيير */
@@ -1115,20 +1116,20 @@
     const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
     const [W, H] = outputSize(state.ratio, 1080);
     const vids = state.clips.filter(c => c.type === 'video').length, imgs = state.clips.length - vids;
-    return `<h2>تفاصيل المشروع</h2><p class="sub" title="${esc(state.name)}">${state.name ? esc(state.name) : 'مشروع لم يُحفظ بعد'}</p>
+    return `<h2>${tt('تفاصيل المشروع', 'Project details')}</h2><p class="sub" title="${esc(state.name)}">${state.name ? esc(state.name) : tt('مشروع لم يُحفظ بعد', 'Unsaved project')}</p>
       <dl class="proj-info">
-        ${row('المدة', `<span dir="ltr">${fmtTime(view.total)}</span>`)}
-        ${row('المقاس', `<span dir="ltr">${state.ratio} · ${W}×${H}</span>`)}
-        ${row('المقاطع', `${state.clips.length}${state.clips.length ? ` <small>(${vids} فيديو · ${imgs} صورة)</small>` : ''}`)}
-        ${state.overlays.length ? row('الطبقات', state.overlays.length) : ''}
-        ${row('النصوص', state.texts.length)}
-        ${state.captions.items.length ? row('الترجمة', `${state.captions.items.length} <small>كتلة</small>`) : ''}
-        ${row('التأثيرات', state.effects.length)}
-        ${row('الموسيقى', state.audios.length)}
+        ${row(tt('المدة', 'Duration'), `<span dir="ltr">${fmtTime(view.total)}</span>`)}
+        ${row(tt('المقاس', 'Size'), `<span dir="ltr">${state.ratio} · ${W}×${H}</span>`)}
+        ${row(tt('المقاطع', 'Clips'), `${state.clips.length}${state.clips.length ? ` <small>(${vids} ${tt('فيديو', 'video')} · ${imgs} ${tt('صورة', 'image')})</small>` : ''}`)}
+        ${state.overlays.length ? row(tt('الطبقات', 'Overlays'), state.overlays.length) : ''}
+        ${row(tt('النصوص', 'Texts'), state.texts.length)}
+        ${state.captions.items.length ? row(tt('الترجمة', 'Captions'), `${state.captions.items.length} <small>${tt('كتلة', 'blocks')}</small>`) : ''}
+        ${row(tt('التأثيرات', 'Effects'), state.effects.length)}
+        ${row(tt('الموسيقى', 'Music'), state.audios.length)}
       </dl>
       <div class="actions proj-actions">
-        <button class="btn small" data-act="projSave"><svg class="ic"><use href="#i-save"/></svg>حفظ المشروع</button>
-        <button class="btn small" data-act="projOpen"><svg class="ic"><use href="#i-folder"/></svg>فتح مشروع</button>
+        <button class="btn small" data-act="projSave"><svg class="ic"><use href="#i-save"/></svg>${tt('حفظ المشروع', 'Save project')}</button>
+        <button class="btn small" data-act="projOpen"><svg class="ic"><use href="#i-folder"/></svg>${tt('فتح مشروع', 'Open project')}</button>
       </div>`;
   }
 
@@ -1137,147 +1138,147 @@
     const kind = obj && state.sel.kind;
     let h = '';
     if (!obj) {
-      h = `<div id="projInfo">${projectInfo()}</div><h2>كيف أبدأ؟</h2>
+      h = `<div id="projInfo">${projectInfo()}</div><h2>${tt('كيف أبدأ؟', 'How do I start?')}</h2>
         <ol class="guide">
-          <li><b>ارفع ملفاتك</b><br>صور ومقاطع فيديو — تُضاف تلقائياً بالترتيب.</li>
-          <li><b>رتّب وقُصّ</b><br>اسحب المقطع لتغيير مكانه، واسحب حافته لتقصيره.</li>
-          <li><b>أضف موسيقى ونصوصاً</b><br>ثم اضغط على أي عنصر لتعديل خصائصه هنا.</li>
-          <li><b>صدّر الفيديو</b><br>اختر الدقة حتى 4K ونزّل ملف MP4.</li>
+          <li>${tt('<b>ارفع ملفاتك</b><br>صور ومقاطع فيديو — تُضاف تلقائياً بالترتيب.', '<b>Add your files</b><br>Photos and video clips — added in order automatically.')}</li>
+          <li>${tt('<b>رتّب وقُصّ</b><br>اسحب المقطع لتغيير مكانه، واسحب حافته لتقصيره.', '<b>Arrange and trim</b><br>Drag a clip to move it, drag its edge to shorten it.')}</li>
+          <li>${tt('<b>أضف موسيقى ونصوصاً</b><br>ثم اضغط على أي عنصر لتعديل خصائصه هنا.', '<b>Add music and text</b><br>Then click any item to edit its properties here.')}</li>
+          <li>${tt('<b>صدّر الفيديو</b><br>اختر الدقة حتى 4K ونزّل ملف MP4.', '<b>Export the video</b><br>Pick a resolution up to 4K and download an MP4 file.')}</li>
         </ol>
         <div class="keys">
-          <kbd>مسافة</kbd> تشغيل/إيقاف · <kbd>S</kbd> تقسيم · <kbd>Delete</kbd> حذف<br>
-          <kbd>Ctrl+Z</kbd> تراجع · <kbd>←</kbd> <kbd>→</kbd> تحريك المؤشر<br>
-          <kbd>Ctrl+S</kbd> حفظ المشروع · <kbd>Ctrl+O</kbd> فتح مشروع
+          ${tt('<kbd>مسافة</kbd> تشغيل/إيقاف · <kbd>S</kbd> تقسيم · <kbd>Delete</kbd> حذف', '<kbd>Space</kbd> play/pause · <kbd>S</kbd> split · <kbd>Delete</kbd> delete')}<br>
+          ${tt('<kbd>Ctrl+Z</kbd> تراجع · <kbd>←</kbd> <kbd>→</kbd> تحريك المؤشر', '<kbd>Ctrl+Z</kbd> undo · <kbd>←</kbd> <kbd>→</kbd> move the playhead')}<br>
+          ${tt('<kbd>Ctrl+S</kbd> حفظ المشروع · <kbd>Ctrl+O</kbd> فتح مشروع', '<kbd>Ctrl+S</kbd> save project · <kbd>Ctrl+O</kbd> open project')}
         </div>`;
     } else if (kind === 'clip') {
       const isVid = obj.type === 'video';
-      h = `<h2>${isVid ? 'مقطع فيديو' : 'صورة'}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`;
+      h = `<h2>${isVid ? tt('مقطع فيديو', 'Video clip') : tt('صورة', 'Image')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`;
       if (!isVid) {
-        h += `<button class="btn small wide" data-act="imgEdit"><svg class="ic"><use href="#i-wand"/></svg>تعديل الصورة: قص، إزالة الخلفية…</button>`;
-        h += slider('out', 'مدة العرض', 0.5, 15, 0.1, +Math.min(15, obj.out).toFixed(1), 'ث');
+        h += `<button class="btn small wide" data-act="imgEdit"><svg class="ic"><use href="#i-wand"/></svg>${tt('تعديل الصورة: قص، إزالة الخلفية…', 'Edit image: crop, remove background…')}</button>`;
+        h += slider('out', tt('مدة العرض', 'Duration'), 0.5, 15, 0.1, +Math.min(15, obj.out).toFixed(1), tt('ث', 's'));
       }
       else {
-        h += `<h3>السرعة</h3>` + chips('speed', [[0.5, '0.5×'], [1, 'عادية'], [1.5, '1.5×'], [2, '2×']], obj.speed, true);
-        h += kslider(obj, 'clip', 'volume', 'صوت المقطع', 0, 100, 1, '%', 0.01);
-        h += check('muted', 'كتم صوت المقطع', obj.muted);
-        h += `<button class="btn small wide" data-act="audExtract"><svg class="ic"><use href="#i-wave"/></svg>استخراج الصوت: تنزيله أو فصله كموسيقى</button>`;
-        h += `<button class="btn small wide" data-act="vidSplit"><svg class="ic"><use href="#i-split"/></svg>تقسيم الفيديو إلى ملفات منفصلة</button>`;
+        h += `<h3>${tt('السرعة', 'Speed')}</h3>` + chips('speed', [[0.5, '0.5×'], [1, tt('عادية', 'Normal')], [1.5, '1.5×'], [2, '2×']], obj.speed, true);
+        h += kslider(obj, 'clip', 'volume', tt('صوت المقطع', 'Clip volume'), 0, 100, 1, '%', 0.01);
+        h += check('muted', tt('كتم صوت المقطع', 'Mute clip'), obj.muted);
+        h += `<button class="btn small wide" data-act="audExtract"><svg class="ic"><use href="#i-wave"/></svg>${tt('استخراج الصوت: تنزيله أو فصله كموسيقى', 'Extract the sound: download it or detach it as music')}</button>`;
+        h += `<button class="btn small wide" data-act="vidSplit"><svg class="ic"><use href="#i-split"/></svg>${tt('تقسيم الفيديو إلى ملفات منفصلة', 'Split the video into separate files')}</button>`;
       }
-      h += `<h3>الانتقال عند الدخول</h3>` + chips('transition', [['none', 'بدون'], ['fade', 'تلاشٍ'], ['slide', 'انزلاق'], ['zoom', 'تكبير'], ['wipe', 'مسح'], ['black', 'إظلام']], obj.transition);
-      if (obj.transition !== 'none') h += slider('trLen', 'طول الانتقال', 0.1, 1.5, 0.05, +(obj.trLen > 0 ? obj.trLen : 0.6).toFixed(2), 'ث');
-      h += `<button class="link-btn" data-act="trAll">تطبيق هذا الانتقال على كل المقاطع</button>`;
-      if (state.audios.length) h += check('pulse', 'نبضة مع إيقاع الموسيقى', obj.pulse);
-      h += `<h3>حركة الكاميرا</h3>` + chips('motion', [['none', 'ثابت'], ['zoomIn', 'تقريب'], ['zoomOut', 'تبعيد'], ['panRight', 'يمين'], ['panLeft', 'يسار'], ['panUp', 'لأعلى'], ['panDown', 'لأسفل'], ['handheld', 'كاميرا محمولة']], obj.motion);
-      h += `<h3>ملاءمة الإطار</h3>` + chips('fit', [['blur', 'خلفية ضبابية'], ['contain', 'حواف سوداء'], ['cover', 'ملء الإطار']], obj.fit);
-      h += `<h3>الفلتر</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), obj.filter);
-      h += `<h3>تعديل الألوان</h3>`
-        + slider('bright', 'السطوع', 50, 150, 1, obj.bright, '%')
-        + slider('contrast', 'التباين', 50, 150, 1, obj.contrast, '%')
-        + slider('sat', 'التشبّع', 0, 200, 1, obj.sat, '%');
-      h += `<h3>التكبير والموضع</h3>`
-        + kslider(obj, 'clip', 'zoom', 'التكبير', 20, 300, 1, '%', 0.01)
-        + kslider(obj, 'clip', 'panX', 'إزاحة أفقية', -100, 100, 1, '%', 0.01)
-        + kslider(obj, 'clip', 'panY', 'إزاحة عمودية', -100, 100, 1, '%', 0.01)
-        + kslider(obj, 'clip', 'opacity', 'الشفافية', 0, 100, 1, '%', 0.01);
-      h += `<button class="btn small wide" data-act="clipToOverlay"><svg class="ic"><use href="#i-layers"/></svg>تحويل إلى طبقة فوق الفيديو</button>`;
+      h += `<h3>${tt('الانتقال عند الدخول', 'Entry transition')}</h3>` + chips('transition', [['none', tt('بدون', 'None')], ['fade', tt('تلاشٍ', 'Fade')], ['slide', tt('انزلاق', 'Slide')], ['zoom', tt('تكبير', 'Zoom')], ['wipe', tt('مسح', 'Wipe')], ['black', tt('إظلام', 'Dip to black')]], obj.transition);
+      if (obj.transition !== 'none') h += slider('trLen', tt('طول الانتقال', 'Transition length'), 0.1, 1.5, 0.05, +(obj.trLen > 0 ? obj.trLen : 0.6).toFixed(2), tt('ث', 's'));
+      h += `<button class="link-btn" data-act="trAll">${tt('تطبيق هذا الانتقال على كل المقاطع', 'Apply this transition to all clips')}</button>`;
+      if (state.audios.length) h += check('pulse', tt('نبضة مع إيقاع الموسيقى', 'Pulse on the music beat'), obj.pulse);
+      h += `<h3>${tt('حركة الكاميرا', 'Camera motion')}</h3>` + chips('motion', [['none', tt('ثابت', 'Still')], ['zoomIn', tt('تقريب', 'Zoom in')], ['zoomOut', tt('تبعيد', 'Zoom out')], ['panRight', tt('يمين', 'Right')], ['panLeft', tt('يسار', 'Left')], ['panUp', tt('لأعلى', 'Up')], ['panDown', tt('لأسفل', 'Down')], ['handheld', tt('كاميرا محمولة', 'Handheld')]], obj.motion);
+      h += `<h3>${tt('ملاءمة الإطار', 'Fit')}</h3>` + chips('fit', [['blur', tt('خلفية ضبابية', 'Blurred background')], ['contain', tt('حواف سوداء', 'Black bars')], ['cover', tt('ملء الإطار', 'Fill the frame')]], obj.fit);
+      h += `<h3>${tt('الفلتر', 'Filter')}</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), obj.filter);
+      h += `<h3>${tt('تعديل الألوان', 'Color')}</h3>`
+        + slider('bright', tt('السطوع', 'Brightness'), 50, 150, 1, obj.bright, '%')
+        + slider('contrast', tt('التباين', 'Contrast'), 50, 150, 1, obj.contrast, '%')
+        + slider('sat', tt('التشبّع', 'Saturation'), 0, 200, 1, obj.sat, '%');
+      h += `<h3>${tt('التكبير والموضع', 'Zoom and position')}</h3>`
+        + kslider(obj, 'clip', 'zoom', tt('التكبير', 'Zoom'), 20, 300, 1, '%', 0.01)
+        + kslider(obj, 'clip', 'panX', tt('إزاحة أفقية', 'Horizontal offset'), -100, 100, 1, '%', 0.01)
+        + kslider(obj, 'clip', 'panY', tt('إزاحة عمودية', 'Vertical offset'), -100, 100, 1, '%', 0.01)
+        + kslider(obj, 'clip', 'opacity', tt('الشفافية', 'Opacity'), 0, 100, 1, '%', 0.01);
+      h += `<button class="btn small wide" data-act="clipToOverlay"><svg class="ic"><use href="#i-layers"/></svg>${tt('تحويل إلى طبقة فوق الفيديو', 'Turn into an overlay')}</button>`;
       h += kfSection(obj, 'clip') + actions();
     } else if (kind === 'overlay') {
       const isVid = obj.type === 'video';
-      h = `<h2>طبقة ${isVid ? 'فيديو' : 'صورة'}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
-        + `<p class="sub" style="white-space:normal">اسحبها في المعاينة لتحريكها، واسحب زاوية لتكبيرها، والمقبض العلوي لتدويرها.</p>`
-        + kslider(obj, 'overlay', 'x', 'أفقياً', -20, 120, 1, '%', 0.01)
-        + kslider(obj, 'overlay', 'y', 'عمودياً', -20, 120, 1, '%', 0.01)
-        + kslider(obj, 'overlay', 'scale', 'الحجم', 2, 200, 1, '%', 0.01)
-        + kslider(obj, 'overlay', 'rot', 'التدوير', -180, 180, 1, '°')
-        + kslider(obj, 'overlay', 'opacity', 'الشفافية', 0, 100, 1, '%', 0.01);
+      h = `<h2>${isVid ? tt('طبقة فيديو', 'Video overlay') : tt('طبقة صورة', 'Image overlay')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
+        + `<p class="sub" style="white-space:normal">${tt('اسحبها في المعاينة لتحريكها، واسحب زاوية لتكبيرها، والمقبض العلوي لتدويرها.', 'Drag it in the preview to move it, drag a corner to resize it, and the top handle to rotate it.')}</p>`
+        + kslider(obj, 'overlay', 'x', tt('أفقياً', 'Horizontal'), -20, 120, 1, '%', 0.01)
+        + kslider(obj, 'overlay', 'y', tt('عمودياً', 'Vertical'), -20, 120, 1, '%', 0.01)
+        + kslider(obj, 'overlay', 'scale', tt('الحجم', 'Size'), 2, 200, 1, '%', 0.01)
+        + kslider(obj, 'overlay', 'rot', tt('التدوير', 'Rotation'), -180, 180, 1, '°')
+        + kslider(obj, 'overlay', 'opacity', tt('الشفافية', 'Opacity'), 0, 100, 1, '%', 0.01);
       if (isVid) {
-        h += `<h3>السرعة</h3>` + chips('speed', [[0.5, '0.5×'], [1, 'عادية'], [1.5, '1.5×'], [2, '2×']], obj.speed, true)
-          + kslider(obj, 'overlay', 'volume', 'صوت الطبقة', 0, 100, 1, '%', 0.01)
-          + check('muted', 'كتم صوت الطبقة', obj.muted);
-      } else h += slider('out', 'مدة العرض', 0.5, 30, 0.1, +Math.min(30, obj.out).toFixed(1), 'ث');
-      h += `<h3>القناع</h3>` + chips('mask', Object.entries(Render.MASKS), obj.mask);
-      if (obj.mask === 'round') h += slider('radius', 'استدارة الزوايا', 0, 50, 1, Math.round((obj.radius != null ? obj.radius : 0.08) * 100), '%', 0.01);
-      h += `<label class="row"><span>الإطار</span><input type="range" data-k="border" data-scale="0.001" data-unit="" min="0" max="40" step="1" value="${Math.round((obj.border || 0) * 1000)}"><input type="color" data-k="borderColor" value="${obj.borderColor || '#ffffff'}"></label>`
-        + check('shadow', 'ظل', obj.shadow)
-        + `<h3>وضع المزج</h3>` + chips('blend', Object.entries(Render.BLENDS).map(([k, b]) => [k, b.label]), obj.blend)
-        + `<h3>حركة الدخول والخروج</h3>` + chips('anim', [['none', 'بدون'], ['fade', 'تلاشٍ'], ['rise', 'صعود'], ['pop', 'نبضة']], obj.anim)
-        + `<h3>الفلتر</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), obj.filter)
-        + `<h3>الترتيب</h3><div class="actions"><button class="btn small" data-act="ovUp">إلى الأمام</button><button class="btn small" data-act="ovDown">إلى الخلف</button></div>`
-        + `<button class="btn small wide" data-act="ovToMain" style="margin-top:8px"><svg class="ic"><use href="#i-media"/></svg>تحويل إلى المسار الرئيسي</button>`
+        h += `<h3>${tt('السرعة', 'Speed')}</h3>` + chips('speed', [[0.5, '0.5×'], [1, tt('عادية', 'Normal')], [1.5, '1.5×'], [2, '2×']], obj.speed, true)
+          + kslider(obj, 'overlay', 'volume', tt('صوت الطبقة', 'Overlay volume'), 0, 100, 1, '%', 0.01)
+          + check('muted', tt('كتم صوت الطبقة', 'Mute overlay'), obj.muted);
+      } else h += slider('out', tt('مدة العرض', 'Duration'), 0.5, 30, 0.1, +Math.min(30, obj.out).toFixed(1), tt('ث', 's'));
+      h += `<h3>${tt('القناع', 'Mask')}</h3>` + chips('mask', Object.entries(Render.MASKS), obj.mask);
+      if (obj.mask === 'round') h += slider('radius', tt('استدارة الزوايا', 'Corner radius'), 0, 50, 1, Math.round((obj.radius != null ? obj.radius : 0.08) * 100), '%', 0.01);
+      h += `<label class="row"><span>${tt('الإطار', 'Border')}</span><input type="range" data-k="border" data-scale="0.001" data-unit="" min="0" max="40" step="1" value="${Math.round((obj.border || 0) * 1000)}"><input type="color" data-k="borderColor" value="${obj.borderColor || '#ffffff'}"></label>`
+        + check('shadow', tt('ظل', 'Shadow'), obj.shadow)
+        + `<h3>${tt('وضع المزج', 'Blend mode')}</h3>` + chips('blend', Object.entries(Render.BLENDS).map(([k, b]) => [k, b.label]), obj.blend)
+        + `<h3>${tt('حركة الدخول والخروج', 'In and out animation')}</h3>` + chips('anim', [['none', tt('بدون', 'None')], ['fade', tt('تلاشٍ', 'Fade')], ['rise', tt('صعود', 'Rise')], ['pop', tt('نبضة', 'Pop')]], obj.anim)
+        + `<h3>${tt('الفلتر', 'Filter')}</h3>` + chips('filter', Object.entries(Render.FILTERS).map(([k, f]) => [k, f.label]), obj.filter)
+        + `<h3>${tt('الترتيب', 'Order')}</h3><div class="actions"><button class="btn small" data-act="ovUp">${tt('إلى الأمام', 'Bring forward')}</button><button class="btn small" data-act="ovDown">${tt('إلى الخلف', 'Send backward')}</button></div>`
+        + `<button class="btn small wide" data-act="ovToMain" style="margin-top:8px"><svg class="ic"><use href="#i-media"/></svg>${tt('تحويل إلى المسار الرئيسي', 'Move to the main track')}</button>`
         + kfSection(obj, 'overlay') + actions();
     } else if (kind === 'caption') {
       const st = state.captions.style, n = state.captions.items.length;
-      h = `<h2>ترجمة</h2><p class="sub"><span dir="ltr">${fmtTime(obj.start)} – ${fmtTime(obj.end)}</span> · كتلة من ${n}</p>`
+      h = `<h2>${tt('ترجمة', 'Caption')}</h2><p class="sub"><span dir="ltr">${fmtTime(obj.start)} – ${fmtTime(obj.end)}</span> · ${tt(`كتلة من ${n}`, `one of ${n} blocks`)}</p>`
         + `<textarea data-k="capText" rows="2" dir="auto">${esc(obj.text)}</textarea>`
         + `<div class="actions">
-            <button class="btn small" data-act="split"><svg class="ic"><use href="#i-split"/></svg>تقسيم</button>
-            <button class="btn small" data-act="capMerge">دمج مع التالية</button>
-            <button class="btn small danger" data-act="del"><svg class="ic"><use href="#i-trash"/></svg>حذف</button>
+            <button class="btn small" data-act="split"><svg class="ic"><use href="#i-split"/></svg>${tt('تقسيم', 'Split')}</button>
+            <button class="btn small" data-act="capMerge">${tt('دمج مع التالية', 'Merge with next')}</button>
+            <button class="btn small danger" data-act="del"><svg class="ic"><use href="#i-trash"/></svg>${tt('حذف', 'Delete')}</button>
           </div>`
-        + `<h3>نمط الترجمة <small>(لكل الكتل)</small></h3>`
-        + `<label class="row"><span>الخط</span><select data-k="cs.font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === st.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
-        + slider('cs.size', 'الحجم', 2, 20, 0.5, +(st.size * 100).toFixed(1), '', 0.01)
-        + slider('cs.y', 'الموضع', 5, 95, 1, Math.round(st.y * 100), '%', 0.01)
-        + `<label class="row"><span>لون النص</span><input type="color" data-k="cs.color" value="${st.color}"><span></span></label>`
-        + `<label class="row"><span>لون التمييز</span><input type="color" data-k="cs.hl" value="${st.hl}"><span></span></label>`
-        + check('cs.bg', 'خلفية', st.bg, `<input type="color" data-k="cs.bgColor" value="${st.bgColor}">`)
-        + check('cs.outline', 'حدّ خارجي', st.outline)
-        + `<h3>تمييز الكلمة المنطوقة</h3>` + chips('cs.mode', Object.entries(Render.CAPTION_MODES), st.mode)
-        + `<h3>الملف</h3><div class="actions"><button class="btn small" data-act="capSrt">تصدير SRT</button><button class="btn small" data-act="capVtt">تصدير VTT</button></div>`
-        + `<button class="link-btn" data-act="capOpen">إعادة التفريغ…</button>`
-        + `<button class="link-btn" data-act="capClear">حذف الترجمة كلها</button>`;
+        + `<h3>${tt('نمط الترجمة', 'Caption style')} <small>(${tt('لكل الكتل', 'all blocks')})</small></h3>`
+        + `<label class="row"><span>${tt('الخط', 'Font')}</span><select data-k="cs.font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === st.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
+        + slider('cs.size', tt('الحجم', 'Size'), 2, 20, 0.5, +(st.size * 100).toFixed(1), '', 0.01)
+        + slider('cs.y', tt('الموضع', 'Position'), 5, 95, 1, Math.round(st.y * 100), '%', 0.01)
+        + `<label class="row"><span>${tt('لون النص', 'Text color')}</span><input type="color" data-k="cs.color" value="${st.color}"><span></span></label>`
+        + `<label class="row"><span>${tt('لون التمييز', 'Highlight color')}</span><input type="color" data-k="cs.hl" value="${st.hl}"><span></span></label>`
+        + check('cs.bg', tt('خلفية', 'Background'), st.bg, `<input type="color" data-k="cs.bgColor" value="${st.bgColor}">`)
+        + check('cs.outline', tt('حدّ خارجي', 'Outline'), st.outline)
+        + `<h3>${tt('تمييز الكلمة المنطوقة', 'Spoken word highlight')}</h3>` + chips('cs.mode', Object.entries(Render.CAPTION_MODES), st.mode)
+        + `<h3>${tt('الملف', 'File')}</h3><div class="actions"><button class="btn small" data-act="capSrt">${tt('تصدير SRT', 'Export SRT')}</button><button class="btn small" data-act="capVtt">${tt('تصدير VTT', 'Export VTT')}</button></div>`
+        + `<button class="link-btn" data-act="capOpen">${tt('إعادة التفريغ…', 'Transcribe again…')}</button>`
+        + `<button class="link-btn" data-act="capClear">${tt('حذف الترجمة كلها', 'Delete all captions')}</button>`;
     } else if (kind === 'audio') {
-      h = `<h2>موسيقى</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
-        + kslider(obj, 'audio', 'volume', 'مستوى الصوت', 0, 100, 1, '%', 0.01)
-        + slider('fadeIn', 'ظهور تدريجي', 0, 5, 0.1, obj.fadeIn, 'ث')
-        + slider('fadeOut', 'اختفاء تدريجي', 0, 5, 0.1, obj.fadeOut, 'ث')
-        + `<p class="sub" style="white-space:normal;margin-top:12px">اسحب الموسيقى على الخط الزمني لتغيير موضعها. إن كانت أطول من الفيديو فستُقصّ عند نهايته مع اختفاء تدريجي.</p>`;
+      h = `<h2>${tt('موسيقى', 'Music')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
+        + kslider(obj, 'audio', 'volume', tt('مستوى الصوت', 'Volume'), 0, 100, 1, '%', 0.01)
+        + slider('fadeIn', tt('ظهور تدريجي', 'Fade in'), 0, 5, 0.1, obj.fadeIn, tt('ث', 's'))
+        + slider('fadeOut', tt('اختفاء تدريجي', 'Fade out'), 0, 5, 0.1, obj.fadeOut, tt('ث', 's'))
+        + `<p class="sub" style="white-space:normal;margin-top:12px">${tt('اسحب الموسيقى على الخط الزمني لتغيير موضعها. إن كانت أطول من الفيديو فستُقصّ عند نهايته مع اختفاء تدريجي.', 'Drag the music on the timeline to move it. If it is longer than the video it is cut at the end with a fade out.')}</p>`;
       const b = Beats.ensure(obj);
       if (b && b.bpm) {
-        h += `<h3>الإيقاع</h3><p class="sub" style="white-space:normal">السرعة <b dir="ltr">${Math.round(b.bpm)} BPM</b> · ضربة كل <span dir="ltr">${b.period.toFixed(2)}</span> ث</p>`
-          + chips('beatN', [[0, 'الضربات القوية فقط'], [1, 'كل ضربة'], [2, 'كل ضربتين'], [4, 'كل 4 ضربات']], beatChoice, true)
-          + `<button class="btn small primary" data-act="beatSync" style="width:100%;margin-top:8px">مزامنة القص مع الإيقاع</button>`;
+        h += `<h3>${tt('الإيقاع', 'Beat')}</h3><p class="sub" style="white-space:normal">${tt('السرعة', 'Tempo')} <b dir="ltr">${Math.round(b.bpm)} BPM</b> · ${tt('ضربة كل', 'a beat every')} <span dir="ltr">${b.period.toFixed(2)}</span> ${tt('ث', 's')}</p>`
+          + chips('beatN', [[0, tt('الضربات القوية فقط', 'Strong beats only')], [1, tt('كل ضربة', 'Every beat')], [2, tt('كل ضربتين', 'Every 2 beats')], [4, tt('كل 4 ضربات', 'Every 4 beats')]], beatChoice, true)
+          + `<button class="btn small primary" data-act="beatSync" style="width:100%;margin-top:8px">${tt('مزامنة القص مع الإيقاع', 'Sync cuts to the beat')}</button>`;
       }
       h += kfSection(obj, 'audio') + actions();
     } else if (kind === 'effect') {
       const def = Render.EFFECTS[obj.type] || {};
       const cut = obj.at && state.clips.find(c => c.id === obj.at);
-      h = `<h2>تأثير</h2><p class="sub">${esc(def.label || obj.type)}</p>`
-        + `<h3>النوع</h3>` + chips('type', Object.entries(Render.EFFECTS).map(([k, f]) => [k, f.label]), obj.type)
-        + kslider(obj, 'effect', 'amount', 'الشدّة', 0, 100, 1, '%', 0.01);
-      if (!(cut && obj.atMode === 'clip')) h += slider('dur', 'المدة', 0.1, 10, 0.05, +Math.min(10, obj.dur).toFixed(2), 'ث');
+      h = `<h2>${tt('تأثير', 'Effect')}</h2><p class="sub">${esc(def.label || obj.type)}</p>`
+        + `<h3>${tt('النوع', 'Type')}</h3>` + chips('type', Object.entries(Render.EFFECTS).map(([k, f]) => [k, f.label]), obj.type)
+        + kslider(obj, 'effect', 'amount', tt('الشدّة', 'Intensity'), 0, 100, 1, '%', 0.01);
+      if (!(cut && obj.atMode === 'clip')) h += slider('dur', tt('المدة', 'Duration'), 0.1, 10, 0.05, +Math.min(10, obj.dur).toFixed(2), tt('ث', 's'));
       if (def.region) {
-        h += `<h3>${def.rect ? 'الجزء المضاء' : 'مكان المنتج'}</h3><p class="sub" style="white-space:normal">${def.rect ? 'اسحب المستطيل في المعاينة فوق الجزء الذي يومض.' : 'اسحب الدائرة في المعاينة فوق المنتج.'}</p>`
-          + slider('fxX', 'أفقياً', 0, 100, 1, Math.round((obj.x != null ? obj.x : 0.5) * 100), '%', 0.01)
-          + slider('fxY', 'عمودياً', 0, 100, 1, Math.round((obj.y != null ? obj.y : 0.5) * 100), '%', 0.01)
+        h += `<h3>${def.rect ? tt('الجزء المضاء', 'Lit area') : tt('مكان المنتج', 'Product position')}</h3><p class="sub" style="white-space:normal">${def.rect ? tt('اسحب المستطيل في المعاينة فوق الجزء الذي يومض.', 'Drag the rectangle in the preview over the part that flashes.') : tt('اسحب الدائرة في المعاينة فوق المنتج.', 'Drag the circle in the preview over the product.')}</p>`
+          + slider('fxX', tt('أفقياً', 'Horizontal'), 0, 100, 1, Math.round((obj.x != null ? obj.x : 0.5) * 100), '%', 0.01)
+          + slider('fxY', tt('عمودياً', 'Vertical'), 0, 100, 1, Math.round((obj.y != null ? obj.y : 0.5) * 100), '%', 0.01)
           + (def.rect
-            ? slider('fxW', 'العرض', 2, 100, 1, Math.round((obj.w > 0 ? obj.w : 0.4) * 100), '%', 0.01)
-              + slider('fxH', 'الارتفاع', 2, 100, 1, Math.round((obj.h > 0 ? obj.h : 0.2) * 100), '%', 0.01)
-            : slider('fxR', 'الحجم', 5, 100, 1, Math.round((obj.r > 0 ? obj.r : 0.3) * 100), '%', 0.01));
+            ? slider('fxW', tt('العرض', 'Width'), 2, 100, 1, Math.round((obj.w > 0 ? obj.w : 0.4) * 100), '%', 0.01)
+              + slider('fxH', tt('الارتفاع', 'Height'), 2, 100, 1, Math.round((obj.h > 0 ? obj.h : 0.2) * 100), '%', 0.01)
+            : slider('fxR', tt('الحجم', 'Size'), 5, 100, 1, Math.round((obj.r > 0 ? obj.r : 0.3) * 100), '%', 0.01));
       }
       if (cut) {
-        h += `<p class="sub" style="white-space:normal;margin-top:10px">${obj.atMode === 'clip' ? 'يغطي المقطع' : 'متمركز على القطع عند دخول المقطع'} «${esc(cut.name)}» ويتبعه إن تغيّر التوقيت.</p>`
-          + `<button class="link-btn" data-act="fxUnlink">فك الربط وتثبيته في مكانه</button>`;
+        h += `<p class="sub" style="white-space:normal;margin-top:10px">${tt(`${obj.atMode === 'clip' ? 'يغطي المقطع' : 'متمركز على القطع عند دخول المقطع'} «${esc(cut.name)}» ويتبعه إن تغيّر التوقيت.`, `${obj.atMode === 'clip' ? 'Covers the clip' : 'Centered on the cut into the clip'} “${esc(cut.name)}” and follows it if the timing changes.`)}</p>`
+          + `<button class="link-btn" data-act="fxUnlink">${tt('فك الربط وتثبيته في مكانه', 'Unlink and pin it in place')}</button>`;
       }
-      h += `<button class="btn small wide" data-act="fxAllCuts" style="margin-top:10px"><svg class="ic"><use href="#i-spark"/></svg>ضعه على كل القطوع</button>`;
+      h += `<button class="btn small wide" data-act="fxAllCuts" style="margin-top:10px"><svg class="ic"><use href="#i-spark"/></svg>${tt('ضعه على كل القطوع', 'Put it on every cut')}</button>`;
       h += kfSection(obj, 'effect') + actions();
     } else {
-      h = `<h2>نص</h2><p class="sub">اسحب النص داخل المعاينة لتحريكه</p>`
+      h = `<h2>${tt('نص', 'Text')}</h2><p class="sub">${tt('اسحب النص داخل المعاينة لتحريكه', 'Drag the text in the preview to move it')}</p>`
         + `<textarea data-k="text" rows="3" dir="auto">${esc(obj.text)}</textarea>`
-        + kslider(obj, 'text', 'size', 'الحجم', 3, 22, 0.5, '', 0.01)
-        + slider('dur', 'المدة', 0.5, 20, 0.1, +Math.min(20, obj.dur).toFixed(1), 'ث')
-        + `<label class="row"><span>الخط</span><select data-k="font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === obj.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
-        + `<label class="row"><span>اللون</span><input type="color" data-k="color" value="${obj.color}"><span></span></label>`
-        + check('bold', 'خط عريض', obj.bold)
-        + check('stroke', 'حدّ خارجي', obj.stroke, `<input type="color" data-k="strokeColor" value="${obj.strokeColor}">`)
-        + check('bg', 'خلفية للنص', obj.bg, `<input type="color" data-k="bgColor" value="${obj.bgColor}">`)
-        + check('shadow', 'ظل', obj.shadow)
-        + `<h3>الموضع</h3>` + chips('pos', [['top', 'أعلى'], ['mid', 'وسط'], ['bottom', 'أسفل']], obj.y < 0.3 ? 'top' : obj.y > 0.7 ? 'bottom' : 'mid')
-        + kslider(obj, 'text', 'x', 'أفقياً', -20, 120, 1, '%', 0.01)
-        + kslider(obj, 'text', 'y', 'عمودياً', -20, 120, 1, '%', 0.01)
-        + kslider(obj, 'text', 'opacity', 'الشفافية', 0, 100, 1, '%', 0.01)
-        + kslider(obj, 'text', 'rot', 'التدوير', -180, 180, 1, '°')
-        + `<h3>حركة الظهور</h3>` + chips('anim', [['none', 'بدون'], ['fade', 'تلاشٍ'], ['rise', 'صعود'], ['pop', 'نبضة']], obj.anim)
+        + kslider(obj, 'text', 'size', tt('الحجم', 'Size'), 3, 22, 0.5, '', 0.01)
+        + slider('dur', tt('المدة', 'Duration'), 0.5, 20, 0.1, +Math.min(20, obj.dur).toFixed(1), tt('ث', 's'))
+        + `<label class="row"><span>${tt('الخط', 'Font')}</span><select data-k="font">${Object.entries(Render.FONTS).map(([k, f]) => `<option value="${k}"${k === obj.font ? ' selected' : ''}>${f.label}</option>`).join('')}</select></label>`
+        + `<label class="row"><span>${tt('اللون', 'Color')}</span><input type="color" data-k="color" value="${obj.color}"><span></span></label>`
+        + check('bold', tt('خط عريض', 'Bold'), obj.bold)
+        + check('stroke', tt('حدّ خارجي', 'Outline'), obj.stroke, `<input type="color" data-k="strokeColor" value="${obj.strokeColor}">`)
+        + check('bg', tt('خلفية للنص', 'Text background'), obj.bg, `<input type="color" data-k="bgColor" value="${obj.bgColor}">`)
+        + check('shadow', tt('ظل', 'Shadow'), obj.shadow)
+        + `<h3>${tt('الموضع', 'Position')}</h3>` + chips('pos', [['top', tt('أعلى', 'Top')], ['mid', tt('وسط', 'Middle')], ['bottom', tt('أسفل', 'Bottom')]], obj.y < 0.3 ? 'top' : obj.y > 0.7 ? 'bottom' : 'mid')
+        + kslider(obj, 'text', 'x', tt('أفقياً', 'Horizontal'), -20, 120, 1, '%', 0.01)
+        + kslider(obj, 'text', 'y', tt('عمودياً', 'Vertical'), -20, 120, 1, '%', 0.01)
+        + kslider(obj, 'text', 'opacity', tt('الشفافية', 'Opacity'), 0, 100, 1, '%', 0.01)
+        + kslider(obj, 'text', 'rot', tt('التدوير', 'Rotation'), -180, 180, 1, '°')
+        + `<h3>${tt('حركة الظهور', 'Entrance animation')}</h3>` + chips('anim', [['none', tt('بدون', 'None')], ['fade', tt('تلاشٍ', 'Fade')], ['rise', tt('صعود', 'Rise')], ['pop', tt('نبضة', 'Pop')]], obj.anim)
         + kfSection(obj, 'text') + actions();
     }
     // إعادة بناء لوحة العنصر نفسه (إطار مفتاحي جديد مثلاً) لا تعيد التمرير إلى الأعلى
@@ -1295,13 +1296,13 @@
 
   /** زر «مزامنة القص مع الإيقاع» في لوحة الموسيقى — نفس أداة المساعد */
   async function beatSync(audioId) {
-    if (!state.clips.length) return toast('أضف صوراً أو مقاطع أولاً', 'err');
+    if (!state.clips.length) return toast(tt('أضف صوراً أو مقاطع أولاً', 'Add photos or clips first'), 'err');
     const opts = beatChoice ? { beats_per_clip: beatChoice } : { hits_only: true };
     const r = await Agent.run('sync_to_beat', { audio_id: audioId, ...opts, pulse: true }, { commit: true });
-    if (r.error) return toast('تعذّرت المزامنة: ' + r.data.error, 'err');
+    if (r.error) return toast(tt('تعذّرت المزامنة: ', 'Could not sync: ') + r.data.error, 'err');
     renderProps();
-    toast(`تمت مزامنة القص مع الإيقاع (${Math.round(r.data.bpm)} BPM)`, 'ok');
-    if (r.data.warning) toast('الموسيقى أقصر من الفيديو — كرّرها أو قلّل الضربات لكل مقطع', 'err');
+    toast(tt(`تمت مزامنة القص مع الإيقاع (${Math.round(r.data.bpm)} BPM)`, `Cuts synced to the beat (${Math.round(r.data.bpm)} BPM)`), 'ok');
+    if (r.data.warning) toast(tt('الموسيقى أقصر من الفيديو — كرّرها أو قلّل الضربات لكل مقطع', 'The music is shorter than the video — duplicate it or use fewer beats per clip'), 'err');
   }
 
   function setProp(obj, k, v) {
@@ -1369,7 +1370,7 @@
       const kind = state.sel.kind, lt = ltOf(kind, obj), times = kfTimes(obj);
       if (a === 'kfPrev' || a === 'kfNext') {
         const t = a === 'kfPrev' ? [...times].reverse().find(x => x < lt - KF_NEAR) : times.find(x => x > lt + KF_NEAR);
-        if (t == null) return toast(a === 'kfPrev' ? 'لا إطار قبل المؤشر' : 'لا إطار بعد المؤشر');
+        if (t == null) return toast(a === 'kfPrev' ? tt('لا إطار قبل المؤشر', 'No keyframe before the playhead') : tt('لا إطار بعد المؤشر', 'No keyframe after the playhead'));
         if (view.playing) pause();
         setTime(itemStart(kind, obj) + t);
         return;
@@ -1404,7 +1405,7 @@
       if (a === 'capClear') { state.captions.items = []; state.sel = null; }
       else if (a === 'capMerge' && obj) {
         const i = items.indexOf(obj), next = items[i + 1];
-        if (!next) return toast('لا كتلة بعد هذه لتُدمج معها');
+        if (!next) return toast(tt('لا كتلة بعد هذه لتُدمج معها', 'No block after this one to merge with'));
         Object.assign(obj, CaptionTools.merge(obj, next));
         items.splice(i + 1, 1);
       }
@@ -1425,7 +1426,7 @@
     else if (a === 'fxAllCuts') {
       const obj = selObj();
       if (!obj) return;
-      if (state.clips.length < 2) return toast('لا توجد قطوع: أضف مقطعين على الأقل', 'err');
+      if (state.clips.length < 2) return toast(tt('لا توجد قطوع: أضف مقطعين على الأقل', 'There are no cuts: add at least two clips'), 'err');
       const dur = Math.min(obj.dur, 1.5);
       const cuts = state.clips.slice(1);
       // القطوع التي عليها تأثير من النوع نفسه، كي لا يتكرر تأثيران على قطع واحد
@@ -1433,7 +1434,7 @@
       const onCut = obj.at && obj.atMode !== 'clip' && cuts.some(c => c.id === obj.at) && !taken.has(obj.at);
       if (!onCut) {
         const free = cuts.find(c => !taken.has(c.id));
-        if (!free) return toast('هذا التأثير موجود على كل القطوع مسبقاً', 'err');
+        if (!free) return toast(tt('هذا التأثير موجود على كل القطوع مسبقاً', 'This effect is already on every cut'), 'err');
         obj.at = free.id; obj.atMode = 'cut';
       }
       obj.dur = dur;
@@ -1444,14 +1445,14 @@
       }
       touch();
       renderProps();
-      toast(`تم وضع «${Render.EFFECTS[obj.type].label}» على كل القطوع (${cuts.length})`, 'ok');
+      toast(tt(`تم وضع «${Render.EFFECTS[obj.type].label}» على كل القطوع (${cuts.length})`, `Added “${Render.EFFECTS[obj.type].label}” to every cut (${cuts.length})`), 'ok');
     }
     else if (a === 'trAll') {
       const obj = selObj();
       if (!obj) return;
       state.clips.forEach((c, i) => { if (i > 0) c.transition = obj.transition; });
       touch();
-      toast('تم تطبيق الانتقال على كل المقاطع', 'ok');
+      toast(tt('تم تطبيق الانتقال على كل المقاطع', 'Transition applied to all clips'), 'ok');
     }
   });
 
@@ -1565,13 +1566,13 @@
   function exSummary() {
     const [W, H] = outputSize(state.ratio, +ex.res.value);
     const mb = (Exporter.bitrateFor(W, H, +ex.fps.value, ex.q.value) + 192000) * view.total / 8 / 1048576;
-    ex.summary.innerHTML = `<span dir="ltr">${W}×${H}</span> · ملف MP4 · المدة ${fmtTime(view.total)} · الحجم التقريبي ${mb < 10 ? mb.toFixed(1) : Math.round(mb)} م.ب`;
+    ex.summary.innerHTML = `<span dir="ltr">${W}×${H}</span> · ${tt('ملف MP4', 'MP4 file')} · ${tt('المدة', 'length')} ${fmtTime(view.total)} · ${tt('الحجم التقريبي', 'approx.')} ${mb < 10 ? mb.toFixed(1) : Math.round(mb)} ${tt('م.ب', 'MB')}`;
   }
 
   function openExport() {
     layout();
-    if (view.total <= 0) return toast('أضف صوراً أو مقاطع أولاً', 'err');
-    if (!Exporter.supported()) return toast('متصفحك لا يدعم التصدير. استخدم Chrome أو Edge بإصدار حديث.', 'err');
+    if (view.total <= 0) return toast(tt('أضف صوراً أو مقاطع أولاً', 'Add photos or clips first'), 'err');
+    if (!Exporter.supported()) return toast(tt('متصفحك لا يدعم التصدير. استخدم Chrome أو Edge بإصدار حديث.', 'Your browser cannot export. Use a recent Chrome or Edge.'), 'err');
     pause();
     exSummary();
     exShow('form');
@@ -1597,7 +1598,7 @@
         onProgress: (p, msg, left) => {
           ex.bar.style.width = (p * 100).toFixed(1) + '%';
           ex.pct.textContent = Math.round(p * 100) + '%';
-          ex.status.textContent = msg + (left != null && left > 1 ? ` — المتبقي نحو ${left > 90 ? Math.round(left / 60) + ' د' : Math.ceil(left) + ' ث'}` : '');
+          ex.status.textContent = msg + (left != null && left > 1 ? ` — ${tt('المتبقي نحو', 'about')} ${left > 90 ? Math.round(left / 60) + tt(' د', ' min') : Math.ceil(left) + tt(' ث', ' s')}${tt('', ' left')}` : '');
         },
       });
       if (ex.url) URL.revokeObjectURL(ex.url);
@@ -1606,14 +1607,14 @@
       ex.video.src = ex.url;
       ex.link.href = ex.url;
       ex.link.download = `montaji-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}-${r.H >= r.W ? r.W : r.H}p.mp4`;
-      ex.info.innerHTML = `الفيديو جاهز ✓ · <span dir="ltr">${r.W}×${r.H}</span> · ${r.fps} إطار/ث · ${(r.blob.size / 1048576).toFixed(1)} م.ب`
-        + (r.audioDropped ? '<br>تنبيه: تعذّر ترميز الصوت على هذا المتصفح، فالملف بلا صوت.' : '');
+      ex.info.innerHTML = `${tt('الفيديو جاهز ✓', 'Video ready ✓')} · <span dir="ltr">${r.W}×${r.H}</span> · ${r.fps} ${tt('إطار/ث', 'fps')} · ${(r.blob.size / 1048576).toFixed(1)} ${tt('م.ب', 'MB')}`
+        + (r.audioDropped ? '<br>' + tt('تنبيه: تعذّر ترميز الصوت على هذا المتصفح، فالملف بلا صوت.', 'Note: this browser could not encode the audio, so the file has no sound.') : '');
       exShow('done');
       return { ok: true, width: r.W, height: r.H, fps: r.fps, size_mb: +(r.blob.size / 1048576).toFixed(1), file: ex.link.download, blob: r.blob };
     } catch (e) {
-      if (e.name !== 'AbortError') { console.error(e); toast('فشل التصدير: ' + (e.message || e), 'err'); }
+      if (e.name !== 'AbortError') { console.error(e); toast(tt('فشل التصدير: ', 'Export failed: ') + (e.message || e), 'err'); }
       exShow('form');
-      return { ok: false, error: e.name === 'AbortError' ? 'أوقف المستخدم التصدير' : String(e.message || e) };
+      return { ok: false, error: e.name === 'AbortError' ? tt('أوقف المستخدم التصدير', 'The user stopped the export') : String(e.message || e) };
     } finally {
       ex.abort = null;
       view.exporting = false;
@@ -1625,9 +1626,9 @@
   /** تصدير يبدأ مباشرة بإعدادات محددة (يستخدمه المساعد الذكي) */
   async function exportVideo(o = {}) {
     layout();
-    if (view.total <= 0) return { ok: false, error: 'المشروع فارغ' };
-    if (!Exporter.supported()) return { ok: false, error: 'المتصفح لا يدعم التصدير — استخدم Chrome أو Edge' };
-    if (ex.abort) return { ok: false, error: 'هناك تصدير جارٍ بالفعل' };
+    if (view.total <= 0) return { ok: false, error: tt('المشروع فارغ', 'The project is empty') };
+    if (!Exporter.supported()) return { ok: false, error: tt('المتصفح لا يدعم التصدير — استخدم Chrome أو Edge', 'The browser cannot export — use Chrome or Edge') };
+    if (ex.abort) return { ok: false, error: tt('هناك تصدير جارٍ بالفعل', 'An export is already running') };
     if (o.res) ex.res.value = o.res;
     if (o.fps) ex.fps.value = o.fps;
     if (o.quality) ex.q.value = o.quality;
@@ -1647,7 +1648,7 @@
       }
       if (!res.ok || !j.ok) return { ...out, save_error: j.error || `HTTP ${res.status}` };
       out.saved_to = j.path;
-      toast('حُفظ الفيديو في مجلد exports', 'ok');
+      toast(tt('حُفظ الفيديو في مجلد exports', 'Video saved in the exports folder'), 'ok');
     }
     return out;
   }
@@ -1715,19 +1716,19 @@
     try {
       const pal = [['#ff7a59', '#7a1f5c'], ['#12c2a0', '#0b3a6e'], ['#ffd166', '#e0456b']];
       const files = [];
-      for (let i = 0; i < pal.length; i++) files.push(new File([await sampleImage(pal[i][0], pal[i][1], 7 + i * 13)], `صورة-${i + 1}.jpg`, { type: 'image/jpeg' }));
-      files.push(new File([await sampleMusic()], 'لحن-تجريبي.wav', { type: 'audio/wav' }));
+      for (let i = 0; i < pal.length; i++) files.push(new File([await sampleImage(pal[i][0], pal[i][1], 7 + i * 13)], `${tt('صورة', 'photo')}-${i + 1}.jpg`, { type: 'image/jpeg' }));
+      files.push(new File([await sampleMusic()], tt('لحن-تجريبي', 'sample-tune') + '.wav', { type: 'audio/wav' }));
       await addFiles(files);
       const motions = ['zoomIn', 'panRight', 'zoomOut'];
       state.clips.forEach((c, i) => { c.motion = motions[i % 3]; if (i) c.transition = ['fade', 'slide'][(i - 1) % 2]; });
       const base = { x: 0.5, size: 0.1, color: '#ffffff', font: 'segoe', bold: true, stroke: false, strokeColor: '#000000', bg: false, bgColor: '#000000', shadow: true };
-      state.texts.push({ ...base, id: uid(), text: 'أهلاً بك في مونتاجي', start: 0.3, dur: 3.4, y: 0.5, anim: 'rise' });
-      state.texts.push({ ...base, id: uid(), text: 'جرّب تعديل أي عنصر ثم صدّر الفيديو', start: 8.4, dur: 3.3, y: 0.82, size: 0.065, bg: true, anim: 'fade' });
+      state.texts.push({ ...base, id: uid(), text: tt('أهلاً بك في مونتاجي', 'Welcome to Montaji'), start: 0.3, dur: 3.4, y: 0.5, anim: 'rise' });
+      state.texts.push({ ...base, id: uid(), text: tt('جرّب تعديل أي عنصر ثم صدّر الفيديو', 'Try editing any item, then export the video'), start: 8.4, dur: 3.3, y: 0.82, size: 0.065, bg: true, anim: 'fade' });
       touch();
       fitTimeline();
     } catch (e) {
       console.error(e);
-      toast('تعذّر إنشاء المثال', 'err');
+      toast(tt('تعذّر إنشاء المثال', 'Could not create the sample'), 'err');
     }
     els.busy.hidden = true;
   }
@@ -1749,7 +1750,7 @@
   $('#btnStart').onclick = () => { setTime(0); els.tlScroll.scrollLeft = 0; };
   $('#btnSplit').onclick = splitAtPlayhead;
   $('#btnDup').onclick = dupSel;
-  $('#btnDel').onclick = () => (selObj() ? removeSel() : toast('حدّد عنصراً أولاً لحذفه'));
+  $('#btnDel').onclick = () => (selObj() ? removeSel() : toast(tt('حدّد عنصراً أولاً لحذفه', 'Select an item to delete first')));
   $('#btnFit').onclick = fitTimeline;
   initTimelineResize();
   els.btnProps.onclick = () => setSheet(!sheetOpen());
@@ -1831,6 +1832,8 @@
   }, true);
 
   window.addEventListener('resize', () => { readLabelW(); renderTimeline(); });
+  // تبديل اللغة: الخط الزمني ولوحة الخصائص وعنوان الصفحة تُرسم من جديد
+  I18N.onChange(() => { readLabelW(); refresh(); renderProps(); });
   window.addEventListener('beforeunload', e => { if (!isEmpty()) { e.preventDefault(); e.returnValue = ''; } });
 
   /* ================= البدء ================= */

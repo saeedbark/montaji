@@ -131,6 +131,7 @@ server/      Local Node.js server, no dependencies
   bridge.js    /api/bridge channel between the server and the editor tab
   mcp.js       /mcp MCP server
 public/      Everything the browser loads
+  js/i18n.js     interface language: Arabic or English (the EN / ع button)
   js/core.js     shared state, keyframes and helpers
   js/beats.js    beat detection
   js/captiontools.js caption logic: words to blocks, SRT and VTT

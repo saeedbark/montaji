@@ -21,7 +21,7 @@ const AudioExtract = (() => {
 
   const isOpen = () => !el.modal.hidden;
   const pause = ms => new Promise(r => setTimeout(r, ms));
-  const fmtSize = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} ك.ب` : `${(n / 1048576).toFixed(1)} م.ب`);
+  const fmtSize = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} ${tt('ك.ب', 'KB')}` : `${(n / 1048576).toFixed(1)} ${tt('م.ب', 'MB')}`);
   const baseName = () => st.name.replace(/\.[^.\\/]+$/, '') || 'audio';
   const r1 = n => Math.round(n * 10) / 10;
   async function busy(msg) {
@@ -35,14 +35,14 @@ const AudioExtract = (() => {
   /** يفك صوت الملف. يرمي خطأً بالعربية يصلح لعرضه مباشرة */
   async function decode(file) {
     let buf;
-    try { buf = await decodeAudioFile(file); } catch (e) { throw new Error('هذا الملف بلا صوت، أو أن صيغة صوته غير مدعومة في المتصفح'); }
-    if (!buf || buf.length < buf.sampleRate * 0.05) throw new Error('هذا الملف بلا صوت');
+    try { buf = await decodeAudioFile(file); } catch (e) { throw new Error(tt('هذا الملف بلا صوت، أو أن صيغة صوته غير مدعومة في المتصفح', 'This file has no sound, or its audio format is not supported by the browser')); }
+    if (!buf || buf.length < buf.sampleRate * 0.05) throw new Error(tt('هذا الملف بلا صوت', 'This file has no sound'));
     return buf;
   }
 
   async function load(file, sel, clipId = null) {
     stop();
-    await busy('جارٍ قراءة الصوت…');
+    await busy(tt('جارٍ قراءة الصوت…', 'Reading the audio…'));
     try {
       const buf = await decode(file);
       Object.assign(st, { file, name: file.name, buf, peaks: null, clipId, cursor: 0 });
@@ -50,7 +50,7 @@ const AudioExtract = (() => {
       st.sel = sel ? { s: clamp(sel.s, 0, d - MIN_SEL), e: clamp(sel.e, sel.s + MIN_SEL, d) } : { s: 0, e: d };
       st.cursor = st.sel.s;
       st.fadeIn = 0; st.fadeOut = 0;
-      if (AudioTools.process(buf, { start: st.sel.s, end: st.sel.e }).peak < 1e-3) S.toast('الصوت في هذا الجزء صامت تقريباً', 'err');
+      if (AudioTools.process(buf, { start: st.sel.s, end: st.sel.e }).peak < 1e-3) S.toast(tt('الصوت في هذا الجزء صامت تقريباً', 'The audio in this part is almost silent'), 'err');
     } catch (e) {
       console.error(e);
       S.toast(`${file.name}: ${e.message}`, 'err');
@@ -63,8 +63,8 @@ const AudioExtract = (() => {
 
   function addFiles(list) {
     const files = [...list].filter(isMedia);
-    if (!files.length) return S.toast('اختر ملف فيديو أو ملفاً صوتياً', 'err');
-    if (files.length > 1) S.toast('يُفتح ملف واحد في كل مرة — فُتح الأول', 'err');
+    if (!files.length) return S.toast(tt('اختر ملف فيديو أو ملفاً صوتياً', 'Choose a video or audio file'), 'err');
+    if (files.length > 1) S.toast(tt('يُفتح ملف واحد في كل مرة — فُتح الأول', 'One file at a time — the first one was opened'), 'err');
     return load(files[0]);
   }
 
@@ -95,7 +95,7 @@ const AudioExtract = (() => {
   const slider = (k, label, min, max, step, val, unit = '') =>
     `<label class="row"><span>${label}</span><input type="range" data-k="${k}" data-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${val}"><output>${val}${unit}</output></label>`;
   const chips = (k, opts, on) =>
-    `<div class="chips" data-k="${k}">${opts.map(([v, l, dis]) => `<button type="button" class="chip${String(v) === String(on) ? ' on' : ''}" data-v="${v}"${dis ? ' disabled title="متصفحك لا يدعم ترميز AAC"' : ''}>${l}</button>`).join('')}</div>`;
+    `<div class="chips" data-k="${k}">${opts.map(([v, l, dis]) => `<button type="button" class="chip${String(v) === String(on) ? ' on' : ''}" data-v="${v}"${dis ? ` disabled title="${tt('متصفحك لا يدعم ترميز AAC', 'Your browser cannot encode AAC')}"` : ''}>${l}</button>`).join('')}</div>`;
 
   function clip() { return st.clipId ? state.clips.find(c => c.id === st.clipId) || null : null; }
 
@@ -104,10 +104,10 @@ const AudioExtract = (() => {
       el.name.textContent = '';
       el.body.innerHTML = `<div class="empty-card aud-empty">
           <svg class="ic big"><use href="#i-wave"/></svg>
-          <h1>استخرج الصوت من فيديو</h1>
-          <p>اسحب ملف فيديو وأفلته هنا، أو اختره من جهازك. يمكنك بعدها اختيار جزء منه، ثم تنزيله ملفاً صوتياً أو إضافته موسيقى إلى مشروعك.</p>
-          <div class="empty-actions"><button class="btn primary" data-act="pick">اختيار فيديو</button></div>
-          <small>يجري كل شيء على جهازك — لا يُرفع شيء إلى الإنترنت.</small>
+          <h1>${tt('استخرج الصوت من فيديو', 'Extract the sound from a video')}</h1>
+          <p>${tt('اسحب ملف فيديو وأفلته هنا، أو اختره من جهازك. يمكنك بعدها اختيار جزء منه، ثم تنزيله ملفاً صوتياً أو إضافته موسيقى إلى مشروعك.', 'Drag and drop a video file here, or pick it from your device. Then choose a part of it and download it as an audio file or add it to your project as music.')}</p>
+          <div class="empty-actions"><button class="btn primary" data-act="pick">${tt('اختيار فيديو', 'Choose video')}</button></div>
+          <small>${tt('يجري كل شيء على جهازك — لا يُرفع شيء إلى الإنترنت.', 'Everything runs on your device — nothing is uploaded.')}</small>
         </div>`;
       return;
     }
@@ -116,34 +116,34 @@ const AudioExtract = (() => {
     el.body.innerHTML = `
       <div class="aud-wave" dir="ltr"><canvas id="audWave"></canvas></div>
       <div class="aud-transport">
-        <button class="btn icon play" data-act="play" title="استماع (مسافة)"><svg class="ic"><use id="audPlayIcon" href="#i-play"/></svg></button>
+        <button class="btn icon play" data-act="play" title="${tt('استماع (مسافة)', 'Listen (Space)')}"><svg class="ic"><use id="audPlayIcon" href="#i-play"/></svg></button>
         <span class="time" id="audTime" dir="ltr"></span>
         <div class="spacer"></div>
-        <button class="btn small" data-act="all">تحديد الكل</button>
+        <button class="btn small" data-act="all">${tt('تحديد الكل', 'Select all')}</button>
       </div>
       <div class="aud-grid">
         <div>
-          <h3>الجزء المختار</h3>
-          <label class="row"><span>البداية</span><input type="number" data-k="s" min="0" step="0.1" value="${r1(st.sel.s)}" dir="ltr"><span class="unit">ث</span></label>
-          <label class="row"><span>النهاية</span><input type="number" data-k="e" min="0" step="0.1" value="${r1(st.sel.e)}" dir="ltr"><span class="unit">ث</span></label>
-          <p class="sub">المدة <b id="audLen" dir="ltr">${fmtTime(len)}</b> من <span dir="ltr">${fmtTime(st.buf.duration)}</span></p>
-          <h3>تحسينات</h3>
-          <label class="row check"><input type="checkbox" data-k="normalize"${st.normalize ? ' checked' : ''}><span>توحيد مستوى الصوت</span></label>
-          ${slider('fadeIn', 'ظهور تدريجي', 0, 5, 0.1, st.fadeIn, 'ث')}
-          ${slider('fadeOut', 'اختفاء تدريجي', 0, 5, 0.1, st.fadeOut, 'ث')}
+          <h3>${tt('الجزء المختار', 'Selected part')}</h3>
+          <label class="row"><span>${tt('البداية', 'Start')}</span><input type="number" data-k="s" min="0" step="0.1" value="${r1(st.sel.s)}" dir="ltr"><span class="unit">${tt('ث', 's')}</span></label>
+          <label class="row"><span>${tt('النهاية', 'End')}</span><input type="number" data-k="e" min="0" step="0.1" value="${r1(st.sel.e)}" dir="ltr"><span class="unit">${tt('ث', 's')}</span></label>
+          <p class="sub">${tt('المدة', 'Length')} <b id="audLen" dir="ltr">${fmtTime(len)}</b> ${tt('من', 'of')} <span dir="ltr">${fmtTime(st.buf.duration)}</span></p>
+          <h3>${tt('تحسينات', 'Enhancements')}</h3>
+          <label class="row check"><input type="checkbox" data-k="normalize"${st.normalize ? ' checked' : ''}><span>${tt('توحيد مستوى الصوت', 'Normalize the volume')}</span></label>
+          ${slider('fadeIn', tt('ظهور تدريجي', 'Fade in'), 0, 5, 0.1, st.fadeIn, tt('ث', 's'))}
+          ${slider('fadeOut', tt('اختفاء تدريجي', 'Fade out'), 0, 5, 0.1, st.fadeOut, tt('ث', 's'))}
         </div>
         <div>
-          <h3>صيغة الملف</h3>
+          <h3>${tt('صيغة الملف', 'File format')}</h3>
           ${chips('format', [['m4a', 'M4A (AAC)', !st.m4a], ['wav', 'WAV']], st.format)}
-          <p class="sub wrap">${st.format === 'm4a' ? 'حجم صغير، ويعمل على الهواتف وواتساب وكل المشغّلات.' : 'بلا ضغط ولا فقدان في الجودة، لكن حجمه كبير.'}</p>
-          ${st.format === 'm4a' ? chips('bitrate', AudioTools.BITRATES.map(b => [b, `${b / 1000} ك.ب/ث`]), st.bitrate) : ''}
+          <p class="sub wrap">${st.format === 'm4a' ? tt('حجم صغير، ويعمل على الهواتف وواتساب وكل المشغّلات.', 'Small, and plays on phones, WhatsApp and every player.') : tt('بلا ضغط ولا فقدان في الجودة، لكن حجمه كبير.', 'Uncompressed with no quality loss, but large.')}</p>
+          ${st.format === 'm4a' ? chips('bitrate', AudioTools.BITRATES.map(b => [b, `${b / 1000} ${tt('ك.ب/ث', 'kbps')}`]), st.bitrate) : ''}
           <p class="ex-summary" id="audInfo"></p>
-          ${c ? `<label class="row check"><input type="checkbox" data-k="mute"${st.mute ? ' checked' : ''}><span>كتم صوت المقطع الأصلي عند الإضافة</span></label>` : ''}
+          ${c ? `<label class="row check"><input type="checkbox" data-k="mute"${st.mute ? ' checked' : ''}><span>${tt('كتم صوت المقطع الأصلي عند الإضافة', 'Mute the original clip when adding')}</span></label>` : ''}
         </div>
       </div>
       <div class="dialog-actions">
-        <button class="btn" data-act="add" title="يُضاف إلى مسار الموسيقى${c ? ' في موضع المقطع نفسه' : ''}"><svg class="ic"><use href="#i-music"/></svg><span>إضافة إلى المشروع</span></button>
-        <button class="btn primary" data-act="download"><svg class="ic"><use href="#i-download"/></svg><span>تنزيل الصوت</span></button>
+        <button class="btn" data-act="add" title="${tt('يُضاف إلى مسار الموسيقى', 'Added to the music track')}${c ? tt(' في موضع المقطع نفسه', ' at the clip’s position') : ''}"><svg class="ic"><use href="#i-music"/></svg><span>${tt('إضافة إلى المشروع', 'Add to project')}</span></button>
+        <button class="btn primary" data-act="download"><svg class="ic"><use href="#i-download"/></svg><span>${tt('تنزيل الصوت', 'Download audio')}</span></button>
       </div>`;
     st.peaks = null;
     draw();
@@ -156,7 +156,7 @@ const AudioExtract = (() => {
     if (!box) return;
     const ch = Math.min(2, st.buf.numberOfChannels);
     const size = AudioTools.estimate(len, st.format, st.bitrate, ch, st.buf.sampleRate);
-    box.innerHTML = `${AudioTools.FORMATS[st.format].label} · ${ch === 1 ? 'أحادي' : 'ستيريو'} · الحجم التقريبي <b>${fmtSize(size)}</b>`;
+    box.innerHTML = `${AudioTools.FORMATS[st.format].label} · ${ch === 1 ? tt('أحادي', 'Mono') : tt('ستيريو', 'Stereo')} · ${tt('الحجم التقريبي', 'Approx. size')} <b>${fmtSize(size)}</b>`;
   }
 
   /* ---------- الموجة ---------- */
@@ -279,17 +279,17 @@ const AudioExtract = (() => {
     if (!st.buf) return;
     stop();
     try {
-      await busy('جارٍ تجهيز الصوت…');
+      await busy(tt('جارٍ تجهيز الصوت…', 'Preparing the audio…'));
       const r = await AudioTools.encode(processed(), st.format, {
         bitrate: st.bitrate,
-        onProgress: p => { el.busy.textContent = `جارٍ الترميز… ${Math.round(p * 100)}%`; },
+        onProgress: p => { el.busy.textContent = tt('جارٍ الترميز…', 'Encoding…') + ` ${Math.round(p * 100)}%`; },
       });
       ImageTools.download(r.blob, `${baseName()}.${r.ext}`);
-      S.toast(`تم حفظ الصوت بصيغة ${r.ext.toUpperCase()} (${fmtSize(r.bytes.length)})`, 'ok');
-      if (r.ext !== AudioTools.FORMATS[st.format].ext) S.toast('متصفحك لا يدعم ترميز M4A، فحُفظ الملف بصيغة WAV', 'err');
+      S.toast(tt(`تم حفظ الصوت بصيغة ${r.ext.toUpperCase()} (${fmtSize(r.bytes.length)})`, `Audio saved as ${r.ext.toUpperCase()} (${fmtSize(r.bytes.length)})`), 'ok');
+      if (r.ext !== AudioTools.FORMATS[st.format].ext) S.toast(tt('متصفحك لا يدعم ترميز M4A، فحُفظ الملف بصيغة WAV', 'Your browser cannot encode M4A, so the file was saved as WAV'), 'err');
     } catch (e) {
       console.error(e);
-      S.toast('تعذّر حفظ الصوت: ' + (e.message || e), 'err');
+      S.toast(tt('تعذّر حفظ الصوت: ', 'Could not save the audio: ') + (e.message || e), 'err');
     }
     busy(false);
   }
@@ -303,7 +303,7 @@ const AudioExtract = (() => {
     const file = new File([AudioTools.wav(pcm)], name, { type: 'audio/wav' });
     await S.addFiles([file]);
     const item = state.audios.find(a => !before.has(a.id));
-    if (!item) throw new Error('تعذّرت إضافة الصوت');
+    if (!item) throw new Error(tt('تعذّرت إضافة الصوت', 'Could not add the audio'));
     if (fromClip.clip && state.clips.includes(fromClip.clip)) {
       const c = fromClip.clip;
       layout();
@@ -320,14 +320,14 @@ const AudioExtract = (() => {
     stop();
     const c = clip();
     try {
-      await busy('جارٍ الإضافة إلى المشروع…');
+      await busy(tt('جارٍ الإضافة إلى المشروع…', 'Adding to the project…'));
       const item = await addToProject(processed(), `${baseName()}.wav`, { clip: c, start: st.sel.s }, st.mute);
       close();
       S.select({ kind: 'audio', id: item.id });
-      S.toast(c && st.mute ? 'أُضيف الصوت إلى مسار الموسيقى وكُتم صوت المقطع' : 'أُضيف الصوت إلى مسار الموسيقى', 'ok');
+      S.toast(c && st.mute ? tt('أُضيف الصوت إلى مسار الموسيقى وكُتم صوت المقطع', 'Audio added to the music track and the clip was muted') : tt('أُضيف الصوت إلى مسار الموسيقى', 'Audio added to the music track'), 'ok');
     } catch (e) {
       console.error(e);
-      S.toast('تعذّرت الإضافة: ' + (e.message || e), 'err');
+      S.toast(tt('تعذّرت الإضافة: ', 'Could not add: ') + (e.message || e), 'err');
     }
     busy(false);
   }
