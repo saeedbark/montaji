@@ -344,7 +344,7 @@ const MONTAJI_TOOLS = (() => {
         motion: bool('Give photos the camera zoom of their reference shot. Default true.'),
         effects: bool('Add the effects of the reference: flashes on its cuts and inside its shots, blurred or whip transitions, black and white, fade in and out. Default true.'),
         durations: { type: 'array', items: { type: 'number' }, description: 'Override the shot lengths, in seconds, for example to merge two shots the detection split or to drop the last shots.' },
-        replace: bool('The main track already has other clips and new files are being brought in: remove those clips and build the remix in their place.'),
+        replace: bool('The main track already has other clips and new files are being brought in: start from an empty project. The old clips are removed together with everything else of the previous project (its music, overlays, texts, effects and captions), so the reference music is used unless an audio file is among the new files. One undo step brings it all back.'),
       }),
     },
     {
@@ -407,7 +407,7 @@ const MONTAJI_TOOLS = (() => {
     },
     {
       name: 'split_video_file',
-      description: 'Cut the SOURCE FILE of a video clip into several separate MP4 files, saved in the exports folder next to the app. It does not change the project; to cut a clip on the timeline use split instead. Use it only when the user asks for separate video files (for example 30-second parts for WhatsApp or Instagram stories). Give exactly one of every, parts or times. MP4/MOV files are copied without re-encoding (fast, original quality) and each cut moves back to the nearest keyframe; other formats are re-encoded with exact cuts.',
+      description: 'Cut the SOURCE FILE of a video clip into several separate MP4 files, saved in the exports folder next to the app. It does not change the project; to cut a clip on the timeline use split instead. Use it only when the user asks for separate video files (for example 30-second parts for WhatsApp or Instagram stories). Give exactly one of every, parts or times. MP4/MOV files are copied without re-encoding (fast, original quality) and each cut moves back to the nearest keyframe; when the keyframes are too far from the cuts (the parts would change a lot), and for other formats, the parts are re-encoded with exact cuts.',
       parameters: obj({
         id: str('Id of the video clip.'),
         every: num('Length of each part in seconds, for example 30.'),

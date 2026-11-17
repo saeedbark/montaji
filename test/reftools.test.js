@@ -279,3 +279,17 @@ test('sheetLayout: خلايا بنسبة الفيديو، وأعمدة أكثر 
   assert.deepEqual([tall.cw, tall.ch, tall.cols, tall.rows], [113, 200, 6, 2]);
   assert.equal(RefTools.sheetLayout(2, 1080, 1920).cols, 2);
 });
+
+test('leftovers: ما يبقى من المشروع القديم مع replace (موسيقى وطبقات ونصوص ومؤثرات وترجمة)', () => {
+  const ref = { id: 'ref' }, music = { id: 'm' };
+  // مشروع العطور الذي ظهرت زجاجاته ونصوصه فوق إعلان الساعات
+  const old = {
+    audios: [music, ref], overlays: [{}, {}], texts: [{}, {}], effects: [{}, {}, {}],
+    captions: { items: [{}] },
+  };
+  assert.deepEqual(RefTools.leftovers(old, [ref]), { music: 1, overlays: 2, texts: 2, effects: 3, captions: 1 });
+  // موسيقى المرجع من تطبيق سابق لا تُعدّ
+  assert.deepEqual(RefTools.leftovers({ audios: [ref], texts: [] }, [ref]), {});
+  // مشروع قديم الشكل بلا طبقات ولا ترجمة
+  assert.deepEqual(RefTools.leftovers({ audios: [], effects: [{}] }), { effects: 1 });
+});

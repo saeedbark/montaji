@@ -121,6 +121,32 @@ test('copyParts يحاذي القطع إلى الإطار المفتاحي ال�
   for (let i = 1; i < parts.length; i++) assert.equal(parts[i].a0, parts[i - 1].a1, 'لا فراغ ولا تكرار في الصوت');
 });
 
+test('copyFits: يقبل النسخ المباشر حين تقرب الإطارات المفتاحية من المواضع المطلوبة، ويرفضه حين تبعد', async () => {
+  const info = await VideoTools.parseMp4(source(makeMp4())); // إطار مفتاحي كل ثانية
+  const check = (start, end, cuts) => VideoTools.copyFits(
+    VideoTools.copyParts(info, { start, end, cuts }), VideoTools.exactParts(start, end, cuts));
+  assert.equal(check(0, info.duration, [3.5, 6.5]), true, 'أجزاء طويلة: فرق نصف ثانية لا يهم');
+  // مثل ملف الاختبار الحقيقي: جزآن من 6 إلى 8.4، وأقرب إطار مفتاحي قبل 6 بعيد عنه بنحو ثانية
+  assert.equal(check(6, 8.4, [7.2]), false);
+  // قطعان على الإطار المفتاحي نفسه: ينقص عدد الأجزاء
+  assert.equal(check(0, info.duration, [2.5, 2.9, 5.5]), false);
+});
+
+test('copyFits: بداية بعيدة، عدد ناقص، وجزء أطول من N في وضع «كل N ثانية»', () => {
+  const want = [{ start: 6, end: 7.2 }, { start: 7.2, end: 8.4 }];
+  // ملف بإطار مفتاحي واحد عند الصفر: جزء واحد من 0 (ما حدث في الاختبار اليدوي)
+  assert.equal(VideoTools.copyFits([{ start: 0, end: 8.4 }], want), false);
+  assert.equal(VideoTools.copyFits([{ start: 6, end: 7.3 }, { start: 7.3, end: 8.4 }], want), true);
+  // أجزاء 30 ثانية وإطارات مفتاحية كل ثانيتين: مقبول
+  const halfMin = [{ start: 0, end: 30 }, { start: 30, end: 60 }];
+  assert.equal(VideoTools.copyFits([{ start: 0, end: 28.5 }, { start: 28.5, end: 60 }], halfMin), true);
+  assert.equal(VideoTools.copyFits([{ start: 0, end: 27 }, { start: 27, end: 60 }], halfMin), false);
+  // every: الأجزاء قد تزيد عدداً، لكن لا يزيد أحدها على N
+  assert.equal(VideoTools.copyFits([{ start: 0, end: 28 }, { start: 28, end: 56 }, { start: 56, end: 60 }], halfMin, 30), true);
+  assert.equal(VideoTools.copyFits([{ start: 0, end: 45 }, { start: 45, end: 60 }], halfMin, 30), false);
+  assert.equal(VideoTools.copyFits([], want), false);
+});
+
 test('copyParts بخيار every: لا يزيد أي جزء على المدة المطلوبة', async () => {
   const info = await VideoTools.parseMp4(source(makeMp4()));
   for (const every of [1.5, 2.5, 3, 4.2]) {

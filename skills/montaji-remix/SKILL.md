@@ -116,7 +116,7 @@ Then one call to `apply_reference` with what the answers need:
 | no music, or the user's own file | `music: false`, or include the audio file in `paths` |
 | lighter or no effects | `effects: false` (no flashes, blur, black and white or fades), and `motion: false` for no zoom |
 | shorter video | `fill: "trim"` |
-| the project already holds other clips | `replace: true` (one undo step), and say so in your summary |
+| the project already holds other clips | `replace: true`: it starts from an empty project, so the old music, overlays, texts and effects go too (one undo step, listed in `removed_from_old_project`); say so in your summary |
 
 It puts one clip in each shot with that shot's exact length and transition, in the reference ratio, and adds
 what was recognized in the reference: the camera zoom of each shot, the effects on the cuts, the flashes
@@ -209,7 +209,8 @@ reference. If the media are finished posters that already carry text, add nothin
 - **Only the music of a video:** `import_media` the video, then `extract_audio` on its clip with
   `download: true` (add `add_to_project: false` to leave the project untouched).
 - **Same template, other media:** call `apply_reference` again with the new `paths` and `replace: true`.
-  The analysis stays in memory until the editor page is reloaded.
+  The analysis stays in memory until the editor page is reloaded. It starts from an empty project, so add
+  the user's texts and move the flashes again afterwards.
 - **Shorter or adjusted:** `fill: "trim"` ends the video after the last media; `durations` overrides the
   shot lengths, for example to merge two shots or drop the last ones.
 

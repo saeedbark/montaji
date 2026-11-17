@@ -717,11 +717,12 @@ const Agent = (() => {
       }
 
       /* الوسائط */
-      let material = [];
+      let material = [], startOver = false;
       const newAudios = [], unreadable = [];
       if (Array.isArray(a.files) && a.files.length) {
         const others = state.clips.filter(c => c !== refClip);
         if (others.length && !bool(a.replace)) fail(`The main track already has ${others.length} clips. Pass replace: true to build the remix in their place, or clip_ids to use the clips of the project as the media.`);
+        startOver = bool(a.replace);
         const m = await loadMedia(a.files);
         material = m.visual; newAudios.push(...m.audios); unreadable.push(...m.unreadable);
         if (!material.length) fail('None of the files is an image or a video this browser can read.');
@@ -750,7 +751,8 @@ const Agent = (() => {
 
       /* موسيقى المرجع: تُضاف إن لم يكن للمشروع موسيقى خاصة به (أو طُلبت صراحة) */
       const oldRefMusic = state.audios.filter(o => o.remix);
-      const own = state.audios.some(o => !o.remix) || newAudios.length > 0;
+      // البدء من جديد: موسيقى المشروع القديم تُحذف، فلا تُعدّ موسيقى المستخدم
+      const own = (!startOver && state.audios.some(o => !o.remix)) || newAudios.length > 0;
       const wantRef = !!ref.audio && (has(a.music) ? bool(a.music) : !own);
       let refMusic = wantRef ? oldRefMusic[0] || null : null;
       if (wantRef && !refMusic) {
@@ -779,6 +781,17 @@ const Agent = (() => {
 
       /* التطبيق */
       for (const c of state.clips) if (!seq.includes(c) && c.el && c.el.pause) c.el.pause();
+      // replace: كل ما بقي من المشروع القديم يُزال مع مقاطعه (موسيقى المرجع من تطبيق سابق تبقى إن أعيد استعمالها)
+      let removed = null;
+      if (startOver) {
+        removed = RefTools.leftovers(state, [refMusic]);
+        for (const o of [...(state.overlays || []), ...state.audios]) if (o !== refMusic && o.el && o.el.pause) o.el.pause();
+        state.audios = state.audios.filter(o => o === refMusic);
+        state.overlays = [];
+        state.texts = [];
+        state.effects = [];
+        state.captions.items = [];
+      }
       state.clips = seq;
       state.effects = state.effects.filter(e => !e.remix);
       state.audios = state.audios.filter(o => !o.remix || o === refMusic);
@@ -871,6 +884,7 @@ const Agent = (() => {
         ...(slowed.length ? { slowed_videos: slowed, slowed_note: 'These videos are shorter than their shot and were slowed down to fill it.' } : {}),
         ...(unreadable.length ? { unreadable_files: unreadable } : {}),
         ...(Object.keys(added).length ? { effects_added: added } : {}),
+        ...(removed && Object.keys(removed).length ? { removed_from_old_project: removed, removed_note: 'replace: true started from an empty project, so these items of the previous project were removed too (undo brings everything back). Say so in your summary.' } : {}),
         music, ...brief(),
         next: 'The image shows every media tagged with the number of the shot it took (× = not used): compare it with the contact sheet of the reference. To change which media takes which shot, call apply_reference again with clip_ids in the new order (per_shot shows several images together in a shot). Texts of the reference are not copied: add the user\'s own with add_text at similar places and times.',
       };
@@ -997,7 +1011,10 @@ const Agent = (() => {
         Object.assign(o, { mode: 'times', times: a.times.map(t => num(t, 'times')) });
       }
       const r = await VideoSplit.splitToFiles(c.file, o);
-      if (r.method === 'copy') r.note = 'Copied without re-encoding: each part starts on the keyframe at or before the requested cut, so part lengths can differ slightly from what was asked.';
+      if (r.keyframe_fallback) r.note = 'The keyframes of this file are too far from the requested cuts for a direct copy, so the parts were re-encoded with exact cuts.';
+      else if (r.keyframe_mismatch) r.note = 'Copied without re-encoding, but the keyframes of this file are far from the requested cuts, so the parts differ a lot from what was asked (start, end or count). This browser cannot re-encode; tell the user, or retry in a recent Chrome or Edge.';
+      else if (r.method === 'copy') r.note = 'Copied without re-encoding: each part starts on the keyframe at or before the requested cut, so part lengths can differ slightly from what was asked.';
+      delete r.keyframe_fallback; delete r.keyframe_mismatch;
       return r;
     },
 
