@@ -31,6 +31,8 @@
   sheetMode.addEventListener('change', () => setSheet(false));
   let dirty = true;
   let lastTs = 0;
+  // الخط المرفق يُحمَّل بعد أول رسم: أعد رسم المعاينة حين يجهز
+  window.addEventListener('montaji-fonts', () => { dirty = true; });
 
   /* ================= إشعارات ================= */
   function toast(msg, kind = '') {

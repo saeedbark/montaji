@@ -7,7 +7,11 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>/* وعلى ماك يصير خط الواجهة تجوّل (Tajawal) بدل Segoe UI غير الموجود هناك */
+try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform)) document.documentElement.dataset.os = 'mac'; } catch (e) { /* متصفح قديم */ }</script>
 <style>
+  @font-face { font-family: "Tajawal"; src: url(fonts/tajawal-400.ttf) format("truetype"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "Tajawal"; src: url(fonts/tajawal-700.ttf) format("truetype"); font-weight: 700; font-display: swap; }
   :root {
     --bg: #0d0f13; --panel: #14171d; --panel-2: #1b1f27; --panel-3: #232833; --line: #2a303c;
     --text: #e9ebf1; --soft: #c5cad6; --muted: #8c94a5;
@@ -17,6 +21,7 @@
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; scroll-padding-top: 20px; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.85 "Segoe UI", Tahoma, system-ui, sans-serif; }
+  :root[data-os="mac"] body { font-family: "Tajawal", "Segoe UI", Tahoma, system-ui, sans-serif; }
   a { color: var(--accent); }
   .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 36px; max-width: 1120px; margin: 0 auto; padding: 0 20px 80px; }
 

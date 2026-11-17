@@ -12,14 +12,26 @@ const Render = (() => {
     soft:    { label: ['ناعم', 'Soft'],        css: 'contrast(0.86) brightness(1.08) saturate(0.82)' },
   };
 
+  // على ماك لا يوجد Segoe UI، فالخط الافتراضي هناك تجوّل (يضع علامة data-os رأسُ index.html)
+  const MAC = typeof document !== 'undefined' && document.documentElement.dataset.os === 'mac';
+
   const FONTS = {
-    segoe:   { label: ['الافتراضي', 'Default'], css: '"Segoe UI", Tahoma, Arial, sans-serif' },
+    segoe:   { label: ['الافتراضي', 'Default'], css: (MAC ? '"Tajawal", ' : '') + '"Segoe UI", Tahoma, Arial, sans-serif' },
     tahoma:  { label: ['تاهوما', 'Tahoma'],    css: 'Tahoma, "Segoe UI", sans-serif' },
     arial:   { label: ['آريال', 'Arial'],     css: 'Arial, "Segoe UI", sans-serif' },
     times:   { label: ['تايمز', 'Times'],     css: '"Times New Roman", "Traditional Arabic", serif' },
     courier: { label: ['كوريير', 'Courier'],    css: '"Courier New", monospace' },
     elegant: { label: ['أنيق مائل', 'Elegant italic'], css: 'Didot, "Bodoni MT", Georgia, "Times New Roman", serif', italic: true },
   };
+
+  /*
+   * اللوحة (Canvas) لا تنتظر الخط: إن رُسم النص قبل تحميل تجوّل ظهر بالخط البديل،
+   * لذلك يُحمَّل وزناه عند فتح الصفحة، ويُعاد رسم المعاينة حين يجهز، وينتظره التصدير (fontsReady).
+   */
+  const fontsReady = !MAC || !document.fonts ? Promise.resolve()
+    : Promise.all(['400', '700'].map(w => document.fonts.load(`${w} 16px "Tajawal"`)))
+        .catch(() => console.warn('تعذّر تحميل خط تجوّل'))
+        .then(() => window.dispatchEvent(new Event('montaji-fonts')));
 
   /*
    * التأثيرات: طبقة فوق الصورة المركّبة (قبل النصوص)، مثل مسار التأثيرات في CapCut.
@@ -821,5 +833,5 @@ const Render = (() => {
     if (opts.selOverlay) drawOverlayHandle(ctx, state.overlays.find(o => o.id === opts.selOverlay), W, H);
   }
 
-  return { FILTERS, FONTS, EFFECTS, BLENDS, MASKS, CAPTION_MODES, filterCss, frame, unzoom, overlayHit, overlaysInOrder };
+  return { FILTERS, FONTS, fontsReady, EFFECTS, BLENDS, MASKS, CAPTION_MODES, filterCss, frame, unzoom, overlayHit, overlaysInOrder };
 })();
