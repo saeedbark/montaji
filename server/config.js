@@ -48,7 +48,8 @@ const PROVIDERS = {
   gemini:     { label: 'Google Gemini', keys: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'], base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.6-flash' },
   openai:     { label: 'OpenAI', keys: ['OPENAI_API_KEY'], base: 'https://api.openai.com/v1', model: 'gpt-5.4-mini' },
   anthropic:  { label: 'Anthropic Claude', keys: ['ANTHROPIC_API_KEY'], base: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5-5' },
-  openrouter: { label: 'OpenRouter', keys: ['OPENROUTER_API_KEY'], base: 'https://openrouter.ai/api/v1', model: 'openrouter/auto' },
+  // maxTokens: OpenRouter يحجز من الرصيد أقصى طول رد للنموذج إن لم يُحدَّد (131072 أحياناً)، فيرفض المفاتيح قليلة الرصيد بخطأ 402
+  openrouter: { label: 'OpenRouter', keys: ['OPENROUTER_API_KEY'], base: 'https://openrouter.ai/api/v1', model: 'openrouter/auto', maxTokens: 8192 },
   ollama:     { label: 'Ollama', keys: [], base: 'http://localhost:11434/v1', model: '' },
   custom:     { label: 'مزوّد مخصّص', label_en: 'Custom provider', keys: ['AI_API_KEY'], base: '', model: '' },
 };
@@ -80,7 +81,9 @@ function resolve(env, id, model, isDefault) {
   if (!key && id !== 'ollama' && id !== 'custom') return { error: `المفتاح ${p.keys[0]} فارغ في ملف .env`, error_en: `The key ${p.keys[0]} is empty in the .env file` };
   if (!base) return { error: 'حدّد AI_BASE_URL في ملف .env', error_en: 'Set AI_BASE_URL in the .env file' };
   if (!model) return { error: 'حدّد اسم النموذج AI_MODEL في ملف .env', error_en: 'Set the model name AI_MODEL in the .env file' };
-  return { id, label: p.label, label_en: p.label_en || p.label, key, base, model, vision: !/^(off|false|0|no)$/i.test(env('AI_VISION')) };
+  // AI_MAX_TOKENS: حد طول الرد لكل المزوّدين؛ بدونه يُرسل الحد الافتراضي للمزوّد إن كان له حد، وإلا لا يُرسل شيء
+  const maxTokens = Math.round(+env('AI_MAX_TOKENS')) > 0 ? Math.round(+env('AI_MAX_TOKENS')) : p.maxTokens || 0;
+  return { id, label: p.label, label_en: p.label_en || p.label, key, base, model, maxTokens, vision: !/^(off|false|0|no)$/i.test(env('AI_VISION')) };
 }
 
 /**

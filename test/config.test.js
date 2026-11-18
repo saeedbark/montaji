@@ -40,6 +40,13 @@ test('provider: AI_PROVIDER و AI_MODEL و AI_VISION تتجاوز الافترا
   assert.equal(p.vision, false);
 });
 
+test('provider: حد طول الرد — افتراضي OpenRouter، و AI_MAX_TOKENS يتجاوزه', () => {
+  assert.equal(provider(envOf({ OPENROUTER_API_KEY: 'o' })).maxTokens, 8192);
+  assert.equal(provider(envOf({ GEMINI_API_KEY: 'g' })).maxTokens, 0, 'لا حد يُرسل لمزوّد بلا حد افتراضي');
+  assert.equal(provider(envOf({ GEMINI_API_KEY: 'g', AI_MAX_TOKENS: '4000' })).maxTokens, 4000);
+  assert.equal(provider(envOf({ OPENROUTER_API_KEY: 'o', AI_MAX_TOKENS: 'abc' })).maxTokens, 8192);
+});
+
 test('provider: مزوّد غير معروف أو ناقص الإعداد', () => {
   assert.match(provider(envOf({ AI_PROVIDER: 'nope' })).error, /nope/);
   assert.ok(provider(envOf({ AI_PROVIDER: 'openai' })).error, 'مفتاح فارغ');
