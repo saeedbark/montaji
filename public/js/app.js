@@ -1741,6 +1741,24 @@
   }
 
   $('#btnExport').onclick = openExport;
+
+  /* ================= المعاينة بملء الشاشة ================= */
+  // تكبر منطقة المعاينة كلها (الفيديو وأزرار التشغيل تحته)، و Esc أو الزر نفسه يعيدها
+  const stage = $('.stage');
+  function toggleFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => toast(tt('المتصفح لم يسمح بملء الشاشة', 'The browser did not allow full screen'), 'err'));
+  }
+  function syncFullscreen() {
+    const on = document.fullscreenElement === stage;
+    const btn = $('#btnFull');
+    $('#fullIcon').setAttribute('href', on ? '#i-shrink' : '#i-expand');
+    btn.title = on ? tt('الخروج من ملء الشاشة (F أو Esc)', 'Exit full screen (F or Esc)') : tt('ملء الشاشة (F)', 'Full screen (F)');
+    btn.setAttribute('aria-label', on ? tt('الخروج من ملء الشاشة', 'Exit full screen') : tt('ملء الشاشة', 'Full screen'));
+    btn.setAttribute('aria-pressed', String(on));
+  }
+  $('#btnFull').onclick = toggleFullscreen;
+  document.addEventListener('fullscreenchange', syncFullscreen);
   $('#exCancel').onclick = closeExport;
   $('#exClose').onclick = closeExport;
   $('#exStart').onclick = startExport;
@@ -1882,6 +1900,7 @@
       } else removeSel();
     }
     else if (e.code === 'KeyS') splitAtPlayhead();
+    else if (e.code === 'KeyF' && !e.altKey && !e.shiftKey) { e.preventDefault(); toggleFullscreen(); }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
       if (view.playing) pause();
