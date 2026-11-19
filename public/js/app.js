@@ -1194,7 +1194,7 @@
         </div>`;
     } else if (kind === 'clip') {
       const isVid = obj.type === 'video';
-      h = `<h2>${isVid ? tt('مقطع فيديو', 'Video clip') : tt('صورة', 'Image')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`;
+      h = `<h2>${isVid ? tt('مقطع فيديو', 'Video clip') : tt('صورة', 'Image')}</h2><p class="sub" title="${esc(obj.name)}"><bdi>${esc(obj.name)}</bdi></p>`;
       if (!isVid) {
         h += `<button class="btn small wide" data-act="imgEdit"><svg class="ic"><use href="#i-wand"/></svg>${tt('تعديل الصورة: قص، إزالة الخلفية…', 'Edit image: crop, remove background…')}</button>`;
         h += slider('out', tt('مدة العرض', 'Duration'), 0.5, 15, 0.1, +Math.min(15, obj.out).toFixed(1), tt('ث', 's'));
@@ -1226,7 +1226,7 @@
       h += kfSection(obj, 'clip') + actions();
     } else if (kind === 'overlay') {
       const isVid = obj.type === 'video';
-      h = `<h2>${isVid ? tt('طبقة فيديو', 'Video overlay') : tt('طبقة صورة', 'Image overlay')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
+      h = `<h2>${isVid ? tt('طبقة فيديو', 'Video overlay') : tt('طبقة صورة', 'Image overlay')}</h2><p class="sub" title="${esc(obj.name)}"><bdi>${esc(obj.name)}</bdi></p>`
         + `<p class="sub" style="white-space:normal">${tt('اسحبها في المعاينة لتحريكها، واسحب زاوية لتكبيرها، والمقبض العلوي لتدويرها.', 'Drag it in the preview to move it, drag a corner to resize it, and the top handle to rotate it.')}</p>`
         + kslider(obj, 'overlay', 'x', tt('أفقياً', 'Horizontal'), -20, 120, 1, '%', 0.01)
         + kslider(obj, 'overlay', 'y', tt('عمودياً', 'Vertical'), -20, 120, 1, '%', 0.01)
@@ -1270,7 +1270,7 @@
         + `<button class="link-btn" data-act="capOpen">${tt('إعادة التفريغ…', 'Transcribe again…')}</button>`
         + `<button class="link-btn" data-act="capClear">${tt('حذف الترجمة كلها', 'Delete all captions')}</button>`;
     } else if (kind === 'audio') {
-      h = `<h2>${tt('موسيقى', 'Music')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
+      h = `<h2>${tt('موسيقى', 'Music')}</h2><p class="sub" title="${esc(obj.name)}"><bdi>${esc(obj.name)}</bdi></p>`
         + kslider(obj, 'audio', 'volume', tt('مستوى الصوت', 'Volume'), 0, 100, 1, '%', 0.01)
         + slider('fadeIn', tt('ظهور تدريجي', 'Fade in'), 0, 5, 0.1, obj.fadeIn, tt('ث', 's'))
         + slider('fadeOut', tt('اختفاء تدريجي', 'Fade out'), 0, 5, 0.1, obj.fadeOut, tt('ث', 's'))

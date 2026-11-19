@@ -4,7 +4,7 @@
    المفتاح يُكتب في .env فقط ولا يُعاد إلى المتصفح أبداً، حتى في رسائل الخطأ */
 
 const fs = require('fs'), path = require('path');
-const { ENV_FILE, ENV_TEMPLATE, parseEnv } = require('./config');
+const { ENV_FILE, ENV_TEMPLATE, PROVIDERS, parseEnv } = require('./config');
 const { json, readBody } = require('./http');
 
 // ما يمكن ضبطه من المحرر: اسم المتغيّر، وهل هو مزوّد للمحادثة (يُختار في AI_PROVIDER) أم للترجمة فقط
@@ -69,4 +69,29 @@ async function saveKey(req, res) {
   json(res, 200, { ok: true, provider: body.provider });
 }
 
-module.exports = { setEnvValues, saveKey };
+/**
+ * يحذف مفتاح مزوّد من ملف .env (حين ينتهي رصيده أو يرفضه المزوّد)، فيعمل المساعد بالمفتاح التالي.
+ * إن كان المزوّد الافتراضي يُفرَّغ AI_PROVIDER و AI_MODEL أيضاً. يعيد اسم المتغيّر المحذوف، أو '' إن لم يكن في الملف
+ */
+function removeKey(id) {
+  const p = PROVIDERS[id];
+  if (!p || !p.keys.length) return '';
+  let txt;
+  try { txt = fs.readFileSync(ENV_FILE, 'utf8'); } catch (e) { return ''; }
+  const old = parseEnv(txt);
+  const name = p.keys.find(k => old[k]);
+  if (!name) return '';
+  const vals = { [name]: '' };
+  if ((old.AI_PROVIDER || '').toLowerCase() === id) Object.assign(vals, { AI_PROVIDER: '', ...(old.AI_MODEL ? { AI_MODEL: '' } : {}) });
+  const tmp = path.join(path.dirname(ENV_FILE), `.env.${process.pid}.tmp`);
+  try {
+    fs.writeFileSync(tmp, setEnvValues(txt, vals), { mode: 0o600 });
+    fs.renameSync(tmp, ENV_FILE);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch (e2) { /* لم يُنشأ */ }
+    return '';
+  }
+  return name;
+}
+
+module.exports = { setEnvValues, saveKey, removeKey };
