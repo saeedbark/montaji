@@ -228,7 +228,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
         <li><b>Arrange them:</b> drag any clip left or right to move it, and drag its edge to shorten it.</li>
         <li><b>Add music:</b> press <span class="ui">Music</span> and pick an audio file, then <span class="ui">Sync cuts to the beat</span> if you want the clips to change with the music.</li>
         <li><b>Add text:</b> press <span class="ui">Text</span> and type the title, then drag it in the preview to where you want it.</li>
-        <li><b>Export:</b> press <span class="ui red">Export video</span>, choose the resolution, then <span class="ui red">Download video</span>.</li>
+        <li><b>Export:</b> press <span class="ui red">Export</span>, choose the resolution, then <span class="ui red">Download video</span>.</li>
       </ol>
       <div class="note tip">
         <span class="ico">✓</span>
@@ -250,7 +250,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
           <b>Montaji</b>
           <span class="chip">Project</span><span class="chip">Media</span><span class="chip">Music</span><span class="chip">Text</span><span class="chip">Overlay</span><span class="chip">Effect</span><span class="chip">Tools</span>
           <span class="sp"></span>
-          <span class="chip">Size</span><span class="chip">Assistant</span><span class="chip">ع</span><span class="chip">?</span><span class="chip">↶ ↷</span><span class="chip red">Export video</span>
+          <span class="chip">Size</span><span class="chip">Assistant</span><span class="chip">ع</span><span class="chip">?</span><span class="chip">Save</span><span class="chip">↶ ↷</span><span class="chip red">Export</span>
         </div>
         <div class="mid">
           <div class="stage">
@@ -276,7 +276,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
 
       <ul class="legend">
         <li><span class="pin">1</span><span><b>Top bar:</b> the Project menu, the add buttons, Tools, video size, the assistant, language, this guide, undo and redo, and the export button.</span></li>
-        <li><span class="pin">2</span><span><b>Preview:</b> shows the video as it will come out, with the play button, the time and a camera button that saves the current frame as an image.</span></li>
+        <li><span class="pin">2</span><span><b>Preview:</b> shows the video as it will come out, with the play button, the time and a camera button that saves the current frame as an image, and a full-screen button that enlarges the preview (or press F; Esc to leave).</span></li>
         <li><span class="pin">3</span><span><b>Properties panel:</b> changes with the item you click. With nothing selected it shows the project details (duration, size, item counts).</span></li>
         <li><span class="pin">4</span><span><b>Timeline:</b> tracks for texts, overlays, clips, effects and music (and captions when there are any); the white line is the playhead.</span></li>
       </ul>
@@ -571,7 +571,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
       <h2><span class="n">16</span>Saving and opening projects</h2>
       <p>Save your work to finish it later or move it to another computer:</p>
       <ul>
-        <li><b>Save:</b> <span class="ui">Project</span> menu → <b>Save project</b>, or <kbd>Ctrl</kbd> + <kbd>S</kbd>. This downloads one <span dir="ltr">.montaji</span> file with the timeline and all the media, including overlays, captions and keyframes.</li>
+        <li><b>Save:</b> the <span class="ui">Save</span> button in the top bar (next to undo), or the <span class="ui">Project</span> menu → <b>Save project</b>, or <kbd>Ctrl</kbd> + <kbd>S</kbd>. This downloads one <span dir="ltr">.montaji</span> file with the timeline and all the media, including overlays, captions and keyframes. In Chrome and Edge you choose where the file goes on the first save only; after that it saves straight into the same file. For a copy elsewhere use <b>Save as…</b> (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd>).</li>
         <li><b>Open:</b> <span class="ui">Project</span> menu → <b>Open project</b>, or <kbd>Ctrl</kbd> + <kbd>O</kbd>, or drag the file onto the editor, or “Open a saved project” on the start screen.</li>
       </ul>
       <div class="note warn">
@@ -583,7 +583,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
     <section id="export">
       <h2><span class="n">17</span>Export and download</h2>
       <ol class="steps">
-        <li>Press <span class="ui red">Export video</span> in the top bar.</li>
+        <li>Press <span class="ui red">Export</span> in the top bar.</li>
         <li>Choose the <b>Resolution</b>, <b>Frame rate</b> and <b>Quality</b>. The approximate file size shows below them.</li>
         <li>Press <span class="ui red">Start export</span> and wait for the progress bar to finish. Keep the page open.</li>
         <li>Watch the result in the preview window, then press <span class="ui red">Download video</span> to save an <span dir="ltr">MP4</span> file to your Downloads folder.</li>
@@ -627,6 +627,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
             <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>Redo (or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>Duplicate the selected item</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save the project as a <span dir="ltr">.montaji</span> file</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></td><td>Save as: a copy in another place</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd></td><td>Open a saved project with everything in it</td></tr>
             <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Move the playhead one frame</td></tr>
             <tr><td><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd></td><td>Move the playhead one second</td></tr>

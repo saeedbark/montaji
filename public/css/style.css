@@ -102,7 +102,9 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- مساحة العمل ---------- */
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w); min-height: 0; }
+/* ترتيب اللوحات ثابت في اللغتين: المساعد يساراً والخصائص يميناً؛ ومحتوى كل لوحة يبقى باتجاه اللغة */
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w); min-height: 0; direction: ltr; }
+:root[dir="rtl"] .workspace > * { direction: rtl; }
 .stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .canvas-wrap { position: relative; flex: 1; min-height: 0; margin: 14px 14px 6px; container-type: size; }
 #preview {
@@ -126,13 +128,18 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 .empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
 .transport { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 14px 10px; }
+/* المعاينة بملء الشاشة: الفيديو يأخذ الشاشة كلها وأزرار التشغيل تحته */
+.stage:fullscreen { background: #000; }
+.stage:fullscreen .canvas-wrap { margin: 0; }
+.stage:fullscreen #preview { border-radius: 0; box-shadow: none; }
+.stage:fullscreen .empty { background: #000; }
 .btn.play { width: 44px; height: 40px; background: var(--text); color: #111; border-color: var(--text); }
 .btn.play:hover { background: #fff; }
 .time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 132px; text-align: center; font-size: 13px; }
 
 /* ---------- لوحة الخصائص ---------- */
 .side { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.side > .props { flex: 1; }
+.side > .props { flex: 1; border-inline-start: 0; border-left: 1px solid var(--line); }
 .side-head, .sheet-only { display: none; }
 .props {
   background: var(--panel); border-inline-start: 1px solid var(--line);
@@ -180,7 +187,7 @@ kbd { background: var(--panel-3); border: 1px solid var(--line); border-radius: 
 /* ---------- المساعد الذكي ---------- */
 body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) var(--side-w); }
 .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-soft); }
-.chat { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-inline-end: 1px solid var(--line); }
+.chat { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-right: 1px solid var(--line); }
 .chat-head { display: flex; align-items: center; gap: 7px; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--line); }
 .chat-head > .ic { color: var(--accent); }
 .chat-head > b { white-space: nowrap; }
@@ -205,8 +212,8 @@ body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr) va
 .chat-hist .del .ic { width: 14px; height: 14px; }
 .chat-hist .empty { padding: 10px; color: var(--muted); font-size: 12.5px; text-align: center; }
 /* مقبض تغيير عرض لوحة المساعد على حافتها الداخلية */
-.chat-resize { position: absolute; inset-block: 0; inset-inline-end: -5px; width: 9px; cursor: ew-resize; z-index: 6; touch-action: none; }
-.chat-resize::after { content: ''; position: absolute; inset-block: 0; inset-inline-start: 4px; width: 2px; background: transparent; transition: background .15s; }
+.chat-resize { position: absolute; inset-block: 0; right: -5px; width: 9px; cursor: ew-resize; z-index: 6; touch-action: none; }
+.chat-resize::after { content: ''; position: absolute; inset-block: 0; left: 4px; width: 2px; background: transparent; transition: background .15s; }
 .chat-resize:hover::after, .chat-resize:focus-visible::after, body.chat-resizing .chat-resize::after { background: var(--accent); }
 body.chat-resizing { cursor: ew-resize; user-select: none; }
 .chat-log { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 9px; user-select: text; }
@@ -508,6 +515,8 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
   #btnProject span, #btnTools span, #btnChat span { display: none; }
 }
 @media (max-width: 1320px) {
+  #btnSave { width: 36px; padding: 0; }
+  #btnSave span { display: none; }
   .brand { margin-inline-end: 0; }
   .brand span { display: none; }
   .ratio select { max-width: 130px; }
@@ -517,7 +526,7 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
   /* المساعد يطفو فوق مساحة العمل بدل أن يضيّقها */
   body.chat-on .workspace { grid-template-columns: minmax(0, 1fr) var(--side-w); }
   .workspace { position: relative; }
-  .chat { position: absolute; inset-block: 0; inset-inline-start: 0; width: min(var(--chat-w), 100%); z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+  .chat { position: absolute; inset-block: 0; left: 0; width: min(var(--chat-w), 100%); z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,.6); }
 }
 @media (max-width: 1215px) {
   .add-group .btn { width: 36px; padding: 0; }
@@ -573,7 +582,7 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
   body.props-open .side { transform: none; visibility: visible; transition: transform .22s ease; }
   .side-head { display: flex; align-items: center; gap: 8px; padding-block: 7px; padding-inline: 14px 10px; border-bottom: 1px solid var(--line); }
   .side-head > .ic { color: var(--accent); }
-  .side > .props { border-inline-start: 0; padding-bottom: 24px; overscroll-behavior: contain; }
+  .side > .props { border-left: 0; padding-bottom: 24px; overscroll-behavior: contain; }
   /* الدرج يغطي الخط الزمني وجزءاً من المعاينة: نرفع المعاينة فوقه لتبقى ظاهرة كاملة أثناء التعديل */
   body.props-open .stage { padding-bottom: max(0px, calc(var(--sheet-h) - var(--tl-h))); }
   .sheet-only { display: inline-flex; }
@@ -683,3 +692,12 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 :root[dir="ltr"] .tl-label, :root[dir="ltr"] .tl-hint, :root[dir="ltr"] .item .name { direction: ltr; }
 :root[dir="ltr"] .guide li { padding: 9px 0 9px 40px; }
 :root[dir="ltr"] .guide li::before { right: auto; left: 0; }
+
+/*
+ * الخط الزمني بالعربية يبدأ من اليمين: يُعكس كله أفقياً، فيبقى حسابه بالبكسل كما هو (app.js يعكس موضع الفأرة)،
+ * ثم يُعاد قلب النصوص والصور المصغّرة داخله كي تُقرأ. الموجة الصوتية تبقى معكوسة لأن الزمن فيها معكوس.
+ */
+:root[dir="rtl"] .tl-scroll { transform: scaleX(-1); }
+:root[dir="rtl"] :is(.tl-label, .tl-hint, .item .name, .item .dur, .tr-badge, .item .thumbs, .tick > b) { transform: scaleX(-1); }
+:root[dir="rtl"] .tl-label { border-right: 0; border-left: 1px solid var(--line); }
+.tick > b { display: inline-block; font-weight: inherit; }

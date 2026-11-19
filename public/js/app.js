@@ -727,7 +727,7 @@
     const steps = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
     const step = steps.find(s => s * pps >= 68) || 600;
     let ticks = '';
-    for (let k = Math.max(0, Math.floor(x0 / (step * pps))), t; (t = k * step) * pps < Math.min(W, x1); k++) ticks += `<span class="tick" style="left:${t * pps}px">${fmtTime(t).replace(/\.0$/, '')}</span>`;
+    for (let k = Math.max(0, Math.floor(x0 / (step * pps))), t; (t = k * step) * pps < Math.min(W, x1); k++) ticks += `<span class="tick" style="left:${t * pps}px"><b>${fmtTime(t).replace(/\.0$/, '')}</b></span>`;
 
     // النصوص
     const TL = 30, AL = 40;
@@ -807,7 +807,21 @@
     dirty = true;
   }
 
-  const timeAtX = clientX => (clientX - els.tlInner.getBoundingClientRect().left - LABEL_W) / view.pps;
+  // بالعربية الخط الزمني معكوس بـCSS (يبدأ من اليمين): موضع الفأرة وحركتها يُعكسان هنا، وبقية الحساب كما هو
+  const tlRTL = () => document.documentElement.dir === 'rtl';
+  const dirX = () => (tlRTL() ? -1 : 1);
+  const timeAtX = clientX => {
+    const r = els.tlInner.getBoundingClientRect();
+    return ((tlRTL() ? r.right - clientX : clientX - r.left) - LABEL_W) / view.pps;
+  };
+  // العجلة الأفقية ولوحة اللمس يمرّران بإحداثيات العنصر لا الشاشة، فتنعكس حركتهما في الخط المعكوس
+  els.tlScroll.addEventListener('wheel', e => {
+    // Shift مع العجلة: للأمام في الزمن كما في الإنجليزية، فيُترك للمتصفح
+    if (!tlRTL() || !e.deltaX || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    els.tlScroll.scrollLeft -= e.deltaX * (e.deltaMode === 1 ? 16 : 1);
+    els.tlScroll.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+  }, { passive: false });
 
   /**
    * جلسة سحب على الخط الزمني. move(ev, ds): ds ما تمرّر به الخط الزمني أفقياً منذ بدء السحب، يُضاف إلى حركة
@@ -823,7 +837,7 @@
       raf = 0;
       if (!last || !timeline) return;
       const r = sc.getBoundingClientRect();
-      const v = edgeScroll(last.clientX, r.left + LABEL_W, r.right);
+      const v = edgeScroll(tlRTL() ? r.left + r.right - last.clientX : last.clientX, r.left + LABEL_W, r.right);
       if (!v) { since = 0; return; }
       // كلما طال البقاء عند الحافة أسرع التمرير (حتى 4 أضعاف بعد 3 ثوانٍ)، فيُقطع المشروع الطويل بسرعة
       if (!since) since = ts;
@@ -899,7 +913,7 @@
       setTime(base + kt0);
       kfSel = { id, t: kt0 };
       dragSession((ev, ds) => {
-        const dpx = ev.clientX - x0 + ds;
+        const dpx = (ev.clientX - x0) * dirX() + ds;
         if (!moved && Math.abs(dpx) < 3) return;
         moved = true;
         const nt = clamp(kt0 + dpx / view.pps, 0, len);
@@ -921,7 +935,7 @@
       let target = -1;
       const from = state.clips.indexOf(obj);
       dragSession((ev, ds) => {
-        const dx = ev.clientX - x0 + ds;
+        const dx = (ev.clientX - x0) * dirX() + ds;
         if (!moved && Math.abs(dx) < 5) return;
         moved = true;
         // العنصر يُبحث عنه في كل حركة: التمرير أثناء السحب قد يعيد بناء الخط الزمني فيُستبدل
@@ -947,7 +961,7 @@
     }
 
     dragSession((ev, ds) => {
-      const dpx = ev.clientX - x0 + ds;
+      const dpx = (ev.clientX - x0) * dirX() + ds;
       if (!moved && Math.abs(dpx) < 3) return;
       moved = true;
       const dx = dpx / view.pps;
@@ -1727,6 +1741,24 @@
   }
 
   $('#btnExport').onclick = openExport;
+
+  /* ================= المعاينة بملء الشاشة ================= */
+  // تكبر منطقة المعاينة كلها (الفيديو وأزرار التشغيل تحته)، و Esc أو الزر نفسه يعيدها
+  const stage = $('.stage');
+  function toggleFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => toast(tt('المتصفح لم يسمح بملء الشاشة', 'The browser did not allow full screen'), 'err'));
+  }
+  function syncFullscreen() {
+    const on = document.fullscreenElement === stage;
+    const btn = $('#btnFull');
+    $('#fullIcon').setAttribute('href', on ? '#i-shrink' : '#i-expand');
+    btn.title = on ? tt('الخروج من ملء الشاشة (F أو Esc)', 'Exit full screen (F or Esc)') : tt('ملء الشاشة (F)', 'Full screen (F)');
+    btn.setAttribute('aria-label', on ? tt('الخروج من ملء الشاشة', 'Exit full screen') : tt('ملء الشاشة', 'Full screen'));
+    btn.setAttribute('aria-pressed', String(on));
+  }
+  $('#btnFull').onclick = toggleFullscreen;
+  document.addEventListener('fullscreenchange', syncFullscreen);
   $('#exCancel').onclick = closeExport;
   $('#exClose').onclick = closeExport;
   $('#exStart').onclick = startExport;
@@ -1846,6 +1878,12 @@
       if (e.code === 'KeyS') ProjectIO.save(); else ProjectIO.pick();
       return;
     }
+    // Ctrl+Shift+S: حفظ باسم، يسأل عن المكان ولو حُفظ المشروع من قبل
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyS') {
+      e.preventDefault();
+      ProjectIO.save({ pick: true });
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && !typing) {
       const k = e.key.toLowerCase();
       if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
@@ -1868,6 +1906,7 @@
       } else removeSel();
     }
     else if (e.code === 'KeyS') splitAtPlayhead();
+    else if (e.code === 'KeyF' && !e.altKey && !e.shiftKey) { e.preventDefault(); toggleFullscreen(); }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
       if (view.playing) pause();

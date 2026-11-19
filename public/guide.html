@@ -96,10 +96,11 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
   .mock .chip { padding: 5px 10px; border-radius: 8px; background: var(--panel-3); border: 1px solid var(--line); white-space: nowrap; }
   .mock .chip.red { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
   .mock .sp { flex: 1; }
-  .mock .mid { display: grid; grid-template-columns: minmax(0, 1fr) 30%; min-height: 190px; }
+  .mock .mid { display: grid; grid-template-columns: minmax(0, 1fr) 30%; min-height: 190px; direction: ltr; }
+  .mock .mid > * { direction: rtl; }
   .mock .stage { position: relative; display: grid; place-items: center; padding: 16px; }
   .mock .screen { width: min(78%, 330px); aspect-ratio: 16 / 9; border-radius: 8px; background: linear-gradient(135deg, #ff7a59, #7a1f5c); display: grid; place-items: center; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
-  .mock .side { position: relative; border-inline-start: 1px solid var(--line); padding: 14px; color: var(--muted); }
+  .mock .side { position: relative; border-left: 1px solid var(--line); padding: 14px; color: var(--muted); }
   .mock .side i { display: block; height: 9px; border-radius: 5px; background: var(--panel-3); margin: 9px 0; }
   .mock .side i:nth-child(odd) { width: 70%; }
   .mock .tl { position: relative; border-top: 1px solid var(--line); padding: 10px 12px 12px; direction: ltr; }
@@ -115,6 +116,9 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
   .mock .it.e { background: #4b1a55; border: 1.5px solid #d946ef; }
   .mock .it.s { background: #3d2f08; border: 1.5px solid #ffd400; }
   .mock .head { position: absolute; top: 6px; bottom: 6px; left: calc(62px + 8px + 12px + 30%); width: 2px; background: #fff; }
+  /* الخط الزمني بالعربية يبدأ من اليمين كما في المحرر: يُعكس الرسم، وتُعدل الكتابة */
+  .mock .tl { transform: scaleX(-1); }
+  .mock .tl .row > span, .mock .tl .pin { transform: scaleX(-1); }
   .pin { position: absolute; z-index: 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #111; font-weight: 800; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.5); direction: rtl; }
   .legend { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 22px; max-width: none; }
   .legend li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; margin: 0; }
@@ -139,7 +143,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
     nav.toc ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .hero { padding: 30px 16px 20px; }
     .mock .mid { grid-template-columns: minmax(0, 1fr); }
-    .mock .side { border-inline-start: 0; border-top: 1px solid var(--line); }
+    .mock .side { border-left: 0; border-top: 1px solid var(--line); }
     section > h2 { font-size: 22px; }
   }
   @media print {
@@ -228,7 +232,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
         <li><b>رتّبها:</b> اسحب أي مقطع يميناً أو يساراً لتغيير مكانه، واسحب حافته لتقصيره.</li>
         <li><b>أضف موسيقى:</b> اضغط <span class="ui">موسيقى</span> واختر ملفاً صوتياً، ثم <span class="ui">مزامنة القص مع الإيقاع</span> إن أردت أن يتبدّل المقطع مع النغمة.</li>
         <li><b>أضف نصاً:</b> اضغط <span class="ui">نص</span> واكتب العنوان، ثم اسحبه داخل المعاينة إلى المكان المناسب.</li>
-        <li><b>صدّر:</b> اضغط <span class="ui red">تصدير الفيديو</span>، اختر الدقة، ثم <span class="ui red">تنزيل الفيديو</span>.</li>
+        <li><b>صدّر:</b> اضغط <span class="ui red">تصدير</span>، اختر الدقة، ثم <span class="ui red">تنزيل الفيديو</span>.</li>
       </ol>
       <div class="note tip">
         <span class="ico">✓</span>
@@ -250,12 +254,12 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
           <b>مونتاجي</b>
           <span class="chip">مشروع</span><span class="chip">صور وفيديو</span><span class="chip">موسيقى</span><span class="chip">نص</span><span class="chip">طبقة</span><span class="chip">تأثير</span><span class="chip">أدوات</span>
           <span class="sp"></span>
-          <span class="chip">المقاس</span><span class="chip">المساعد</span><span class="chip">EN</span><span class="chip">؟</span><span class="chip">↶ ↷</span><span class="chip red">تصدير الفيديو</span>
+          <span class="chip">المقاس</span><span class="chip">المساعد</span><span class="chip">EN</span><span class="chip">؟</span><span class="chip">حفظ</span><span class="chip">↶ ↷</span><span class="chip red">تصدير</span>
         </div>
         <div class="mid">
           <div class="stage">
             <div class="screen">المعاينة</div>
-            <span class="pin" style="top:8px;right:8px">٢</span>
+            <span class="pin" style="top:8px;left:8px">٢</span>
           </div>
           <div class="side">
             <span class="pin" style="top:8px;left:8px">٣</span>
@@ -276,7 +280,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
 
       <ul class="legend">
         <li><span class="pin">١</span><span><b>الشريط العلوي:</b> قائمة المشروع، أزرار الإضافة، الأدوات، مقاس الفيديو، المساعد، اللغة، هذا الدليل، التراجع والإعادة، وزر التصدير.</span></li>
-        <li><span class="pin">٢</span><span><b>المعاينة:</b> ترى فيها الفيديو كما سيخرج، وتحتها زر التشغيل والوقت وزر الكاميرا لحفظ الإطار الحالي صورةً.</span></li>
+        <li><span class="pin">٢</span><span><b>المعاينة:</b> ترى فيها الفيديو كما سيخرج، وتحتها زر التشغيل والوقت وزر الكاميرا لحفظ الإطار الحالي صورةً، وزر ملء الشاشة لتكبير المعاينة (أو اضغط F، و Esc للخروج).</span></li>
         <li><span class="pin">٣</span><span><b>لوحة الخصائص:</b> تتغيّر بحسب العنصر الذي تضغط عليه. وإن لم يكن شيء محدداً تعرض تفاصيل المشروع (المدة، المقاس، عدد العناصر).</span></li>
         <li><span class="pin">٤</span><span><b>الخط الزمني:</b> مسارات النصوص والطبقات والمقاطع والتأثيرات والموسيقى (ومسار الترجمة إن وُجدت)، والخط الأبيض هو مؤشر الوقت.</span></li>
       </ul>
@@ -571,7 +575,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
       <h2><span class="n">16</span>حفظ المشروع وفتحه</h2>
       <p>احفظ عملك لتكمله لاحقاً أو تنقله إلى جهاز آخر:</p>
       <ul>
-        <li><b>الحفظ:</b> قائمة <span class="ui">مشروع</span> ← <b>حفظ المشروع</b>، أو <kbd>Ctrl</kbd> + <kbd>S</kbd>. يُنزَّل ملف واحد بامتداد <span dir="ltr">.montaji</span> فيه الخط الزمني وكل ملفات الوسائط، مع الطبقات والترجمة والإطارات المفتاحية.</li>
+        <li><b>الحفظ:</b> زر <span class="ui">حفظ</span> في الشريط العلوي (بجانب التراجع)، أو قائمة <span class="ui">مشروع</span> ← <b>حفظ المشروع</b>، أو <kbd>Ctrl</kbd> + <kbd>S</kbd>. يُنزَّل ملف واحد بامتداد <span dir="ltr">.montaji</span> فيه الخط الزمني وكل ملفات الوسائط، مع الطبقات والترجمة والإطارات المفتاحية. في Chrome و Edge تختار مكان الملف في أول حفظ فقط، وبعدها يُحفظ في الملف نفسه مباشرة؛ ولنسخة في مكان آخر استعمل <b>حفظ باسم…</b> (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd>).</li>
         <li><b>الفتح:</b> قائمة <span class="ui">مشروع</span> ← <b>فتح مشروع</b>، أو <kbd>Ctrl</kbd> + <kbd>O</kbd>، أو اسحب الملف وأفلته في المحرر، أو «فتح مشروع محفوظ» في الشاشة الأولى.</li>
       </ul>
       <div class="note warn">
@@ -583,7 +587,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
     <section id="export">
       <h2><span class="n">17</span>التصدير والتنزيل</h2>
       <ol class="steps">
-        <li>اضغط <span class="ui red">تصدير الفيديو</span> في الشريط العلوي.</li>
+        <li>اضغط <span class="ui red">تصدير</span> في الشريط العلوي.</li>
         <li>اختر <b>الدقة</b> و<b>عدد الإطارات</b> و<b>الجودة</b>. يظهر أسفلها الحجم التقريبي للملف.</li>
         <li>اضغط <span class="ui red">ابدأ التصدير</span> وانتظر اكتمال شريط التقدّم. أبقِ الصفحة مفتوحة.</li>
         <li>شاهد النتيجة في نافذة المعاينة، ثم اضغط <span class="ui red">تنزيل الفيديو</span> ليُحفظ ملف <span dir="ltr">MP4</span> في مجلد التنزيلات.</li>
@@ -627,6 +631,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
             <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>إعادة (أو <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>تكرار العنصر المحدد</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>حفظ المشروع في ملف <span dir="ltr">.montaji</span></td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></td><td>حفظ باسم: نسخة في مكان آخر</td></tr>
             <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd></td><td>فتح مشروع محفوظ بكل تفاصيله</td></tr>
             <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>تحريك المؤشر إطاراً واحداً</td></tr>
             <tr><td><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd></td><td>تحريك المؤشر ثانية كاملة</td></tr>

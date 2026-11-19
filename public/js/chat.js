@@ -794,15 +794,15 @@ Project model
     // المعاينة والخط الزمني يعيدان حساب مقاسهما عند resize؛ مرة واحدة لكل إطار أثناء السحب
     let raf = 0;
     const relayout = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; window.dispatchEvent(new Event('resize')); }); };
-    const rtl = () => getComputedStyle(el.panel).direction === 'rtl';
 
     handle.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
       e.preventDefault();
       handle.setPointerCapture(e.pointerId);
-      const startX = e.clientX, startW = el.panel.getBoundingClientRect().width, sign = rtl() ? -1 : 1;
+      const startX = e.clientX, startW = el.panel.getBoundingClientRect().width;
       document.body.classList.add('chat-resizing');
-      const move = ev => { saved = startW + sign * (ev.clientX - startX); apply(saved); relayout(); };
+      // اللوحة على اليسار في اللغتين، فحافتها تتحرك مع المؤشر
+      const move = ev => { saved = startW + (ev.clientX - startX); apply(saved); relayout(); };
       const up = () => {
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
