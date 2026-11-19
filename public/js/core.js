@@ -29,6 +29,20 @@ const RATIOS = { '16:9': [16, 9], '9:16': [9, 16], '1:1': [1, 1], '4:5': [4, 5] 
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+/**
+ * سرعة التمرير التلقائي أثناء السحب، بالبكسل لكل إطار: حين يقترب المؤشر من حافة المنطقة المرئية [lo, hi]
+ * يتحرك الخط الزمني نحوها، فيصل السحب إلى بداية مشروع طويل أو نهايته وهي خارج الشاشة.
+ * سالبة قرب lo، موجبة قرب hi، وصفر بينهما. تبدأ بطيئة عند حد المنطقة zone وتبلغ max عند الحافة وبعدها.
+ */
+function edgeScroll(x, lo, hi, zone = 48, max = 30) {
+  if (!(hi > lo) || !isFinite(x)) return 0;
+  const z = Math.max(1, Math.min(zone, (hi - lo) / 3));
+  const speed = depth => Math.max(1, Math.round(max * Math.min(1, depth) ** 2));
+  if (x < lo + z) return -speed((lo + z - x) / z);
+  if (x > hi - z) return speed((x - (hi - z)) / z);
+  return 0;
+}
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 
 /** أبعاد الإخراج: الضلع الأقصر = res */
@@ -262,7 +276,7 @@ async function decodeAudioFile(file) {
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    state, view, layout, clamp, clipLen, audioLen, overlayLen, itemStart, itemLen, emptyCaptions, CAPTION_STYLE,
+    state, view, layout, clamp, edgeScroll, clipLen, audioLen, overlayLen, itemStart, itemLen, emptyCaptions, CAPTION_STYLE,
     KF_PROPS, KF_EASES, KF_MAX, prop, setKey, removeKey, clearKeys, kfTimes, moveKeys, setKeyEase, splitKf, setVal, hasKf, anyKf,
   };
 }

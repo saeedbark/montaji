@@ -135,6 +135,28 @@ test('الشبكة: خانات متساوية، الملء يقص من الوس�
   near(c.sy, (100 - c.sh) / 2);
 });
 
+test('الشبكة مع fillRow: خانات الصف الأخير الناقص تتسع لتملأ عرضه بلا فراغ', () => {
+  const tall = { w: 600, h: 1000 };
+  // 3 صور في عمودين: الصورة الثالثة تأخذ عرض الصف كله
+  const L = ImageTools.mergeLayout([tall, tall, tall], { layout: 'grid', columns: 2, gap: 2, fillRow: true });
+  const [a, b, c] = L.cells;
+  assert.equal(a.w, b.w, 'الصف الكامل لا يتغيّر');
+  assert.equal(c.x, 0); assert.equal(c.x + c.w, L.width, 'الخانة الأخيرة تمتد من الحافة إلى الحافة');
+  assert.equal(c.h, a.h);
+  // الصورة الطويلة في خانة عريضة: يُقص أعلاها وأسفلها من الوسط، والعرض كله ظاهر
+  assert.equal(c.sw, 600); assert.ok(c.sh < 1000);
+  near(c.sy, (1000 - c.sh) / 2);
+  // 5 صور في 3 أعمدة: صورتان تتقاسمان الصف الأخير، والتقاؤهما بالحافة دقيق بعد التقريب
+  const M = ImageTools.mergeLayout(Array(5).fill(tall), { layout: 'grid', columns: 3, gap: 3, fillRow: true, rtl: true });
+  const [d, e] = M.cells.slice(3);
+  assert.equal(Math.min(d.x, e.x), 0); assert.equal(Math.max(d.x + d.w, e.x + e.w), M.width);
+  assert.ok(Math.abs(d.w - e.w) <= 1);
+  assert.ok(d.x > e.x, 'من اليمين إلى اليسار: الأولى في اليمين');
+  // بلا fillRow يبقى السلوك القديم: الصف الناقص يتوسّط
+  const O = ImageTools.mergeLayout([tall, tall, tall], { layout: 'grid', columns: 2 });
+  assert.equal(O.cells[2].w, O.cells[0].w);
+});
+
 test('الشبكة مع «الصور كاملة» لا تقص وتضع الصورة في وسط خانتها', () => {
   const L = ImageTools.mergeLayout([{ w: 200, h: 100 }, { w: 100, h: 100 }], { layout: 'grid', columns: 2, fit: 'contain' });
   const [a, b] = L.cells;

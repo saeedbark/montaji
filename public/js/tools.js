@@ -388,6 +388,7 @@ const MONTAJI_TOOLS = (() => {
         layout: pick(['row', 'column', 'grid'], 'row: side by side with equal height. column: stacked with equal width. grid: equal cells. Default row.'),
         columns: num('Grid only: number of columns. Default: the nearest square.'),
         fit: pick(['cover', 'contain'], 'Grid only: cover fills each cell by cropping the edges, contain shows the whole image. Default cover.'),
+        fill_last_row: bool('Grid only: when the last row is not full (3 images in 2 columns, 5 in 3), its images widen to fill the row instead of sitting centered with empty space beside them. Use it for a collage that fills the frame. Default false.'),
         gap: num('Space between images as a percent of the image size, 0 to 20. Default 2.'),
         padding: num('Frame around the whole picture as a percent of the image size, 0 to 20. Default 0.'),
         radius: num('Corner rounding of each image, 0 to 25. Default 0.'),

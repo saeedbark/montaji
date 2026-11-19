@@ -743,7 +743,7 @@ const Agent = (() => {
           const items = g.map(k => material[k]);
           if (items.length < 2 || items.some(c => c.type !== 'image')) { units.push(...items); continue; } // الفيديو لا يُدمج: يأخذ لقطته
           const aspect = items.reduce((s, c) => s + c.w / c.h, 0) / items.length;
-          const cv = ImageTools.merge(items.map(c => c.el), { ...RefTools.mergeLayout(items.length, aspect, fw / fh), fit: 'cover', gap: 2, padding: 0, radius: 0, background: '#000000', rtl: true });
+          const cv = ImageTools.merge(items.map(c => c.el), { ...RefTools.mergeLayout(items.length, aspect, fw / fh), fit: 'cover', fillRow: true, gap: 2, padding: 0, radius: 0, background: '#000000', rtl: true });
           units.push(await S.makeItem(new File([ImageTools.encode(cv, 'jpeg', 0.92).blob], `دمج-${items.length}-صور.jpg`, { type: 'image/jpeg' })));
           mergedShots++;
         }
@@ -950,6 +950,7 @@ const Agent = (() => {
         layout: has(a.layout) ? oneOf(a.layout, ImageTools.LAYOUTS, 'layout') : 'row',
         columns: has(a.columns) ? Math.round(clamp(num(a.columns, 'columns'), 1, list.length)) : undefined,
         fit: has(a.fit) ? oneOf(a.fit, ['cover', 'contain'], 'fit') : 'cover',
+        fillRow: has(a.fill_last_row) && bool(a.fill_last_row),
         gap: pct('gap', 20, 2), padding: pct('padding', 20, 0), radius: pct('radius', 25, 0),
         background: has(a.background_color) ? color(a.background_color, 'background_color') : '#ffffff',
         rtl: !has(a.right_to_left) || bool(a.right_to_left),

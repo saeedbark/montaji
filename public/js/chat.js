@@ -97,7 +97,7 @@ Project model
   function addUser(text, media, about) {
     const thumbs = media.slice(0, 6).map(m => (m.thumb ? `<img src="${esc(m.thumb)}" alt="">` : `<span>♪ ${esc(m.name)}</span>`)).join('');
     const more = media.length > 6 ? `<span>+${media.length - 6}</span>` : '';
-    const tag = about ? `<div class="msg-tgt"><svg class="ic"><use href="#i-spark"/></svg>${esc(about)}</div>` : '';
+    const tag = about ? `<div class="msg-tgt"><svg class="ic"><use href="#i-spark"/></svg><span>${aboutHtml(about)}</span></div>` : '';
     return add(div('msg user', tag + esc(text) + (media.length ? `<div class="msg-thumbs">${thumbs}${more}</div>` : '')));
   }
   const addBot = text => add(div('msg bot', md(text)));
@@ -181,8 +181,9 @@ Project model
     return `<a href="${k.url}" target="_blank" rel="noopener">${esc(k.site)}</a>`;
   };
 
-  function keyForm() {
-    const cur = cfg && cfg.ready && KEY_PROVIDERS.some(k => k.id === cfg.provider) ? cfg.provider : 'gemini';
+  function keyForm(pick) {
+    const cur = KEY_PROVIDERS.some(k => k.id === pick) ? pick
+      : cfg && cfg.ready && KEY_PROVIDERS.some(k => k.id === cfg.provider) ? cfg.provider : 'gemini';
     return `<form class="key-form" data-keyform>
         <label><span>${tt('المزوّد', 'Provider')}</span><select name="provider">${KEY_PROVIDERS.map(k =>
           `<option value="${k.id}"${k.id === cur ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}</select></label>
@@ -210,8 +211,11 @@ Project model
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || tt('تعذّر حفظ المفتاح', 'Could not save the key'));
       form.key.value = '';
-      keyOpen = false;
       keyError = '';
+      // نموذج داخل المحادثة (بعد حذف مفتاح منتهٍ): يُستبدل بسطر تأكيد
+      const inline = form.closest('.key-notice');
+      if (inline) form.replaceWith(div('chat-note', tt('حُفظ المفتاح الجديد.', 'The new key was saved.')));
+      else keyOpen = false;
       await loadConfig();
       S.toast && S.toast(form.provider.value === 'groq' ? tt('حُفظ مفتاح الترجمة التلقائية', 'Auto-caption key saved') : tt('تم تفعيل المساعد', 'Assistant enabled'));
     } catch (e) {
@@ -354,7 +358,7 @@ Project model
 
   function htmlOf(c) {
     const n = c.node.cloneNode(true);
-    n.querySelectorAll('.chat-intro, .typing, img[src^="blob:"]').forEach(x => x.remove());
+    n.querySelectorAll('.chat-intro, .typing, .key-form, img[src^="blob:"]').forEach(x => x.remove());
     return n.innerHTML;
   }
 
@@ -414,6 +418,8 @@ Project model
   const itemName = (kind, o) => (kind === 'effect' ? (Render.EFFECTS[o.type] || {}).label || o.type
     : kind === 'text' || kind === 'caption' ? String(o.text || '').split('\n')[0] : o.name);
   const aboutText = (kind, o) => `${kindLabel(kind, o)}: ${short(itemName(kind, o), 40)}`;
+  // اسم الملف داخل <bdi>: وإلا قلبته الواجهة العربية («1.mp4» يظهر «mp4.1»)
+  const aboutHtml = s => { const i = s.indexOf(': '); return i < 0 ? `<bdi>${esc(s)}</bdi>` : `${esc(s.slice(0, i + 2))}<bdi>${esc(s.slice(i + 2))}</bdi>`; };
 
   // اقتراحات جاهزة لكل نوع: نقرة واحدة ترسل الطلب
   const TARGET_SUGS = {
@@ -456,7 +462,7 @@ Project model
     const sugs = target.used ? [] : TARGET_SUGS[kind === 'clip' ? o.type : kind] || [];
     el.target.innerHTML = `<div class="tgt-row">
         ${thumb ? `<img src="${esc(thumb)}" alt="">` : '<span class="tgt-ic"><svg class="ic"><use href="#i-spark"/></svg></span>'}
-        <span class="tgt-txt"><small>${tt('طلبك يخصّ هذا العنصر', 'Your request is about this item')}</small><b title="${esc(itemName(kind, o))}">${esc(aboutText(kind, o))}</b></span>
+        <span class="tgt-txt" title="${tt('طلبك يخصّ هذا العنصر وحده', 'Your request is about this item only')}: ${esc(itemName(kind, o))}"><small>${tt('عن:', 'About:')}</small> <b>${aboutHtml(aboutText(kind, o))}</b></span>
         <button type="button" class="btn small icon" data-untarget title="${tt('إلغاء الربط بهذا العنصر', 'Stop focusing on this item')}"><svg class="ic"><use href="#i-close"/></svg></button>
       </div>${sugs.length ? `<div class="tgt-sugs">${sugs.map(([ar, en]) => {
         const s = tt(ar, en);
@@ -532,11 +538,29 @@ Project model
     return out.reverse();
   }
 
+  /**
+   * الخادم حذف مفتاحاً انتهى رصيده أو رُفض، و/أو أجاب مزوّد بديل: يُبلَّغ المستخدم في المحادثة،
+   * ويُفتح له نموذج المفتاح هنا ليضع مفتاحاً جديداً
+   */
+  function addKeyNotice(removed, switched) {
+    const lines = (removed || []).map(k => (k.reason === 'credit'
+      ? tt(`انتهى رصيد مفتاح ${k.label} فحذفته من الإعدادات.`, `The ${k.label} key ran out of credit, so I removed it.`)
+      : tt(`مفتاح ${k.label} مرفوض فحذفته من الإعدادات.`, `The ${k.label} key was rejected, so I removed it.`)));
+    if (switched) lines.push(tt(`أكملتُ بـ ${switched.label} (${switched.model}) بدلاً منه.`, `I continued with ${switched.label} (${switched.model}) instead.`));
+    if (!removed || !removed.length) {
+      // بديل أجاب لأن المختار مزدحم أو لم يرد: سطر واحد يكفي
+      return void addNote(tt(`${switched.from} لم يستجب، فأكملتُ بـ ${switched.label} (${switched.model}).`, `${switched.from} did not respond, so I continued with ${switched.label} (${switched.model}).`));
+    }
+    lines.push(tt('أضف مفتاحاً جديداً هنا:', 'Add a new key here:'));
+    add(div('key-notice', `<p>${lines.map(esc).join('<br>')}</p>${keyForm(removed[0].provider)}`));
+    loadConfig();
+  }
+
   /* ================= حلقة المحادثة ================= */
   async function api(body) {
     const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
     const d = await r.json().catch(() => ({ error: tt('رد غير مفهوم من الخادم المحلي', 'Unreadable reply from the local server') }));
-    if (!r.ok || d.error) throw Object.assign(new Error(d.error || tt('حدث خطأ', 'Something went wrong')), { detail: d.detail });
+    if (!r.ok || d.error) throw Object.assign(new Error(d.error || tt('حدث خطأ', 'Something went wrong')), { detail: d.detail, removed: d.removed });
     return d;
   }
   const textOf = c => (typeof c === 'string' ? c : Array.isArray(c) ? c.map(p => p.text || '').join('') : '').trim();
@@ -544,12 +568,15 @@ Project model
 
   async function converse() {
     let box = null;
+    // إن أجاب مزوّد بديل يبقى هو لبقية هذا الدور، فلا ينتظر كل طلب المزوّد العالق من جديد
+    let pick = choice && { provider: choice.provider, model: choice.model };
     for (let turn = 0; turn < 40; turn++) {
       const typing = addTyping();
       let r;
-      const pick = choice && { provider: choice.provider, model: choice.model };
       try { r = await api({ messages: [{ role: 'system', content: systemMessage() }, ...history()], tools: toolDefs(), choice: pick }); }
       finally { typing.remove(); }
+      if (r.removed || r.switched) { addKeyNotice(r.removed, r.switched); box = null; }
+      if (r.switched) pick = { provider: r.switched.provider, model: r.switched.model };
 
       const m = r.message;
       const calls = (m.tool_calls || []).filter(c => c && c.function && c.function.name);
@@ -616,7 +643,11 @@ Project model
       await converse();
     } catch (e) {
       if (e.name === 'AbortError') addNote(tt('أُوقف المساعد.', 'Assistant stopped.'));
-      else { console.error(e); addError(e.message || String(e), e.detail); }
+      else {
+        console.error(e);
+        addError(e.message || String(e), e.detail);
+        if (e.removed && e.removed.length) addKeyNotice(e.removed);
+      }
       // لم يصل أي رد: نتراجع عن الرسالة ليعيد المستخدم إرسالها كما هي (مع ملفاتها)
       if (u && msgs.length === mark + 1) {
         msgs.length = mark;

@@ -30,7 +30,10 @@ If the `montaji` tools are missing, or a call answers that the editor is not ope
 
 1. Start the app from its folder: `npm start` (no install step, it has no dependencies), or the user
    double-clicks `start.bat` (Windows), `start.command` (macOS) or runs `./start.sh` (Linux).
-2. The page `http://localhost:4747` must stay open in Chrome or Edge: the tools run inside it.
+2. The page `http://localhost:4747` must stay open in Chrome or Edge: the tools run inside it. When several
+   editor pages are open, the tools go to the most recently loaded one. After the app code changes, that
+   page must be reloaded (or a new one opened) to run the new code; a reload also forgets the analyzed
+   reference, so call `analyze_reference` again.
 3. Connect the MCP server once. Claude Code: `claude mcp add --transport http montaji http://localhost:4747/mcp`.
    Other agents: `{ "mcpServers": { "montaji": { "url": "http://localhost:4747/mcp" } } }`.
 
@@ -128,6 +131,9 @@ Check three or four moments with `view_frame`, then `seek` to 0 with `play: true
 
 Posters and images that carry text keep the default fit, which shows the whole image over a blurred
 background. For plain photos whose shape is close to the frame, `update_clips` with `fit: "cover"` fills it.
+A video logo or square clip also looks better with `cover` than with blurred bands. A merged 2×2 grid of
+wider photos keeps `blur`: `cover` cuts the products at its edges. Changing the fit moves the products in
+the frame, so place the flashes (step 6) after the fit is final.
 
 ## 6. Refine
 
@@ -167,10 +173,38 @@ a zoom in starts smaller and grows to it, a zoom out starts closer and opens up 
 poster is never cut while it is being read. `camera` in the answer says what each got. To change one,
 `set_keyframes` on the clip with `prop: "zoom"` (for a punch on the beat: 80 at 0, 100 at half a beat).
 
-### Several products, custom layout
+### Merge images into one shot
 
-`per_shot` chooses the arrangement by itself. For a specific one (a row, a grid with a background color,
-rounded corners) use `merge_images` on the clips, then `apply_reference` with `clip_ids`.
+Merge when the reference shows several products in one shot (several flashes walking across the frame,
+a shelf, a lineup), when the user has more media than shots and all of it matters, or for a "the whole
+collection" moment near the end (a 2×2 grid of four variants after the singles). Do not merge a poster that
+carries text, a logo or a contact card: it would become too small to read.
+
+- With `apply_reference`, `per_shot` merges for you: `[1, 1, 3, 1, 4, 1]` puts three images in shot 3 and
+  four in shot 5, in the order of `paths` / `order`. The cells fill the frame (an odd count, like three, gets
+  a full-width last row instead of black gaps). Count the media: the sum of `per_shot` is how many are used.
+- Choose the count by the shape of the media in the frame. In 9:16, tall photos merge well by 2 to 4 (two
+  on top, one or two below); wide photos by 2 stacked, or 4 in a grid. Five or more become too small to see.
+- Then light the merged products one after another, like the reference: one flash per image, in reading
+  order (right to left in Arabic), each moved onto its image with `update_effects`.
+- For a specific arrangement (a row, rounded corners, a colored background between the images) use
+  `merge_images` on the clips first, then `apply_reference` with `clip_ids`. Pass `layout: "grid"` with
+  `fill_last_row: true` so an incomplete last row has no empty space beside it.
+
+### Your own touches
+
+The reference gives the skeleton. A finished ad usually needs a little more; add it in the reference's
+spirit, without changing its cuts:
+
+| The video lacks | Add |
+|---|---|
+| shots with no movement or light (the reference had none there) | one `shine` or `sparkle` on the product of that shot, under a second |
+| a clear change of section (product 1 to product 2) | a short `flash` on that cut (0.25 s, intensity about 70) |
+| depth on product photos | `sharp` and a light `vignette` (intensity 50 to 70) over the product shots only, not over the logo or the contact card |
+| the phone numbers on the closing card | `backlight` on each number, one after the other on the beat |
+| the price catching the eye | the price text appearing on a beat, with a size keyframe from about 1.5× to its size in a quarter of a second |
+
+Two or three of these are enough; the reference effects stay the main ones.
 
 ### Other tools worth offering
 
@@ -195,6 +229,19 @@ Suggest these in one line when the media call for it, and use them on a yes:
 Texts of the reference are never copied; they belong to someone else's content. Add texts only when the
 user gave the words in step 4 or in their message: use `add_text` at a similar place and time as in the
 reference. If the media are finished posters that already carry text, add nothing.
+
+Match the font to the product and the mood, and check it on a frame:
+
+| Mood | Font |
+|---|---|
+| luxury, jewelry, watches, perfume, weddings | `elmessiri` bold, on a dark box (`background: true`), gold or the brand color |
+| shop, offers, everyday products | `cairo` bold |
+| tech, gaming | `changa` |
+| a single huge word on a sale | `lalezar`, sparingly: it is heavy and crowds digits next to letters ("فخمة 1" reads as one block) |
+
+Keep one or two fonts in a video. A product label sits at the top (`y` about 0.06) and the price at the
+bottom (`y` about 0.9), clear of the product; on a merged shot, check that neither covers a watch face or a
+product's center.
 
 ## 9. Finish
 

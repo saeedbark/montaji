@@ -809,14 +809,41 @@
 
   const timeAtX = clientX => (clientX - els.tlInner.getBoundingClientRect().left - LABEL_W) / view.pps;
 
-  function dragSession(move, up) {
-    const m = ev => move(ev);
+  /**
+   * جلسة سحب على الخط الزمني. move(ev, ds): ds ما تمرّر به الخط الزمني أفقياً منذ بدء السحب، يُضاف إلى حركة
+   * الفأرة كي يبقى العنصر تحت المؤشر حين يتحرك المحتوى تحته (بالعجلة أو بالتمرير التلقائي).
+   * قرب حافتي المنطقة المرئية يتمرّر الخط الزمني وحده، فيصل السحب إلى ما خارج الشاشة في المشاريع الطويلة.
+   * timeline: لسحب على الخط الزمني فقط؛ السحب في المعاينة (نص، طبقة، مركز تأثير) لا يمرّر الخط الزمني.
+   */
+  function dragSession(move, up, timeline = false) {
+    const sc = els.tlScroll, sl0 = sc.scrollLeft;
+    let last = null, raf = 0, since = 0;
+    const run = () => last && move(last, timeline ? sc.scrollLeft - sl0 : 0);
+    const tick = ts => {
+      raf = 0;
+      if (!last || !timeline) return;
+      const r = sc.getBoundingClientRect();
+      const v = edgeScroll(last.clientX, r.left + LABEL_W, r.right);
+      if (!v) { since = 0; return; }
+      // كلما طال البقاء عند الحافة أسرع التمرير (حتى 4 أضعاف بعد 3 ثوانٍ)، فيُقطع المشروع الطويل بسرعة
+      if (!since) since = ts;
+      const before = sc.scrollLeft;
+      sc.scrollLeft = before + v * Math.min(4, 1 + (ts - since) / 1000);
+      if (sc.scrollLeft === before) return; // بلغ أول المحتوى أو آخره
+      run(); // مباشرةً لا انتظاراً لحدث scroll، كي لا يتأخر العنصر عن المؤشر
+      raf = requestAnimationFrame(tick);
+    };
+    const m = ev => { last = ev; run(); if (timeline && !raf) raf = requestAnimationFrame(tick); };
+    const onScroll = () => run(); // تمرير بالعجلة أثناء السحب
     const u = ev => {
+      cancelAnimationFrame(raf); raf = 0;
+      if (timeline) { run(); sc.removeEventListener('scroll', onScroll); } // آخر موضع بعد آخر تمرير
       window.removeEventListener('pointermove', m);
       window.removeEventListener('pointerup', u);
       window.removeEventListener('pointercancel', u);
       up && up(ev);
     };
+    if (timeline) sc.addEventListener('scroll', onScroll);
     window.addEventListener('pointermove', m);
     window.addEventListener('pointerup', u);
     window.addEventListener('pointercancel', u);
@@ -849,7 +876,7 @@
       if (!e.target.closest('.tl-ruler') && state.sel) select(null);
       if (view.playing) pause();
       setTime(timeAtX(e.clientX));
-      dragSession(ev => setTime(timeAtX(ev.clientX)));
+      dragSession(ev => setTime(timeAtX(ev.clientX)), null, true);
       e.preventDefault();
       return;
     }
@@ -871,8 +898,8 @@
       if (view.playing) pause();
       setTime(base + kt0);
       kfSel = { id, t: kt0 };
-      dragSession(ev => {
-        const dpx = ev.clientX - x0;
+      dragSession((ev, ds) => {
+        const dpx = ev.clientX - x0 + ds;
         if (!moved && Math.abs(dpx) < 3) return;
         moved = true;
         const nt = clamp(kt0 + dpx / view.pps, 0, len);
@@ -881,7 +908,7 @@
         kfSel = { id, t: nt };
         view.t = clamp(base + nt, 0, view.total);
         live();
-      }, () => { if (moved) { touch(); renderProps(); } });
+      }, () => { if (moved) { touch(); renderProps(); } }, true);
       return;
     }
     // كتلة الترجمة لا تتجاوز جارتيها
@@ -893,8 +920,8 @@
       // إعادة الترتيب بالسحب
       let target = -1;
       const from = state.clips.indexOf(obj);
-      dragSession(ev => {
-        const dx = ev.clientX - x0;
+      dragSession((ev, ds) => {
+        const dx = ev.clientX - x0 + ds;
         if (!moved && Math.abs(dx) < 5) return;
         moved = true;
         // العنصر يُبحث عنه في كل حركة: التمرير أثناء السحب قد يعيد بناء الخط الزمني فيُستبدل
@@ -915,12 +942,12 @@
           state.clips.splice(target, 0, obj);
         }
         touch();
-      });
+      }, true);
       return;
     }
 
-    dragSession(ev => {
-      const dpx = ev.clientX - x0;
+    dragSession((ev, ds) => {
+      const dpx = ev.clientX - x0 + ds;
       if (!moved && Math.abs(dpx) < 3) return;
       moved = true;
       const dx = dpx / view.pps;
@@ -981,7 +1008,7 @@
         }
       }
       live();
-    }, () => { if (moved) { touch(); renderProps(); } else if (again) setSheet(true); });
+    }, () => { if (moved) { touch(); renderProps(); } else if (again) setSheet(true); }, true);
   });
 
   /* ================= عمليات التحرير ================= */
@@ -1194,7 +1221,7 @@
         </div>`;
     } else if (kind === 'clip') {
       const isVid = obj.type === 'video';
-      h = `<h2>${isVid ? tt('مقطع فيديو', 'Video clip') : tt('صورة', 'Image')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`;
+      h = `<h2>${isVid ? tt('مقطع فيديو', 'Video clip') : tt('صورة', 'Image')}</h2><p class="sub" title="${esc(obj.name)}"><bdi>${esc(obj.name)}</bdi></p>`;
       if (!isVid) {
         h += `<button class="btn small wide" data-act="imgEdit"><svg class="ic"><use href="#i-wand"/></svg>${tt('تعديل الصورة: قص، إزالة الخلفية…', 'Edit image: crop, remove background…')}</button>`;
         h += slider('out', tt('مدة العرض', 'Duration'), 0.5, 15, 0.1, +Math.min(15, obj.out).toFixed(1), tt('ث', 's'));
@@ -1226,7 +1253,7 @@
       h += kfSection(obj, 'clip') + actions();
     } else if (kind === 'overlay') {
       const isVid = obj.type === 'video';
-      h = `<h2>${isVid ? tt('طبقة فيديو', 'Video overlay') : tt('طبقة صورة', 'Image overlay')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
+      h = `<h2>${isVid ? tt('طبقة فيديو', 'Video overlay') : tt('طبقة صورة', 'Image overlay')}</h2><p class="sub" title="${esc(obj.name)}"><bdi>${esc(obj.name)}</bdi></p>`
         + `<p class="sub" style="white-space:normal">${tt('اسحبها في المعاينة لتحريكها، واسحب زاوية لتكبيرها، والمقبض العلوي لتدويرها.', 'Drag it in the preview to move it, drag a corner to resize it, and the top handle to rotate it.')}</p>`
         + kslider(obj, 'overlay', 'x', tt('أفقياً', 'Horizontal'), -20, 120, 1, '%', 0.01)
         + kslider(obj, 'overlay', 'y', tt('عمودياً', 'Vertical'), -20, 120, 1, '%', 0.01)
@@ -1270,7 +1297,7 @@
         + `<button class="link-btn" data-act="capOpen">${tt('إعادة التفريغ…', 'Transcribe again…')}</button>`
         + `<button class="link-btn" data-act="capClear">${tt('حذف الترجمة كلها', 'Delete all captions')}</button>`;
     } else if (kind === 'audio') {
-      h = `<h2>${tt('موسيقى', 'Music')}</h2><p class="sub" title="${esc(obj.name)}">${esc(obj.name)}</p>`
+      h = `<h2>${tt('موسيقى', 'Music')}</h2><p class="sub" title="${esc(obj.name)}"><bdi>${esc(obj.name)}</bdi></p>`
         + kslider(obj, 'audio', 'volume', tt('مستوى الصوت', 'Volume'), 0, 100, 1, '%', 0.01)
         + slider('fadeIn', tt('ظهور تدريجي', 'Fade in'), 0, 5, 0.1, obj.fadeIn, tt('ث', 's'))
         + slider('fadeOut', tt('اختفاء تدريجي', 'Fade out'), 0, 5, 0.1, obj.fadeOut, tt('ث', 's'))
