@@ -96,10 +96,11 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
   .mock .chip { padding: 5px 10px; border-radius: 8px; background: var(--panel-3); border: 1px solid var(--line); white-space: nowrap; }
   .mock .chip.red { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
   .mock .sp { flex: 1; }
-  .mock .mid { display: grid; grid-template-columns: minmax(0, 1fr) 30%; min-height: 190px; }
+  .mock .mid { display: grid; grid-template-columns: minmax(0, 1fr) 30%; min-height: 190px; direction: ltr; }
+  .mock .mid > * { direction: rtl; }
   .mock .stage { position: relative; display: grid; place-items: center; padding: 16px; }
   .mock .screen { width: min(78%, 330px); aspect-ratio: 16 / 9; border-radius: 8px; background: linear-gradient(135deg, #ff7a59, #7a1f5c); display: grid; place-items: center; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
-  .mock .side { position: relative; border-inline-start: 1px solid var(--line); padding: 14px; color: var(--muted); }
+  .mock .side { position: relative; border-left: 1px solid var(--line); padding: 14px; color: var(--muted); }
   .mock .side i { display: block; height: 9px; border-radius: 5px; background: var(--panel-3); margin: 9px 0; }
   .mock .side i:nth-child(odd) { width: 70%; }
   .mock .tl { position: relative; border-top: 1px solid var(--line); padding: 10px 12px 12px; direction: ltr; }
@@ -139,7 +140,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
     nav.toc ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .hero { padding: 30px 16px 20px; }
     .mock .mid { grid-template-columns: minmax(0, 1fr); }
-    .mock .side { border-inline-start: 0; border-top: 1px solid var(--line); }
+    .mock .side { border-left: 0; border-top: 1px solid var(--line); }
     section > h2 { font-size: 22px; }
   }
   @media print {
@@ -255,7 +256,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
         <div class="mid">
           <div class="stage">
             <div class="screen">المعاينة</div>
-            <span class="pin" style="top:8px;right:8px">٢</span>
+            <span class="pin" style="top:8px;left:8px">٢</span>
           </div>
           <div class="side">
             <span class="pin" style="top:8px;left:8px">٣</span>
