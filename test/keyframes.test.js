@@ -8,6 +8,23 @@ const C = require('../public/js/core.js');
 
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`);
 
+test('edgeScroll: التمرير التلقائي أثناء السحب يتجه نحو الحافة القريبة ويسرع كلما اقترب منها', () => {
+  // منطقة مرئية من 100 إلى 900، وحدّ الحافة 48 بكسل، والسرعة القصوى 30
+  assert.equal(C.edgeScroll(500, 100, 900), 0, 'في الوسط لا تمرير');
+  assert.equal(C.edgeScroll(148, 100, 900), 0, 'على حد المنطقة تماماً لا تمرير');
+  assert.ok(C.edgeScroll(140, 100, 900) < 0, 'قرب البداية: نحو البداية');
+  assert.ok(C.edgeScroll(860, 100, 900) > 0, 'قرب النهاية: نحو النهاية');
+  assert.ok(C.edgeScroll(110, 100, 900) < C.edgeScroll(140, 100, 900), 'أسرع كلما اقترب من الحافة');
+  assert.equal(C.edgeScroll(100, 100, 900), -30, 'عند الحافة: السرعة القصوى');
+  assert.equal(C.edgeScroll(20, 100, 900), -30, 'بعد الحافة (فوق عناوين المسارات): لا تتجاوز القصوى');
+  assert.equal(C.edgeScroll(2000, 100, 900), 30);
+  assert.equal(C.edgeScroll(147, 100, 900), -1, 'تبدأ بطيئة لا صفراً');
+  // منطقة ضيقة: الحد لا يتجاوز ثلثها فيبقى وسط يمكن السحب فيه بلا تمرير
+  assert.equal(C.edgeScroll(150, 100, 200), 0);
+  assert.equal(C.edgeScroll(50, 100, 100), 0, 'منطقة بلا عرض');
+  assert.equal(C.edgeScroll(NaN, 100, 900), 0);
+});
+
 test('prop: خاصية بلا إطارات تعيد القيمة الثابتة، أو الافتراضية إن غابت', () => {
   assert.equal(C.prop({ x: 0.3 }, 'x', 5), 0.3);
   assert.equal(C.prop({}, 'opacity', 0), 1);

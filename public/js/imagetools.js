@@ -171,6 +171,7 @@ const ImageTools = (() => {
    *   layout   'row' أفقي بارتفاع موحّد | 'column' عمودي بعرض موحّد | 'grid' شبكة خانات متساوية
    *   columns  أعمدة الشبكة (الافتراضي أقرب مربع)
    *   fit      في الشبكة: 'cover' تملأ الخانة بقص الأطراف | 'contain' الصورة كاملة داخل الخانة
+   *   fillRow  في الشبكة: خانات الصف الأخير الناقص تتسع لتملأ عرضه (بدل أن تتوسّط وتترك فراغاً بجانبيها)
    *   gap, padding, radius  نسب مئوية من حجم الصورة الموحّد، فتبقى النسبة ثابتة مهما كبرت الصور
    *   rtl      الصورة الأولى في اليمين (ترتيب القراءة العربية)
    *   maxSide  أقصى ضلع للناتج (يُصغَّر كل شيء بالنسبة نفسها)
@@ -207,16 +208,22 @@ const ImageTools = (() => {
       const g = Math.round(pct(o.gap, ref)), p = Math.round(pct(o.padding, ref));
       W = cols * cw + (cols - 1) * g + 2 * p;
       H = rows * ch + (rows - 1) * g + 2 * p;
+      const rowW = cols * cw + (cols - 1) * g;
       sizes.forEach((s, i) => {
         const r = Math.floor(i / cols), c = i % cols;
-        const inRow = r === rows - 1 ? n - r * cols : cols; // الصف الأخير الناقص يتوسّط
-        const x = p + Math.round((cols - inRow) * (cw + g) / 2) + c * (cw + g), y = p + r * (ch + g);
+        const inRow = r === rows - 1 ? n - r * cols : cols;
+        // الصف الأخير الناقص يتوسّط، أو مع fillRow تتسع خاناته لتملأ عرض الصف فلا تبقى فجوة بجانبيه
+        const stretch = o.fillRow && inRow < cols;
+        const x = stretch ? p + Math.round(c * (rowW + g) / inRow) : p + Math.round((cols - inRow) * (cw + g) / 2) + c * (cw + g);
+        // عرض هذه الخانة: يُحسب من حافتها اليمنى كي تلتقي آخر خانة بحافة الصف تماماً بعد التقريب
+        const xw = stretch ? p + Math.round((c + 1) * (rowW + g) / inRow) - g - x : cw;
+        const y = p + r * (ch + g);
         if (o.fit === 'contain') {
-          const k = Math.min(cw / s.w, ch / s.h), w = Math.max(1, Math.round(s.w * k)), h = Math.max(1, Math.round(s.h * k));
-          cells.push({ x: x + Math.round((cw - w) / 2), y: y + Math.round((ch - h) / 2), w, h, src: { sx: 0, sy: 0, sw: s.w, sh: s.h } });
+          const k = Math.min(xw / s.w, ch / s.h), w = Math.max(1, Math.round(s.w * k)), h = Math.max(1, Math.round(s.h * k));
+          cells.push({ x: x + Math.round((xw - w) / 2), y: y + Math.round((ch - h) / 2), w, h, src: { sx: 0, sy: 0, sw: s.w, sh: s.h } });
         } else {
-          const k = Math.max(cw / s.w, ch / s.h), sw = cw / k, sh = ch / k;
-          cells.push({ x, y, w: cw, h: ch, src: { sx: (s.w - sw) / 2, sy: (s.h - sh) / 2, sw, sh } });
+          const k = Math.max(xw / s.w, ch / s.h), sw = xw / k, sh = ch / k;
+          cells.push({ x, y, w: xw, h: ch, src: { sx: (s.w - sw) / 2, sy: (s.h - sh) / 2, sw, sh } });
         }
       });
     }

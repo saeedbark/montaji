@@ -63,6 +63,20 @@ test('الطبقات والترجمة والإطارات تُحفظ وتعود �
   assert.deepEqual(p.captions.items, [{ id: 'k1', start: 1, end: 2.5, text: 'مرحبا بكم', words: [{ w: 'مرحبا', t0: 1, t1: 1.6 }, { w: 'بكم', t0: 1.7, t1: 2.3 }] }]);
 });
 
+test('مقاس مستطيل areaFlash و backlight يُحفظ ويعود (w و h ليسا أبعاد ملف هنا)', () => {
+  const st = project();
+  st.effects = [
+    { id: 'e1', type: 'areaFlash', start: 2, dur: 0.35, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.79, r: 0.3, w: 0.58, h: 0.1 },
+    { id: 'e2', type: 'backlight', start: 3, dur: 0.5, amount: 1, at: null, atMode: 'cut', x: 0.5, y: 0.9, r: 0.3, w: 0.6, h: 0.12 },
+  ];
+  const p = roundTrip(st);
+  assert.deepEqual(p.effects.map(e => [e.type, e.w, e.h]), [['areaFlash', 0.58, 0.1], ['backlight', 0.6, 0.12]]);
+  // أبعاد ملفات المقاطع ما زالت لا تُحفظ
+  st.clips[0].w = 1920; st.clips[0].h = 1080;
+  const data = PT.serialize(st).data;
+  assert.equal(data.clips[0].w, undefined); assert.equal(data.clips[0].h, undefined);
+});
+
 test('مشروع قديم بلا طبقات ولا ترجمة يُفتح بقيم افتراضية', () => {
   const p = PT.normalize({ app: 'montaji', version: 1, ratio: '16:9', clips: [], audios: [], texts: [], effects: [], media: [] });
   assert.deepEqual(p.overlays, []);

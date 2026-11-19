@@ -165,10 +165,12 @@ const ProjectTools = (() => {
   /* ================= من المشروع إلى JSON ================= */
   // ما يُشتق من ملف الوسائط عند الفتح، أو كائنات المتصفح، لا يُحفظ
   const SKIP = new Set(['url', 'file', 'el', 'buf', 'thumb', 'wave', 'beats', 'w', 'h', 'srcDur']);
-  function plain(o) {
+  // في التأثيرات w و h ليسا أبعاد ملف بل مقاس المستطيل (areaFlash و backlight)، فيُحفظان
+  const EFFECT_KEEP = new Set(['w', 'h']);
+  function plain(o, keep) {
     const out = {};
     for (const [k, v] of Object.entries(o)) {
-      if (k[0] === '_' || SKIP.has(k)) continue;
+      if (k[0] === '_' || (SKIP.has(k) && !(keep && keep.has(k)))) continue;
       // الإطارات المفتاحية الحقل الوحيد المركّب في العناصر: { خاصية: [{ t, v, e }] }
       if (k === 'kf' && v && typeof v === 'object') { out.kf = JSON.parse(JSON.stringify(v)); continue; }
       if (v === null || typeof v === 'string' || typeof v === 'boolean' || (typeof v === 'number' && isFinite(v))) out[k] = v;
@@ -208,7 +210,7 @@ const ProjectTools = (() => {
       overlays: withMedia(st.overlays || [], o => (o.type === 'video' ? 'video' : 'image')),
       audios: withMedia(st.audios, () => 'audio'),
       texts: st.texts.map(plain),
-      effects: st.effects.map(plain),
+      effects: st.effects.map(e => plain(e, EFFECT_KEEP)),
       captions: {
         lang: cap.lang || '', style: plain(cap.style || {}),
         items: (cap.items || []).map(it => ({ id: it.id, start: it.start, end: it.end, text: it.text, words: (it.words || []).map(w => ({ w: w.w, t0: w.t0, t1: w.t1 })) })),
