@@ -70,6 +70,8 @@ const I18N = (() => {
     'المساعد الذكي: اطلب المونتاج بالكلام': 'AI assistant: describe the edit you want',
     'المساعد': 'Assistant',
     'دليل الاستخدام': 'User guide',
+    'حفظ': 'Save',
+    'حفظ المشروع (Ctrl+S)': 'Save project (Ctrl+S)',
     'تراجع (Ctrl+Z)': 'Undo (Ctrl+Z)',
     'إعادة (Ctrl+Y)': 'Redo (Ctrl+Y)',
     'تصدير الفيديو': 'Export video',

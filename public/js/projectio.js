@@ -174,6 +174,7 @@ const ProjectIO = (() => {
   $('#btnProjOpen').onclick = pick;
   $('#btnEmptyOpen').onclick = pick;
   $('#btnProjSave').onclick = () => save();
+  $('#btnSave').onclick = () => save(); // زر ظاهر دائماً في الشريط العلوي
 
   return { save, open, pick, build, isBusy, isProjectFile };
 })();

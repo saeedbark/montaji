@@ -510,6 +510,8 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
   #btnProject span, #btnTools span, #btnChat span { display: none; }
 }
 @media (max-width: 1320px) {
+  #btnSave { width: 36px; padding: 0; }
+  #btnSave span { display: none; }
   .brand { margin-inline-end: 0; }
   .brand span { display: none; }
   .ratio select { max-width: 130px; }
