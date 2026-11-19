@@ -1878,6 +1878,12 @@
       if (e.code === 'KeyS') ProjectIO.save(); else ProjectIO.pick();
       return;
     }
+    // Ctrl+Shift+S: حفظ باسم، يسأل عن المكان ولو حُفظ المشروع من قبل
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyS') {
+      e.preventDefault();
+      ProjectIO.save({ pick: true });
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && !typing) {
       const k = e.key.toLowerCase();
       if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }

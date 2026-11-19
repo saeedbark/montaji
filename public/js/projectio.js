@@ -10,6 +10,9 @@ const ProjectIO = (() => {
     file: $('#fileProject'),
   };
   let busy = false;
+  // الملف الذي اختاره المستخدم في أول حفظ: الحفظ التالي يكتب فيه مباشرة بلا نافذة.
+  // يُنسى عند فتح مشروع آخر، ولا يُستعمل إن تغيّر اسم المشروع (مشروع جديد مثلاً)
+  let lastHandle = null;
 
   const isBusy = () => busy;
   const isProjectFile = f => new RegExp('\\.' + PT.EXT + '$', 'i').test((f && f.name) || '');
@@ -75,8 +78,20 @@ const ProjectIO = (() => {
     return { blob: new Blob(PT.zipParts(entries).parts, { type: 'application/zip' }), data, files: sources.length };
   }
 
+  /** الملف المحفوظ سابقاً إن كان للمشروع نفسه وما زال الكتابة فيه مسموحة */
+  async function reusableHandle() {
+    if (!lastHandle || !state.name || baseName(lastHandle.name) !== state.name) return null;
+    try {
+      const opts = { mode: 'readwrite' };
+      if (lastHandle.queryPermission && await lastHandle.queryPermission(opts) !== 'granted'
+        && (!lastHandle.requestPermission || await lastHandle.requestPermission(opts) !== 'granted')) return null;
+      return lastHandle;
+    } catch (e) { console.warn(e); return null; }
+  }
+
   /**
-   * يحفظ المشروع. بنقرة من المستخدم تُفتح نافذة «حفظ باسم» ليختار المكان؛
+   * يحفظ المشروع. أول مرة بنقرة من المستخدم تُفتح نافذة «حفظ باسم» ليختار المكان، والمرات التالية
+   * تكتب في الملف نفسه مباشرة (pick: true يفتح النافذة دائماً: «حفظ باسم»)؛
    * saveAs (من المساعد وعملاء MCP) يحفظه في مجلد projects/ عبر الخادم المحلي؛ وإلا يُنزَّل الملف.
    */
   async function save(o = {}) {
@@ -85,8 +100,8 @@ const ProjectIO = (() => {
     const suggested = PT.fileName(state.name || stamp());
 
     // نافذة الحفظ تشترط نقرة من المستخدم، فتُطلب قبل أي عمل طويل
-    let handle = null;
-    if (!o.saveAs && window.showSaveFilePicker && navigator.userActivation && navigator.userActivation.isActive) {
+    let handle = !o.saveAs && !o.pick ? await reusableHandle() : null;
+    if (!handle && !o.saveAs && window.showSaveFilePicker && navigator.userActivation && navigator.userActivation.isActive) {
       try {
         handle = await window.showSaveFilePicker({
           suggestedName: suggested,
@@ -110,6 +125,7 @@ const ProjectIO = (() => {
         await w.write(r.blob);
         await w.close();
         out.file = handle.name;
+        lastHandle = handle;
       } else if (o.saveAs) {
         progress(0.7, tt('جارٍ الحفظ في مجلد projects…', 'Saving to the projects folder…'));
         const res = await fetch('/api/project/save?name=' + encodeURIComponent(o.saveAs), { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: r.blob });
@@ -144,6 +160,8 @@ const ProjectIO = (() => {
       const raw = JSON.parse(await (await PT.zipData(file, pj)).text());
       const data = PT.normalize(raw, { filters: Object.keys(Render.FILTERS), fonts: Object.keys(Render.FONTS), effects: Object.keys(Render.EFFECTS) });
       data.name = baseName(file.name) || data.name; // الاسم الظاهر هو اسم الملف، ولو أعاد المستخدم تسميته
+      // مشروع آخر: لا يُكتب فوق ملف المشروع السابق. ولا فوق هذا الملف نفسه، فوسائطه تُقرأ منه مباشرة
+      lastHandle = null;
 
       const files = new Map();
       for (const m of data.media) {
@@ -175,6 +193,7 @@ const ProjectIO = (() => {
   $('#btnEmptyOpen').onclick = pick;
   $('#btnProjSave').onclick = () => save();
   $('#btnSave').onclick = () => save(); // زر ظاهر دائماً في الشريط العلوي
+  $('#btnProjSaveAs').onclick = () => save({ pick: true });
 
   return { save, open, pick, build, isBusy, isProjectFile };
 })();

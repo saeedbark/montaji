@@ -36,6 +36,8 @@ const I18N = (() => {
     'افتح ملف مشروع محفوظ .montaji بكل تفاصيله · Ctrl+O': 'Open a saved .montaji project with everything in it · Ctrl+O',
     'حفظ المشروع': 'Save project',
     'ملف واحد فيه الخط الزمني وملفات الوسائط · Ctrl+S': 'One file with the timeline and all media · Ctrl+S',
+    'حفظ باسم…': 'Save as…',
+    'احفظ نسخة في مكان آخر أو باسم آخر · Ctrl+Shift+S': 'Save a copy in another place or under another name · Ctrl+Shift+S',
     'تصدير الترجمة': 'Export captions',
     'ملف SRT يفتحه يوتيوب ومشغّلات الفيديو': 'An SRT file for YouTube and video players',
     'رفع صور ومقاطع فيديو': 'Add photos and video clips',
