@@ -25,6 +25,11 @@ const VideoSplit = (() => {
   const isOpen = () => !el.modal.hidden;
   const pause = ms => new Promise(r => setTimeout(r, ms));
   const r1 = n => Math.round(n * 10) / 10;
+  const r3 = n => Math.round(n * 1000) / 1000; // بالملّي ثانية
+  /** م:ث.ملّي — مثل 1:05.250 */
+  const fmtMs = t => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s < 10 ? '0' : ''}${s.toFixed(3)}`; };
+  const TRIM_MIN = 0.05; // أقصر نطاق في وضع القص
+  const minRange = () => (st.mode === 'trim' ? TRIM_MIN : VideoTools.MIN_PART);
   const fmtSize = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} ${tt('ك.ب', 'KB')}` : `${(n / 1048576).toFixed(1)} ${tt('م.ب', 'MB')}`);
   const abortError = () => { const e = new Error('aborted'); e.name = 'AbortError'; return e; };
   const nParts = n => (I18N.lang === 'en' ? `${n} parts` : n === 2 ? 'جزأين' : n <= 10 ? `${n} أجزاء` : `${n} جزءاً`);
@@ -99,7 +104,7 @@ const VideoSplit = (() => {
   function partsFor(ctx, o) {
     const start = clamp(o.start ?? 0, 0, ctx.dur), end = clamp(o.end ?? ctx.dur, start, ctx.dur);
     const cuts = VideoTools.planCuts({ start, end, mode: o.mode, every: o.every, count: o.count, times: o.times });
-    if (end - start < VideoTools.MIN_PART) return [];
+    if (end - start < (o.mode === 'trim' ? TRIM_MIN : VideoTools.MIN_PART)) return [];
     if (!ctx.info || o.exact) return VideoTools.exactParts(start, end, cuts);
     if (o.mode === 'every') return VideoTools.copyParts(ctx.info, { start, end, every: Math.max(VideoTools.MIN_PART, +o.every || 0) });
     return VideoTools.copyParts(ctx.info, { start, end, cuts });
@@ -274,6 +279,7 @@ const VideoSplit = (() => {
   /** يفتح ملف مقطع من المشروع، والنطاق = الجزء المستخدم منه في المشروع */
   function openClip(clip) {
     show();
+    st.mode = 'trim'; // من مقطع في المشروع: الغالب أنه يريد قصّه
     return load(clip.file, { s: clip.in, e: clip.out }, clip.id);
   }
 
@@ -301,7 +307,7 @@ const VideoSplit = (() => {
       st.ctx = ctx;
       const d = ctx.dur;
       st.range = range ? { s: clamp(range.s, 0, d), e: clamp(range.e, 0, d) } : { s: 0, e: d };
-      if (st.range.e - st.range.s < VideoTools.MIN_PART) st.range = { s: 0, e: d };
+      if (st.range.e - st.range.s < TRIM_MIN) st.range = { s: 0, e: d };
       // من مقطع في المشروع: نتذكره (ليُقسَّم في مكانه) ونتذكر الجزء المستخدم منه إن لم يكن الفيديو كله
       ctx.clipId = clipId;
       ctx.clipRange = range && !(same(st.range.s, 0) && same(st.range.e, d)) ? { ...st.range } : null;
@@ -315,7 +321,7 @@ const VideoSplit = (() => {
     render();
   }
 
-  const same = (a, b) => Math.abs(a - b) < 0.051;
+  const same = (a, b) => Math.abs(a - b) < 0.0005;
   const canExact = ctx => !!(ctx.info && ctx.playable && Exporter.supported());
   const projectClip = ctx => (ctx.clipId ? state.clips.find(c => c.id === ctx.clipId) || null : null);
   function rangeKind() {
@@ -350,7 +356,9 @@ const VideoSplit = (() => {
     }
     el.name.textContent = ctx.file.name;
     let how = '';
-    if (st.mode === 'every') {
+    if (st.mode === 'trim') {
+      how = `<p class="sub wrap">${tt('يُحتفظ بالنطاق المحدد أدناه فقط ويُحذف الباقي. حدّده بسحب المقبضين على الشريط، أو بتشغيل الفيديو والضغط على «البداية هنا» و«النهاية هنا»، أو اكتب الوقت بالملّي ثانية.', 'Only the range below is kept; the rest is deleted. Set it by dragging the two handles on the bar, by playing the video and pressing “Start here” and “End here”, or by typing the time in milliseconds.')}</p>`;
+    } else if (st.mode === 'every') {
       how = chips('every', EVERY.map(s => [s, `${s} ${tt('ث', 's')}`]), st.every) + numRow('every', tt('مدة الجزء', 'Part length'), r1(st.every), tt('ث', 's'), VideoTools.MIN_PART, 1);
     } else if (st.mode === 'count') {
       how = numRow('count', tt('عدد الأجزاء', 'Number of parts'), st.count, '', 2, 1);
@@ -373,17 +381,19 @@ const VideoSplit = (() => {
         <button class="btn icon play" data-act="play" title="${tt('تشغيل / إيقاف (مسافة)', 'Play / pause (Space)')}"${ctx.playable ? '' : ' disabled'}><svg class="ic"><use id="splitPlayIcon" href="#i-play"/></svg></button>
         <span class="time" id="splitTime" dir="ltr"></span>
         <div class="spacer"></div>
+        <button class="btn small" data-act="setS" title="${tt('جعل بداية النطاق عند المؤشر (I)', 'Set the range start at the playhead (I)')}">${tt('البداية هنا', 'Start here')}</button>
+        <button class="btn small" data-act="setE" title="${tt('جعل نهاية النطاق عند المؤشر (O)', 'Set the range end at the playhead (O)')}">${tt('النهاية هنا', 'End here')}</button>
         ${st.mode === 'times' ? `<button class="btn small" data-act="cut" title="${tt('إضافة موضع قطع عند المؤشر (C)', 'Add a cut point at the playhead (C)')}"><svg class="ic"><use href="#i-split"/></svg>${tt('قطع هنا', 'Cut here')}</button>` : ''}
       </div>
       <div class="aud-grid">
         <div>
           <h3>${tt('طريقة التقسيم', 'How to split')}</h3>
-          ${chips('mode', [['every', tt('كل مدة', 'Every…')], ['count', tt('أجزاء متساوية', 'Equal parts')], ['times', tt('أوقات محددة', 'Set times')]], st.mode, 'tabs')}
+          ${chips('mode', [['trim', tt('قص (احتفظ بالنطاق)', 'Trim (keep range)')], ['every', tt('كل مدة', 'Every…')], ['count', tt('أجزاء متساوية', 'Equal parts')], ['times', tt('أوقات محددة', 'Set times')]], st.mode, 'tabs')}
           <div class="split-how">${how}</div>
           <h3>${tt('النطاق', 'Range')}</h3>
           ${chips('range', ranges, rangeKind())}
-          ${numRow('s', tt('من', 'From'), r1(st.range.s), tt('ث', 's'), 0, 0.1)}
-          ${numRow('e', tt('إلى', 'To'), r1(st.range.e), tt('ث', 's'), 0, 0.1)}
+          ${numRow('s', tt('من', 'From'), r3(st.range.s), tt('ث', 's'), 0, 0.001)}
+          ${numRow('e', tt('إلى', 'To'), r3(st.range.e), tt('ث', 's'), 0, 0.001)}
           <label class="row check"><input type="checkbox" data-k="audio"${st.audio ? ' checked' : ''}${ctx.hasAudio === false ? ' disabled' : ''}><span>${ctx.hasAudio === false ? tt('هذا الفيديو بلا صوت', 'This video has no sound') : tt('إبقاء الصوت', 'Keep the sound')}</span></label>
           ${canExact(ctx) ? `<label class="row check" title="${tt('بلا هذا الخيار يُنسخ الفيديو كما هو، فيقع القطع عند أقرب إطار مفتاحي', 'Without this the video is copied as is, so cuts land on the nearest keyframe')}"><input type="checkbox" data-k="exact"${st.exact ? ' checked' : ''}><span>${tt('قطع دقيق عند المواضع المطلوبة (إعادة ترميز، أبطأ)', 'Exact cuts at the requested points (re-encode, slower)')}</span></label>` : ''}
         </div>
@@ -394,7 +404,7 @@ const VideoSplit = (() => {
         </div>
       </div>
       <div class="dialog-actions split-actions">
-        <button class="btn" data-act="add"${ctx.playable ? '' : ' disabled'} title="${inProject ? tt('يُقسَّم المقطع في مكانه على الخط الزمني', 'The clip is split in place on the timeline') : tt('يُضاف الفيديو إلى آخر الخط الزمني مقسَّماً', 'The video is added, split, at the end of the timeline')} — ${tt('القطع في المشروع عند المواضع المطلوبة تماماً', 'cuts in the project land exactly where asked')}"><svg class="ic"><use href="#i-media"/></svg><span>${inProject ? tt('تقسيم المقطع في المشروع', 'Split the clip in the project') : tt('إضافة الأجزاء إلى المشروع', 'Add the parts to the project')}</span></button>
+        <button class="btn" data-act="add"${ctx.playable ? '' : ' disabled'} title="${inProject ? tt('يُقسَّم المقطع في مكانه على الخط الزمني', 'The clip is split in place on the timeline') : tt('يُضاف الفيديو إلى آخر الخط الزمني مقسَّماً', 'The video is added, split, at the end of the timeline')} — ${tt('القطع في المشروع عند المواضع المطلوبة تماماً', 'cuts in the project land exactly where asked')}"><svg class="ic"><use href="#i-media"/></svg><span>${inProject ? (st.mode === 'trim' ? tt('تطبيق القص على المقطع', 'Apply the trim to the clip') : tt('تقسيم المقطع في المشروع', 'Split the clip in the project')) : tt('إضافة الأجزاء إلى المشروع', 'Add the parts to the project')}</span></button>
         <button class="btn primary" data-act="all"><svg class="ic"><use href="#i-download"/></svg><span id="splitAllLabel">${tt('تنزيل كل الأجزاء', 'Download all parts')}</span></button>
       </div>`;
     if (ctx.playable) $('#splitStage').append(ctx.v);
@@ -416,8 +426,8 @@ const VideoSplit = (() => {
     $('#splitList').innerHTML = n ? st.parts.map((p, i) => `
       <li data-i="${i}" title="${esc(names[i])}">
         <span class="n">${i + 1}</span>
-        <span class="t" dir="ltr">${fmtTime(p.start)} – ${fmtTime(p.end)}</span>
-        <span class="d" dir="ltr">${fmtTime(p.end - p.start)}</span>
+        <span class="t" dir="ltr">${fmtMs(p.start)} – ${fmtMs(p.end)}</span>
+        <span class="d" dir="ltr">${fmtMs(p.end - p.start)}</span>
         <button class="btn small icon" data-act="one" data-i="${i}" title="${tt('تنزيل هذا الجزء', 'Download this part')}" aria-label="${tt('تنزيل الجزء', 'Download part')} ${i + 1}"><svg class="ic"><use href="#i-download"/></svg></button>
       </li>`).join('') : `<li class="none">${tt('النطاق أقصر من أن يُقسم', 'The range is too short to split')}</li>`;
 
@@ -425,7 +435,12 @@ const VideoSplit = (() => {
     $('#splitTrack').innerHTML =
       `<i class="dim" style="left:0;width:${pc(st.range.s)}"></i><i class="dim" style="left:${pc(st.range.e)};right:0"></i>` +
       st.parts.map((p, i) => `<b class="seg${i % 2 ? ' alt' : ''}" style="left:${pc(p.start)};width:${pc(p.end - p.start)}"><span>${i + 1}</span></b>`).join('') +
+      `<i class="rh" data-h="s" style="left:${pc(st.range.s)}"></i><i class="rh e" data-h="e" style="left:${pc(st.range.e)}"></i>` +
       '<i class="head" id="splitHead"></i>';
+    for (const key of ['s', 'e']) {
+      const inp = el.body.querySelector(`input[data-k="${key}"]`);
+      if (inp && document.activeElement !== inp) inp.value = r3(st.range[key]);
+    }
     tick(true);
   }
 
@@ -450,7 +465,7 @@ const VideoSplit = (() => {
     if (!ctx || !isOpen()) return;
     const t = ctx.v.currentTime || 0;
     if (head) head.style.left = `${(t / (ctx.dur || 1) * 100).toFixed(3)}%`;
-    if (time) time.textContent = `${fmtTime(t)} / ${fmtTime(ctx.dur)}`;
+    if (time) time.textContent = `${fmtMs(t)} / ${fmtMs(ctx.dur)}`;
     if (playing && ctx.v.paused) { playing = false; setIcon(); }
     if (!once && playing) requestAnimationFrame(() => tick());
   }
@@ -470,12 +485,22 @@ const VideoSplit = (() => {
     track.addEventListener('pointercancel', up);
   }
 
+  /** يجعل بداية النطاق (s) أو نهايته (e) عند موضع المؤشر */
+  function setRangeAt(k, t) {
+    const ctx = st.ctx;
+    if (!ctx) return;
+    t = r3(clamp(t, 0, ctx.dur));
+    if (k === 's') st.range.s = clamp(t, 0, st.range.e - minRange());
+    else st.range.e = clamp(t, st.range.s + minRange(), ctx.dur);
+    update();
+  }
+
   function cutHere() {
     if (!st.ctx || st.mode !== 'times') return;
-    const t = r1(st.ctx.v.currentTime || 0);
+    const t = r3(st.ctx.v.currentTime || 0);
     const { times } = VideoTools.parseTimes(st.timesText);
-    if (times.some(x => Math.abs(x - t) < 0.05)) return;
-    st.timesText = [...times, t].sort((a, b) => a - b).map(fmtTime).join(', ');
+    if (times.some(x => Math.abs(x - t) < 0.0005)) return;
+    st.timesText = [...times, t].sort((a, b) => a - b).map(fmtMs).join(', ');
     const ta = el.body.querySelector('[data-k="times"]');
     if (ta) ta.value = st.timesText;
     update();
@@ -569,7 +594,21 @@ const VideoSplit = (() => {
 
   /* ================= الأحداث ================= */
   el.body.addEventListener('pointerdown', e => {
-    if (e.target.closest('#splitTrack') && e.button === 0) { e.preventDefault(); seekFromTrack({ currentTarget: $('#splitTrack'), clientX: e.clientX, pointerId: e.pointerId }); }
+    if (!e.target.closest('#splitTrack') || e.button !== 0) return;
+    e.preventDefault();
+    const handle = e.target.closest('[data-h]'), track = $('#splitTrack');
+    if (!handle) return seekFromTrack({ currentTarget: track, clientX: e.clientX, pointerId: e.pointerId });
+    // سحب مقبض بداية النطاق أو نهايته (الالتقاط على الشريط نفسه لأن محتواه يُعاد رسمه أثناء السحب)
+    const k = handle.dataset.h, rect = track.getBoundingClientRect(), ctx = st.ctx;
+    track.setPointerCapture(e.pointerId);
+    const move = ev => {
+      setRangeAt(k, clamp((ev.clientX - rect.left) / rect.width, 0, 1) * ctx.dur);
+      if (ctx.playable) { ctx.v.currentTime = st.range[k]; tick(true); }
+    };
+    const up = () => { track.removeEventListener('pointermove', move); track.removeEventListener('pointerup', up); track.removeEventListener('pointercancel', up); };
+    track.addEventListener('pointermove', move);
+    track.addEventListener('pointerup', up);
+    track.addEventListener('pointercancel', up);
   });
 
   el.body.addEventListener('input', e => {
@@ -595,10 +634,10 @@ const VideoSplit = (() => {
     if (k === 's' || k === 'e') {
       const v = +t.value, D = st.ctx.dur;
       if (isFinite(v)) {
-        if (k === 's') st.range.s = clamp(v, 0, st.range.e - VideoTools.MIN_PART);
-        else st.range.e = clamp(v, st.range.s + VideoTools.MIN_PART, D);
+        if (k === 's') st.range.s = clamp(v, 0, st.range.e - minRange());
+        else st.range.e = clamp(v, st.range.s + minRange(), D);
       }
-      t.value = r1(st.range[k]);
+      t.value = r3(st.range[k]);
       update();
     } else if (k === 'times') {
       const { bad } = VideoTools.parseTimes(st.timesText);
@@ -613,6 +652,8 @@ const VideoSplit = (() => {
       if (a === 'pick') el.file.click();
       else if (a === 'play') (playing ? stopPlay() : play());
       else if (a === 'cut') cutHere();
+      else if (a === 'setS') setRangeAt('s', st.ctx.v.currentTime || 0);
+      else if (a === 'setE') setRangeAt('e', st.ctx.v.currentTime || 0);
       else if (a === 'add') addToProject();
       else if (a === 'all') download(st.parts.map((_, i) => i));
       else if (a === 'one') download([+act.dataset.i]);
@@ -626,7 +667,7 @@ const VideoSplit = (() => {
     if (k === 'mode') { st.mode = chip.dataset.v; render(); }
     else if (k === 'range') {
       st.range = chip.dataset.v === 'clip' && st.ctx.clipRange ? { ...st.ctx.clipRange } : { s: 0, e: st.ctx.dur };
-      for (const key of ['s', 'e']) el.body.querySelector(`input[data-k="${key}"]`).value = r1(st.range[key]);
+      for (const key of ['s', 'e']) el.body.querySelector(`input[data-k="${key}"]`).value = r3(st.range[key]);
       update();
     }
     else if (k === 'every') {
@@ -653,6 +694,8 @@ const VideoSplit = (() => {
     else if (typing || st.job) return;
     else if (e.code === 'Space' && st.ctx) { e.preventDefault(); playing ? stopPlay() : play(); }
     else if (e.code === 'KeyC') cutHere();
+    else if (e.code === 'KeyI' && st.ctx) setRangeAt('s', st.ctx.v.currentTime || 0);
+    else if (e.code === 'KeyO' && st.ctx) setRangeAt('e', st.ctx.v.currentTime || 0);
   });
 
   return { open, openClip, addFiles, close, isOpen, splitToFiles, addToProject };
