@@ -116,6 +116,9 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
   .mock .it.e { background: #4b1a55; border: 1.5px solid #d946ef; }
   .mock .it.s { background: #3d2f08; border: 1.5px solid #ffd400; }
   .mock .head { position: absolute; top: 6px; bottom: 6px; left: calc(62px + 8px + 12px + 30%); width: 2px; background: #fff; }
+  /* الخط الزمني بالعربية يبدأ من اليمين كما في المحرر: يُعكس الرسم، وتُعدل الكتابة */
+  .mock .tl { transform: scaleX(-1); }
+  .mock .tl .row > span, .mock .tl .pin { transform: scaleX(-1); }
   .pin { position: absolute; z-index: 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #111; font-weight: 800; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.5); direction: rtl; }
   .legend { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 22px; max-width: none; }
   .legend li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; margin: 0; }
