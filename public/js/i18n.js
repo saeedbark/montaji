@@ -10,10 +10,13 @@ const I18N = (() => {
   const KEY = 'montaji.lang';
   const hasDom = typeof document !== 'undefined';
   let lang = 'ar';
-  try {
-    const s = localStorage.getItem(KEY);
-    if (s === 'ar' || s === 'en') lang = s;
-  } catch (e) { /* وضع خاص أو Node */ }
+  // في Node لا نلمس localStorage: النسخ الحديثة (25+) تعرّفه وتطبع تحذيراً عند قراءته
+  if (hasDom) {
+    try {
+      const s = localStorage.getItem(KEY);
+      if (s === 'ar' || s === 'en') lang = s;
+    } catch (e) { /* وضع خاص */ }
+  }
   // ‎?lang=en‎ في العنوان (من رابط الدليل مثلاً) يختار اللغة ويحفظها
   if (hasDom) {
     const q = new URLSearchParams(location.search).get('lang');
@@ -207,7 +210,7 @@ const I18N = (() => {
   function set(l) {
     if (l !== 'ar' && l !== 'en') return;
     lang = l;
-    try { localStorage.setItem(KEY, l); } catch (e) { /* وضع خاص */ }
+    if (hasDom) try { localStorage.setItem(KEY, l); } catch (e) { /* وضع خاص */ }
     apply();
     for (const f of subs) { try { f(lang); } catch (e) { console.error(e); } }
   }
