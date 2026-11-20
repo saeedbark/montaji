@@ -290,12 +290,18 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
       </label>
       <label class="row"><span>الجودة</span>
         <select id="exQuality">
-          <option value="normal">عادية (حجم أصغر)</option>
+          <option value="small">مضغوطة (للمشاركة، حجم صغير)</option>
+          <option value="normal">عادية</option>
           <option value="high" selected>عالية</option>
           <option value="ultra">فائقة (حجم أكبر)</option>
+          <option value="size">حجم محدد…</option>
         </select>
       </label>
+      <label class="row" id="exSizeRow" hidden><span>الحجم المطلوب</span>
+        <span class="ex-size"><input id="exSize" type="number" min="1" max="4000" step="1" value="35" dir="ltr" inputmode="numeric"><span>م.ب</span></span>
+      </label>
       <p class="ex-summary" id="exSummary"></p>
+      <p class="ex-note">جهازك بطيء؟ 720p و24 إطاراً تصدّر أسرع بكثير.</p>
       <div class="dialog-actions">
         <button class="btn" id="exCancel">إلغاء</button>
         <button class="btn primary" id="exStart">ابدأ التصدير</button>
@@ -404,6 +410,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
 <script src="js/beats.js"></script>
 <script src="js/captiontools.js"></script>
 <script src="js/render.js"></script>
+<script src="js/exporttools.js"></script>
 <script src="js/export.js"></script>
 <script src="js/videotools.js"></script>
 <script src="js/audiotools.js"></script>

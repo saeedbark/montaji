@@ -17,10 +17,7 @@ const Exporter = (() => {
 
   const abortError = () => { const e = new Error('aborted'); e.name = 'AbortError'; return e; };
 
-  function bitrateFor(W, H, fps, quality) {
-    const bpp = { normal: 0.1, high: 0.2, ultra: 0.3 }[quality] || 0.2;
-    return Math.round(W * H * 30 * bpp * Math.pow(fps / 30, 0.7));
-  }
+  const bitrateFor = ExportTools.bitrateFor;
 
   async function pickVideoConfig(W, H, fps, bitrate) {
     const load = W * H * fps;
@@ -48,11 +45,11 @@ const Exporter = (() => {
     throw new Error(tt('هذه الدقة غير مدعومة على جهازك — جرّب دقة أقل.', 'This resolution is not supported on your device — try a lower one.'));
   }
 
-  async function pickAudioConfig() {
+  async function pickAudioConfig(bitrate = 192000) {
     if (typeof AudioEncoder === 'undefined') return null;
     const tries = [
-      { config: { codec: 'mp4a.40.2', sampleRate: SR, numberOfChannels: 2, bitrate: 192000 }, mux: 'aac' },
-      { config: { codec: 'opus', sampleRate: SR, numberOfChannels: 2, bitrate: 160000 }, mux: 'opus' },
+      { config: { codec: 'mp4a.40.2', sampleRate: SR, numberOfChannels: 2, bitrate }, mux: 'aac' },
+      { config: { codec: 'opus', sampleRate: SR, numberOfChannels: 2, bitrate: Math.min(bitrate, 160000) }, mux: 'opus' },
     ];
     for (const tr of tries) {
       try { if ((await AudioEncoder.isConfigSupported(tr.config)).supported) return tr; } catch (e) {}
@@ -142,20 +139,23 @@ const Exporter = (() => {
     new Promise(r => setTimeout(r, 1500)),
   ]);
 
-  async function run({ res, fps, quality, signal, onProgress }) {
+  /** quality: small | normal | high | ultra | size (ومعه sizeMB: الحجم المطلوب بالميغابايت) */
+  async function run({ res, fps, quality, sizeMB, signal, onProgress }) {
     if (!supported()) throw new Error(tt('متصفحك لا يدعم التصدير. استخدم Chrome أو Edge بإصدار حديث.', 'Your browser cannot export. Use a recent Chrome or Edge.'));
     const D = layout();
     if (D <= 0) throw new Error(tt('المشروع فارغ.', 'The project is empty.'));
     const [W, H] = outputSize(state.ratio, res);
-    const bitrate = bitrateFor(W, H, fps, quality);
-
-    onProgress(0, tt('جارٍ التحضير…', 'Preparing…'));
-    await Render.fontsReady; // كي لا تُرسم النصوص بالخط البديل
-    const vcfg = await pickVideoConfig(W, H, fps, bitrate);
 
     onProgress(0, tt('جارٍ تجهيز الصوت…', 'Preparing the audio…'));
     const mix = await mixAudio(D);
-    const acfg = mix ? await pickAudioConfig() : null;
+    // الخطة بعد معرفة الصوت: في «حجم محدد» يأخذ الفيديو حصة الصوت إن لم يكن هناك صوت
+    const p = ExportTools.plan({ W, H, fps, duration: D, quality, targetMB: sizeMB, hasAudio: !!mix });
+    const acfg = mix ? await pickAudioConfig(p.audio) : null;
+    if (signal.aborted) throw abortError();
+
+    onProgress(0, tt('جارٍ التحضير…', 'Preparing…'));
+    await Render.fontsReady; // كي لا تُرسم النصوص بالخط البديل
+    const vcfg = await pickVideoConfig(W, H, fps, p.video);
     if (signal.aborted) throw abortError();
 
     const muxer = new Mp4Muxer.Muxer({
@@ -181,7 +181,7 @@ const Exporter = (() => {
 
     const N = Math.max(1, Math.round(D * fps));
     const frameUs = 1e6 / fps;
-    const gop = Math.round(fps * 2);
+    const gop = p.gop;
     const t0 = performance.now();
 
     try {

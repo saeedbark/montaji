@@ -370,6 +370,10 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
 .ex-summary { margin: 12px 0 0; padding: 9px 12px; background: var(--panel-2); border-radius: 9px; color: #c5cad6; font-size: 13px; }
 .ex-note { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+.ex-size { display: flex; align-items: center; gap: 8px; }
+.ex-size input { width: 96px; }
+.ex-summary .ex-hint { display: block; margin-top: 6px; color: var(--muted); }
+.ex-summary .ex-hint button { margin-inline-start: 6px; padding: 2px 9px; font-size: 12px; }
 .bar { height: 10px; background: var(--panel-3); border-radius: 99px; overflow: hidden; direction: ltr; }
 .bar-fill { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .15s linear; }
 .ex-status { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; font-size: 13px; color: #c5cad6; }

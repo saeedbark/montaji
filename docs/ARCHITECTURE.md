@@ -47,6 +47,7 @@
 | `projectio.js` | `ProjectIO` | حفظ المشروع في ملف `.montaji` وفتحه، ونافذة التقدّم |
 | `imagestudio.js` | `ImageStudio` | نافذة استوديو الصور |
 | `extractaudio.js` | `AudioExtract` | نافذة تحويل الفيديو إلى صوت |
+| `exporttools.js` | `ExportTools` | خطة التصدير بلا واجهة: معدّل البت لكل مستوى جودة، «حجم محدد»، تباعد الإطارات المفتاحية، واقتراح دقة أنقى |
 | `videotools.js` | `VideoTools` | تقسيم الفيديو بلا واجهة: مواضع القطع، قراءة MP4، ونسخ الأجزاء بلا إعادة ترميز |
 | `splitvideo.js` | `VideoSplit` | نافذة تقسيم الفيديو إلى ملفات |
 | `captions.js` | `Captions` | نافذة الترجمة التلقائية: تجهيز الصوت، مخاطبة `/api/transcribe`، وتصدير ملف الترجمة |
