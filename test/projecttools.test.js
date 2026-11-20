@@ -21,6 +21,18 @@ test('CRC-32 يطابق zlib، دفعة واحدة أو على دفعات', asyn
   assert.equal(seen, big.length);
 });
 
+test('copyBlob ينسخ الوسيط كاملاً بنوعه، دفعات', async () => {
+  const big = new Uint8Array(100000).map((_, i) => i * 13 + 5);
+  const src = new Blob([big], { type: 'video/mp4' });
+  let seen = 0;
+  const out = await PT.copyBlob(src, n => { seen = n; }, 4096);
+  assert.notEqual(out, src);
+  assert.equal(out.type, 'video/mp4');
+  assert.deepEqual(new Uint8Array(await out.arrayBuffer()), big);
+  assert.equal(seen, big.length);
+  assert.equal((await PT.copyBlob(new Blob([]))).size, 0);
+});
+
 test('الأرشيف يُكتب ثم يُقرأ بأسمائه العربية وبياناته', async () => {
   const files = [entry('project.json', bytes('{"a":1}')), entry('media/1-صورة جميلة.jpg', new Uint8Array([1, 2, 3, 4, 5])), entry('media/2-empty.bin', new Uint8Array(0))];
   const z = PT.zipParts(files);
