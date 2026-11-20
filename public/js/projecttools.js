@@ -36,6 +36,20 @@ const ProjectTools = (() => {
     return (c ^ 0xFFFFFFFF) >>> 0;
   }
 
+  /**
+   * نسخة مستقلة من Blob: لا تبقى شريحة من ملف على القرص، فتظل مقروءة ولو كُتب فوق ذلك الملف.
+   * تُقرأ دفعات ويُحفظ كل جزء في Blob صغير، فلا يجتمع الملف كله في ذاكرة JavaScript
+   * (والمتصفح ينقل الكبير منها إلى القرص بنفسه).
+   */
+  async function copyBlob(blob, onProgress, step = 16 << 20) {
+    const parts = [];
+    for (let o = 0; o < blob.size; o += step) {
+      parts.push(new Blob([await blob.slice(o, o + step).arrayBuffer()]));
+      if (onProgress) onProgress(Math.min(blob.size, o + step));
+    }
+    return new Blob(parts, { type: blob.type });
+  }
+
   /* ================= كتابة ZIP ================= */
   /**
    * entries: [{ name, size, crc, data }] و data جزء Blob (ملف أو بايتات).
@@ -378,7 +392,7 @@ const ProjectTools = (() => {
     return (n || tt('مشروع', 'project')) + '.' + EXT;
   }
 
-  return { VERSION, EXT, crc32, crcUpdate, crcOfBlob, zipParts, readZip, zipData, canInflate, serialize, normalize, entryName, fileName, ENUMS };
+  return { VERSION, EXT, crc32, crcUpdate, crcOfBlob, copyBlob, zipParts, readZip, zipData, canInflate, serialize, normalize, entryName, fileName, ENUMS };
 })();
 
 if (typeof module !== 'undefined') module.exports = ProjectTools;

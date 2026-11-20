@@ -1094,7 +1094,7 @@ const Agent = (() => {
       flush(); // تعديلات المساعد المعلّقة تُسجَّل قبل الاستبدال، فيعيدها التراجع كما هي
       const res = await fetch(url);
       if (!res.ok) fail('Could not read the project file.');
-      const r = await ProjectIO.open(new File([await res.blob()], String(name || 'project.montaji')));
+      const r = await ProjectIO.open(new File([await res.blob()], String(name || 'project.montaji')), { inMemory: true });
       if (!r.ok) fail(r.error);
       return { opened: r.name, ...(r.skipped.length ? { skipped: r.skipped, note: 'The media of the skipped items could not be loaded, so they were left out.' } : {}), ...project() };
     },

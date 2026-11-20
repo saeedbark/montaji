@@ -147,8 +147,13 @@ const ProjectIO = (() => {
   }
 
   /* ================= الفتح (الاستيراد) ================= */
-  /** يفتح ملف مشروع مكان المشروع الحالي. ملفات الوسائط شرائح من الملف نفسه، فلا تُنسخ في الذاكرة */
-  async function open(file) {
+  /**
+   * يفتح ملف مشروع مكان المشروع الحالي.
+   * ملفات الوسائط تُنسخ من ملف المشروع (o.inMemory: الملف في الذاكرة أصلاً فلا حاجة للنسخ)، لأن الشريحة
+   * من ملف على القرص تصبح غير مقروءة حين يُحفظ المشروع فوقه: كانت كل الحفظات بعد الأولى تفشل
+   * ويبقى في الملف أول ما حُفظ. o.handle: الملف المفتوح من نافذة الفتح، فيحفظ Ctrl+S فيه مباشرة.
+   */
+  async function open(file, o = {}) {
     if (busy) return { ok: false, error: tt('هناك عملية حفظ أو فتح جارية', 'A save or open is already in progress') };
     const replaced = !S.isEmpty();
     begin(tt('فتح المشروع', 'Opening the project'));
@@ -160,17 +165,26 @@ const ProjectIO = (() => {
       const raw = JSON.parse(await (await PT.zipData(file, pj)).text());
       const data = PT.normalize(raw, { filters: Object.keys(Render.FILTERS), fonts: Object.keys(Render.FONTS), effects: Object.keys(Render.EFFECTS) });
       data.name = baseName(file.name) || data.name; // الاسم الظاهر هو اسم الملف، ولو أعاد المستخدم تسميته
-      // مشروع آخر: لا يُكتب فوق ملف المشروع السابق. ولا فوق هذا الملف نفسه، فوسائطه تُقرأ منه مباشرة
-      lastHandle = null;
 
+      const found = data.media.map(m => ({ m, e: byName.get(m.path) })).filter(x => x.e);
+      if (data.media.length && !found.length) throw new Error(tt('ملف المشروع لا يحوي ملفات الوسائط', 'The project file has no media files'));
+      const copy = !o.inMemory, share = copy ? 0.5 : 0; // نصيب نسخ الوسائط من شريط التقدّم
+      const total = found.reduce((s, x) => s + x.e.size, 0) || 1;
       const files = new Map();
-      for (const m of data.media) {
-        const e = byName.get(m.path);
-        if (e) files.set(m.id, new File([await PT.zipData(file, e)], m.name || 'file', { type: mimeOf(m.name) }));
+      let read = 0;
+      for (const { m, e } of found) {
+        let blob = await PT.zipData(file, e);
+        if (copy) {
+          const before = read;
+          blob = await PT.copyBlob(blob, n => progress(share * (before + n) / total, tt(`نسخ ${m.name}`, `Copying ${m.name}`)));
+          read += e.size;
+        }
+        files.set(m.id, new File([blob], m.name || 'file', { type: mimeOf(m.name) }));
       }
-      if (data.media.length && !files.size) throw new Error(tt('ملف المشروع لا يحوي ملفات الوسائط', 'The project file has no media files'));
 
-      const skipped = await S.loadProject(data, files, (d, t) => progress(d / t, tt(`تحميل الوسائط ${d} من ${t}`, `Loading media ${d} of ${t}`)));
+      const skipped = await S.loadProject(data, files, (d, t) => progress(share + (1 - share) * d / t, tt(`تحميل الوسائط ${d} من ${t}`, `Loading media ${d} of ${t}`)));
+      // مشروع آخر: لا يُكتب فوق ملف المشروع السابق. وإن فُتح من نافذة الفتح فالحفظ التالي في الملف نفسه
+      lastHandle = o.handle || null;
       const n = state.clips.length, parts = [`${n} ${n === 1 ? tt('مقطع', 'clip') : tt('مقاطع', 'clips')}`];
       if (state.texts.length) parts.push(`${state.texts.length} ${tt('نص', 'text')}`);
       if (state.effects.length) parts.push(`${state.effects.length} ${tt('تأثير', 'effect')}`);
@@ -186,7 +200,27 @@ const ProjectIO = (() => {
     } finally { end(); }
   }
 
-  const pick = () => { if (!busy) ui.file.click(); };
+  /** نافذة فتح مشروع. في Chrome و Edge تعطي مقبضاً للملف فيُحفظ فيه لاحقاً بلا سؤال عن المكان */
+  async function pick() {
+    if (busy) return;
+    if (window.showOpenFilePicker && navigator.userActivation && navigator.userActivation.isActive) {
+      let handle = null;
+      try {
+        [handle] = await window.showOpenFilePicker({
+          types: [{ description: tt('مشروع مونتاجي', 'Montaji project'), accept: { 'application/zip': ['.' + PT.EXT] } }],
+        });
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.warn(e); // المتصفح منع النافذة: نافذة الملفات العادية
+      }
+      if (handle) {
+        let file = null;
+        try { file = await handle.getFile(); } catch (e) { console.warn(e); }
+        if (file) return void open(file, { handle });
+      }
+    }
+    ui.file.click();
+  }
 
   ui.file.onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) open(f); };
   $('#btnProjOpen').onclick = pick;
