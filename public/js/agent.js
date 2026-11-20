@@ -1070,7 +1070,8 @@ const Agent = (() => {
       const r = await S.exportVideo({
         res: has(a.resolution) ? oneOf(a.resolution, ['720', '1080', '1440', '2160'], 'resolution') : '1080',
         fps: has(a.fps) ? oneOf(a.fps, ['24', '30', '60'], 'fps') : '30',
-        quality: has(a.quality) ? oneOf(a.quality, ['normal', 'high', 'ultra'], 'quality') : 'high',
+        quality: has(a.size_mb) ? 'size' : has(a.quality) ? oneOf(a.quality, ExportTools.QUALITIES, 'quality') : 'high',
+        sizeMB: has(a.size_mb) ? clamp(num(a.size_mb, 'size_mb'), 1, 4000) : null,
         saveAs: has(a.save_as) ? String(a.save_as) : null,
       });
       if (!r.ok) fail(r.error);

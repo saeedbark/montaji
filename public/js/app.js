@@ -1643,17 +1643,46 @@
   /* ================= التصدير ================= */
   const ex = {
     modal: $('#exportModal'), form: $('#exForm'), prog: $('#exProgress'), done: $('#exDone'),
-    res: $('#exRes'), fps: $('#exFps'), q: $('#exQuality'), summary: $('#exSummary'),
+    res: $('#exRes'), fps: $('#exFps'), q: $('#exQuality'), size: $('#exSize'), sizeRow: $('#exSizeRow'), summary: $('#exSummary'),
     bar: $('#exBar'), status: $('#exStatus'), pct: $('#exPct'),
     video: $('#exVideo'), info: $('#exInfo'), link: $('#exLink'),
     abort: null, url: null,
   };
   const exShow = which => { ex.form.hidden = which !== 'form'; ex.prog.hidden = which !== 'prog'; ex.done.hidden = which !== 'done'; };
 
+  // آخر إعدادات تصدير يختارها المستخدم، كي لا يعيد اختيار «حجم محدد» وحجمه كل مرة
+  const EX_KEY = 'montaji.export';
+  const fmtMB = mb => `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} ${tt('م.ب', 'MB')}`;
+  const exSizeMB = () => clamp(+ex.size.value || ExportTools.SIZE_DEFAULT, 1, 4000);
+  function exRemember() {
+    try { localStorage.setItem(EX_KEY, JSON.stringify({ res: ex.res.value, fps: ex.fps.value, quality: ex.q.value, size: exSizeMB() })); } catch (e) { /* وضع خاص */ }
+  }
+  (function exRestore() {
+    let o = null;
+    try { o = JSON.parse(localStorage.getItem(EX_KEY) || 'null'); } catch (e) { /* تالف أو وضع خاص */ }
+    if (!o) return;
+    const set = (sel, v) => { if (v != null && [...sel.options].some(op => op.value === String(v))) sel.value = String(v); };
+    set(ex.res, o.res); set(ex.fps, o.fps); set(ex.q, o.quality);
+    if (+o.size > 0) ex.size.value = Math.round(+o.size);
+  })();
+
   function exSummary() {
-    const [W, H] = outputSize(state.ratio, +ex.res.value);
-    const mb = (Exporter.bitrateFor(W, H, +ex.fps.value, ex.q.value) + 192000) * view.total / 8 / 1048576;
-    ex.summary.innerHTML = `<span dir="ltr">${W}×${H}</span> · ${tt('ملف MP4', 'MP4 file')} · ${tt('المدة', 'length')} ${fmtTime(view.total)} · ${tt('الحجم التقريبي', 'approx.')} ${mb < 10 ? mb.toFixed(1) : Math.round(mb)} ${tt('م.ب', 'MB')}`;
+    const res = +ex.res.value, fps = +ex.fps.value, q = ex.q.value;
+    ex.sizeRow.hidden = q !== 'size';
+    const [W, H] = outputSize(state.ratio, res);
+    const p = ExportTools.plan({ W, H, fps, duration: view.total, quality: q, targetMB: exSizeMB() });
+    let html = `<span dir="ltr">${W}×${H}</span> · ${tt('ملف MP4', 'MP4 file')} · ${tt('المدة', 'length')} ${fmtTime(view.total)} · ${tt('الحجم التقريبي', 'approx.')} ${fmtMB(p.mb)}`;
+    const hints = [];
+    if (p.clamped === 'min') hints.push(tt(`هذا الحجم صغير جداً لهذه المدة، فأقل حجم ممكن نحو ${fmtMB(p.minMB)}.`, `That size is too small for this length; the smallest possible is about ${fmtMB(p.minMB)}.`));
+    if (p.clamped === 'max') hints.push(tt('هذا أكبر مما تحتاجه هذه الدقة، فسيخرج الملف بالجودة الفائقة وحجم أصغر.', 'That is more than this resolution needs, so the file comes out at ultra quality and smaller.'));
+    if (p.soft) {
+      const sizes = [...ex.res.options].map(op => { const r = +op.value, [w, h] = outputSize(state.ratio, r); return { res: r, W: w, H: h }; });
+      const better = ExportTools.sharperRes(sizes, fps, p.video, res);
+      if (better) hints.push(tt(`بهذا الحجم ستكون الصورة أنقى بدقة ${better}p.`, `At this size the picture is sharper at ${better}p.`)
+        + ` <button type="button" class="btn" data-res="${better}">${tt(`استخدم ${better}p`, `Use ${better}p`)}</button>`);
+      else hints.push(tt('بهذا الحجم قد تفقد الصورة شيئاً من حدّتها، خصوصاً في المقاطع كثيرة الحركة.', 'At this size the picture may lose some sharpness, mostly in clips with a lot of motion.'));
+    }
+    ex.summary.innerHTML = html + hints.map(h => `<span class="ex-hint">${h}</span>`).join('');
   }
 
   function openExport() {
@@ -1673,6 +1702,7 @@
   }
 
   async function startExport() {
+    exRemember();
     exShow('prog');
     ex.bar.style.width = '0%'; ex.pct.textContent = '0%';
     ex.abort = new AbortController();
@@ -1681,7 +1711,7 @@
     pauseAllMedia();
     try {
       const r = await Exporter.run({
-        res: +ex.res.value, fps: +ex.fps.value, quality: ex.q.value, signal: ex.abort.signal,
+        res: +ex.res.value, fps: +ex.fps.value, quality: ex.q.value, sizeMB: exSizeMB(), signal: ex.abort.signal,
         onProgress: (p, msg, left) => {
           ex.bar.style.width = (p * 100).toFixed(1) + '%';
           ex.pct.textContent = Math.round(p * 100) + '%';
@@ -1719,6 +1749,7 @@
     if (o.res) ex.res.value = o.res;
     if (o.fps) ex.fps.value = o.fps;
     if (o.quality) ex.q.value = o.quality;
+    if (o.sizeMB) ex.size.value = o.sizeMB;
     ex.video.pause();
     ex.modal.hidden = false;
     const r = await startExport();
@@ -1764,6 +1795,11 @@
   $('#exStart').onclick = startExport;
   $('#exAbort').onclick = () => ex.abort && ex.abort.abort();
   [ex.res, ex.fps, ex.q].forEach(s => s.addEventListener('change', exSummary));
+  ex.size.addEventListener('input', exSummary);
+  ex.summary.addEventListener('click', e => {
+    const b = e.target.closest('button[data-res]');
+    if (b) { ex.res.value = b.dataset.res; exSummary(); }
+  });
   ex.modal.addEventListener('pointerdown', e => { if (e.target === ex.modal) closeExport(); });
 
   /* ================= مثال جاهز ================= */

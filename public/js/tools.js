@@ -465,7 +465,8 @@ const MONTAJI_TOOLS = (() => {
       parameters: obj({
         resolution: pick(['720', '1080', '1440', '2160'], 'Short side in pixels. Default 1080.'),
         fps: pick(['24', '30', '60'], 'Frames per second. Default 30.'),
-        quality: pick(['normal', 'high', 'ultra'], 'Bitrate level. Default high.'),
+        quality: pick(['small', 'normal', 'high', 'ultra', 'size'], 'Bitrate level. Default high (about 90 MB per minute at 1080p). small is a compact file for sharing (about 23 MB per minute at 1080p). size aims at size_mb.'),
+        size_mb: num('Target file size in megabytes (1 to 4000); implies quality "size". Use it when the user names a size, e.g. 35 for a 3 minute video. Low sizes look sharper at 720p.'),
         save_as: str('Also save the MP4 in the "exports" folder of the Montaji project on this computer, under this file name (no folders). Never overwrites: a number is added if the name exists.'),
       }),
     },

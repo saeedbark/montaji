@@ -137,6 +137,7 @@ public/      Everything the browser loads
   js/captiontools.js caption logic: words to blocks, SRT and VTT
   js/captions.js     automatic captions dialog and subtitle export
   js/render.js   frame rendering and effects
+  js/exporttools.js  export plan: bitrate, set file size, suggested resolution
   js/export.js   MP4 export (WebCodecs)
   js/audiotools.js   audio processing: trim, normalize, fades, WAV and M4A encoding
   js/projecttools.js project file (.montaji): ZIP writing and reading, validation

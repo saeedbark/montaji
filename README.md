@@ -286,6 +286,7 @@ montaji/
 │  │  ├─ beats.js          كشف إيقاع الموسيقى (BPM والضربات)
 │  │  ├─ captiontools.js   الترجمة بلا واجهة: تقطيع الكلمات إلى كتل، SRT و VTT
 │  │  ├─ render.js         رسم الإطارات والمؤثرات
+│  │  ├─ exporttools.js    خطة التصدير: معدّل البت، حجم محدد، الدقة المقترحة
 │  │  ├─ export.js         التصدير إلى MP4 (WebCodecs)
 │  │  ├─ audiotools.js     معالجة الصوت: قص، توحيد، تلاشٍ، WAV و M4A
 │  │  ├─ projecttools.js   ملف المشروع ‎.montaji‎: كتابة ZIP وقراءته وفحص محتواه
