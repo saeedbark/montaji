@@ -29,3 +29,12 @@ test('لكل لون غير الافتراضي قاعدة في style.css وفي �
     assert.ok(html.includes(`a === '${id}'`), id);
   }
 });
+
+test('أيقونة التبويب: تُدار درجة الألوان المشبعة فقط، والداكن والشفاف يبقيان', () => {
+  assert.equal(Math.round(THEME.hueOf('#ff5c7a')), 349);
+  assert.equal(Math.round(THEME.hueOf('#3b82f6')), 217);
+  const px = new Uint8ClampedArray([255, 92, 122, 255, /* داكن */ 20, 20, 24, 255, /* شفاف */ 255, 0, 0, 0]);
+  THEME.recolor(px, THEME.hueOf('#3b82f6') - THEME.hueOf('#ff5c7a'));
+  assert.ok(Math.abs(THEME.hueOf('#' + [px[0], px[1], px[2]].map(v => v.toString(16).padStart(2, '0')).join('')) - 217) < 2, 'الوردي صار أزرق');
+  assert.deepEqual([...px.slice(4)], [20, 20, 24, 255, 255, 0, 0, 0]);
+});
