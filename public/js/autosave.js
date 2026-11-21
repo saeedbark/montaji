@@ -36,6 +36,15 @@ const Autosave = (() => {
   };
 
   /* ---------- الحفظ ---------- */
+  /** ملف المشروع (في مجلد projects أو ملف اختاره المستخدم) يُحفظ مع النسخة. المقبض يُخزَّن في
+      IndexedDB في Chrome و Edge؛ وإن رفضه المتصفح يُحفظ بدونه */
+  function storableTarget() {
+    const t = ProjectIO.getTarget();
+    if (!t) return null;
+    if (t.kind === 'server') return { kind: 'server', name: t.name };
+    try { structuredClone(t.handle); return { kind: 'handle', handle: t.handle }; } catch (e) { return null; }
+  }
+
   async function clear() {
     const d = await db();
     const tx = d.transaction([META, BLOBS], 'readwrite');
@@ -67,7 +76,7 @@ const Autosave = (() => {
         await done(tx);
       }
       const tx = d.transaction([META, BLOBS], 'readwrite');
-      tx.objectStore(META).put({ data, keys: media.map(x => ({ id: x.id, key: x.key })), savedAt: Date.now() }, CURRENT);
+      tx.objectStore(META).put({ data, keys: media.map(x => ({ id: x.id, key: x.key })), savedAt: Date.now(), target: storableTarget() }, CURRENT);
       for (const k of plan.remove) tx.objectStore(BLOBS).delete(k);
       await done(tx);
       stored = [...new Set(media.map(x => x.key))];
@@ -105,6 +114,7 @@ const Autosave = (() => {
     }
     const data = PT.normalize(meta.data, { filters: Object.keys(Render.FILTERS), fonts: Object.keys(Render.FONTS), effects: Object.keys(Render.EFFECTS) });
     const skipped = await S.loadProject(data, files, () => {});
+    ProjectIO.setTarget(meta.target); // Ctrl+S يكتب في ملف المشروع نفسه كما قبل إعادة التحميل
     stored = (meta.keys || []).map(x => x.key);
     S.toast(tt('استُعيد المشروع غير المحفوظ', 'The unsaved project was restored'), 'ok');
     if (skipped.length) S.toast(tt(`تعذّر تحميل ${skipped.length} عنصر`, `Could not load ${skipped.length} items`), 'err');
@@ -121,9 +131,11 @@ const Autosave = (() => {
           <button class="btn primary" id="asRestore"></button><button class="btn" id="asDiscard"></button>
         </div></div>`;
       document.body.appendChild(modal);
-      modal.querySelector('#asTitle').textContent = tt('مشروع لم يُحفظ', 'Unsaved project');
-      modal.querySelector('#asText').textContent = tt('أُغلقت الصفحة أو أُعيد تحميلها وفيها مشروع لم يُحفظ في ملف. هل تريد استعادته؟',
-        'The page was closed or reloaded with a project that was not saved to a file. Restore it?');
+      const file = meta.target && (meta.target.kind === 'server' ? meta.target.name : meta.target.handle && meta.target.handle.name);
+      modal.querySelector('#asTitle').textContent = file ? tt('متابعة المشروع', 'Continue the project') : tt('مشروع لم يُحفظ', 'Unsaved project');
+      modal.querySelector('#asText').textContent = file
+        ? tt(`أُغلقت الصفحة أو أُعيد تحميلها. هل تريد متابعة المشروع من آخر تعديل؟ ملفه: ${file}`, `The page was closed or reloaded. Continue the project from its last edit? Its file: ${file}`)
+        : tt('أُغلقت الصفحة أو أُعيد تحميلها وفيها مشروع لم يُحفظ في ملف. هل تريد استعادته؟', 'The page was closed or reloaded with a project that was not saved to a file. Restore it?');
       modal.querySelector('#asInfo').textContent = AT.describe(meta.data, meta.savedAt);
       const btnR = modal.querySelector('#asRestore'), btnD = modal.querySelector('#asDiscard');
       btnR.textContent = tt('استعادة المشروع', 'Restore the project');
@@ -155,6 +167,9 @@ const Autosave = (() => {
   }
 
   document.addEventListener('studio:change', schedule);
+  // ملف المشروع تغيّر (حفظ أو فتح): يُحدَّث في النسخة
+  document.addEventListener('project:saved', schedule);
+  document.addEventListener('project:opened', schedule);
   // عند إخفاء الصفحة أو إغلاقها: حفظ فوري لآخر تعديل (أفضل جهد)
   document.addEventListener('visibilitychange', () => { if (document.hidden && timer) { clearTimeout(timer); saveNow(); } });
   if (typeof indexedDB !== 'undefined') start(); else ready = false;

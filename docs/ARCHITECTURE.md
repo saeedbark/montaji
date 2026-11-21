@@ -216,7 +216,8 @@ state = {
 | `settings.js` | `/api/settings/key`: يكتب مفتاح المزوّد الذي اختاره المستخدم في `.env` (مع `AI_PROVIDER`)، بقائمة مزوّدين ثابتة ومفتاح بلا مسافات أو أسطر كي لا يُحقن متغيّر آخر في الملف، وكتابة ذرّية. لا يعيد المفتاح أبداً |
 | `stt.js` | `/api/transcribe`: يستقبل WAV، يضيف مفتاح خدمة التفريغ من `.env`، ويعيد `{ segments, words }` |
 | `bridge.js` | `/api/bridge` و `/api/bridge/result` و `/api/media/*` |
-| `exports.js` | `/api/export/save` و`/api/captions/save` و`/api/project/save`: تحفظ فيديو مصدَّراً أو ملف ترجمة في `exports/`، أو ملف مشروع في `projects/` (اسم منقّى، بلا مسارات، ولا يكتب فوق ملف) |
+| `exports.js` | `/api/export/save` و`/api/captions/save` و`/api/project/save`: تحفظ فيديو مصدَّراً أو ملف ترجمة في `exports/`، أو ملف مشروع في `projects/` (اسم منقّى، بلا مسارات، ولا يكتب فوق ملف؛ إلا `overwrite=1` لملف المشروع نفسه، فيُستبدل دفعة واحدة من ملف مؤقت) |
+| `projects.js` | مجلد `projects/`: `/api/projects` قائمة المشاريع، `/api/project/file` يرسل مشروعاً إلى الصفحة لتفتحه، `/api/project/reveal` يفتح المجلد في مستكشف الملفات. الأسماء نسبية داخل المجلد فقط (`projectPath`) |
 | `mcp.js` | `/mcp` |
 
 ### حدود الأمان

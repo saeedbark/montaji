@@ -4,6 +4,7 @@
 
 const fs = require('fs'), path = require('path');
 const { PUBLIC_DIR, PROJECT_DIR, REF_DIRS, RAW_DIRS, VERSION } = require('./config');
+const { projectPath } = require('./projects');
 const { MEDIA_EXT, json, readBody } = require('./http');
 const { callBrowser, registerMedia } = require('./bridge');
 
@@ -143,7 +144,10 @@ async function mcpCall(params) {
       if (!p.toLowerCase().endsWith('.montaji')) p += '.montaji';
       const abs = path.isAbsolute(p) ? path.resolve(p) : path.join(PROJECT_DIR, path.basename(p));
       if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) throw new Error('Project file not found: ' + abs);
-      args = { url: registerMedia(abs), name: path.basename(abs) };
+      // من مجلد projects: الحفظ التالي يكتب في الملف نفسه
+      const rel = path.relative(path.resolve(PROJECT_DIR), abs);
+      const inside = rel && !rel.startsWith('..') && !path.isAbsolute(rel) && projectPath(rel);
+      args = { url: registerMedia(abs), name: path.basename(abs), ...(inside ? { project: rel.split(path.sep).join('/') } : {}) };
     }
     if (name === 'analyze_reference' && !args.clip_id) {
       const abs = referenceFile(args.path);

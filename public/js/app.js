@@ -40,8 +40,10 @@
     d.className = 'toast ' + kind;
     d.textContent = msg;
     els.toasts.append(d);
-    setTimeout(() => d.classList.add('out'), 3400);
-    setTimeout(() => d.remove(), 3900);
+    // الرسائل الطويلة (مسار ملف محفوظ مثلاً) تبقى وقتاً يكفي لقراءتها
+    const ms = Math.min(9000, Math.max(3400, String(msg).length * 60));
+    setTimeout(() => d.classList.add('out'), ms);
+    setTimeout(() => d.remove(), ms + 500);
   }
 
   /* ================= التراجع والإعادة ================= */
@@ -154,10 +156,25 @@
     });
     return v;
   }
+  /**
+   * يحمّل فيديو حتى يجهز إطاره الأول. له مهلة: فيديو لا يجهز أبداً (ملف تالف، أو المتصفح بلغ حد مشغّلات
+   * الوسائط) كان يعلّق فتح المشروع كله بلا نهاية. لا يُحسب الوقت والصفحة مخفية، لأن المتصفح
+   * يؤجّل تحميل الوسائط في التبويبات الخلفية حتى تظهر.
+   */
+  const VIDEO_TIMEOUT = 45;
   const loadVideo = url => new Promise((res, rej) => {
     const v = createVideo(url);
-    v.addEventListener('loadeddata', () => res(v), { once: true });
-    v.addEventListener('error', () => rej(new Error(tt('تعذّر قراءة الفيديو', 'Could not read the video'))), { once: true });
+    let waited = 0;
+    const timer = setInterval(() => {
+      if (!document.hidden) waited++;
+      if (waited < VIDEO_TIMEOUT) return;
+      clearInterval(timer);
+      v.removeAttribute('src');
+      v.load();
+      rej(new Error(tt('انتهت مهلة قراءة الفيديو', 'Timed out reading the video')));
+    }, 1000);
+    v.addEventListener('loadeddata', () => { clearInterval(timer); res(v); }, { once: true });
+    v.addEventListener('error', () => { clearInterval(timer); rej(new Error(tt('تعذّر قراءة الفيديو', 'Could not read the video'))); }, { once: true });
   });
 
   async function videoDuration(v) {
@@ -1905,6 +1922,8 @@
     const tag = (e.target.tagName || '').toLowerCase();
     const typing = tag === 'textarea' || tag === 'select' || (tag === 'input' && !['range', 'checkbox', 'color'].includes(e.target.type));
     if (ProjectIO.isBusy()) { if (e.ctrlKey || e.metaKey) e.preventDefault(); return; }
+    // نافذة «حفظ باسم» أو «فتح مشروع»: مفاتيحها لها، ولا يفتح المتصفح «حفظ الصفحة»
+    if (ProjectIO.isDialogOpen()) { if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyS' || e.code === 'KeyO')) e.preventDefault(); return; }
     if (!ex.modal.hidden) { if (e.key === 'Escape') closeExport(); return; }
     if (ImageStudio.isOpen() || AudioExtract.isOpen() || VideoSplit.isOpen()) return; // للنوافذ الأدوات اختصاراتها
     if (Captions.isOpen()) { if (e.key === 'Escape') Captions.close(); return; }

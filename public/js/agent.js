@@ -1087,15 +1087,18 @@ const Agent = (() => {
       if (S.isEmpty()) fail('The project is empty, there is nothing to save.');
       const r = await ProjectIO.save({ saveAs: has(a.save_as) ? String(a.save_as) : null });
       if (!r.ok) fail(r.error);
-      return { ...r, note: r.saved_to ? 'The project file was saved on disk at saved_to. Reopen it later with open_project.' : 'The project file was downloaded to the user\'s Downloads folder.' };
+      return { ...r, note: r.saved_to ? 'The project file was saved on disk at saved_to. Later saves of this project go to the same file. Reopen it with open_project.'
+        : r.downloaded ? 'The project file was downloaded to the user\'s Downloads folder.' : 'The project was saved into the file the user chose earlier (file).' };
     },
 
     // عبر MCP فقط: الخادم يمنح ملف المشروع رابطاً مؤقتاً لأن المتصفح لا يقرأ ملفات الجهاز بمسارها
-    async open_project({ url, name }) {
+    async open_project({ url, name, project: rel }) {
       flush(); // تعديلات المساعد المعلّقة تُسجَّل قبل الاستبدال، فيعيدها التراجع كما هي
       const res = await fetch(url);
       if (!res.ok) fail('Could not read the project file.');
-      const r = await ProjectIO.open(new File([await res.blob()], String(name || 'project.montaji')), { inMemory: true });
+      // rel: اسمه النسبي في مجلد projects إن كان منه، فيحفظ فيه الحفظ التالي
+      const r = await ProjectIO.open(new File([await res.blob()], String(name || 'project.montaji')),
+        { inMemory: true, target: typeof rel === 'string' && rel ? { kind: 'server', name: rel } : null });
       if (!r.ok) fail(r.error);
       return { opened: r.name, ...(r.skipped.length ? { skipped: r.skipped, note: 'The media of the skipped items could not be loaded, so they were left out.' } : {}), ...project() };
     },

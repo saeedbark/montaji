@@ -3,9 +3,10 @@
    أو projects/ (ملف مشروع). يستعملهما export_video و save_project عبر MCP:
    العميل الخارجي لا يستطيع الضغط على زر التنزيل في المتصفح */
 
-const fs = require('fs'), path = require('path');
+const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { EXPORT_DIR, PROJECT_DIR } = require('./config');
 const { json } = require('./http');
+const { projectPath, relName } = require('./projects');
 
 const GB = 1024 ** 3;
 
@@ -44,33 +45,78 @@ function receive(req, file, max) {
     out.on('error', fail);
     req.on('error', fail);
     req.on('aborted', () => fail(new Error('upload aborted')));
+    // في Node الحديث لا يصل 'aborted' دائماً حين يقطع المتصفح الرفع: كان الملف المؤقت ‎.part‎ يبقى مفتوحاً على القرص
+    req.on('close', () => { if (!req.complete) fail(new Error('upload aborted')); });
     req.on('data', c => { size += c.length; if (size > max) { fail(new Error('file too large')); req.destroy(); } });
     req.pipe(out);
   });
 }
 
-async function saveUpload(req, res, { dir, name, type, max }) {
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/**
+ * يستبدل ملفاً بآخر دفعة واحدة (rename فوق الموجود)، فلا يبقى الملف نصف مكتوب لو انقطع الحفظ.
+ * في ويندوز قد يمسك برنامج آخر الملف لحظات (مضاد الفيروسات، الفهرسة، معاينة المستكشف): نعيد المحاولة
+ */
+async function replaceFile(tmp, file, tries = 20) {
+  for (let i = 1; ; i++) {
+    try { return fs.renameSync(tmp, file); } catch (e) {
+      if (i >= tries || !['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) {
+        if (['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) {
+          throw Object.assign(new Error('ملف المشروع مفتوح في برنامج آخر. أغلقه ثم احفظ من جديد.'), { en: 'The project file is open in another program. Close it and save again.' });
+        }
+        throw e;
+      }
+      await sleep(150);
+    }
+  }
+}
+
+/**
+ * يحفظ جسم الطلب في ملف. replace: المسار الكامل لملف يُكتب فوقه (حفظ المشروع في ملفه نفسه)،
+ * وإلا يُحجز اسم جديد في dir بلا كتابة فوق أي ملف. reply: يضيف حقولاً إلى الرد
+ */
+async function saveUpload(req, res, { dir, name, type, max, replace, reply = r => r }) {
   if (!(req.headers['content-type'] || '').toLowerCase().startsWith(type)) return json(res, 415, { error: 'expected ' + type });
   const len = +req.headers['content-length'] || 0;
   if (len > max) return json(res, 413, { error: 'file too large' });
-  fs.mkdirSync(dir, { recursive: true });
-  const file = reservePath(dir, name);
-  const tmp = file + '.part';
+  let file, tmp;
+  if (replace) {
+    fs.mkdirSync(path.dirname(replace), { recursive: true });
+    file = replace;
+    tmp = `${file}.${crypto.randomBytes(4).toString('hex')}.part`; // اسم مؤقت لكل حفظ: حفظان متزامنان لا يتصادمان
+  } else {
+    fs.mkdirSync(dir, { recursive: true });
+    file = reservePath(dir, name);
+    tmp = file + '.part';
+  }
   try {
     await receive(req, tmp, max);
-    fs.renameSync(tmp, file);
+    if (replace) await replaceFile(tmp, file); else fs.renameSync(tmp, file);
   } catch (e) {
     fs.rmSync(tmp, { force: true });
-    fs.rmSync(file, { force: true });
+    if (!replace) fs.rmSync(file, { force: true }); // الاسم المحجوز فارغ؛ أما الملف الموجود فلا يُمسّ
     throw e;
   }
-  json(res, 200, { ok: true, path: file, size: fs.statSync(file).size });
+  json(res, 200, reply({ ok: true, path: file, size: fs.statSync(file).size }));
 }
 
 const saveExport = (req, res, query) => saveUpload(req, res, { dir: EXPORT_DIR, name: safeName(query.get('name')), type: 'video/mp4', max: 4 * GB });
 
-// ملف المشروع يحمل ملفات الوسائط الأصلية كلها، فحدّه أعلى من حد الفيديو المصدَّر
-const saveProject = (req, res, query) => saveUpload(req, res, { dir: PROJECT_DIR, name: safeName(query.get('name'), '.montaji', 'project'), type: 'application/zip', max: 32 * GB });
+/**
+ * ملف المشروع يحمل ملفات الوسائط الأصلية كلها، فحدّه أعلى من حد الفيديو المصدَّر.
+ * overwrite=1 مع اسم نسبي داخل projects/ ("اسم.montaji" أو "مجلد/اسم.montaji"): حفظ المشروع في ملفه نفسه.
+ * بدونه: اسم جديد لا يكتب فوق أي ملف (يُضاف (2)، (3)…). الرد يحمل name: الاسم النسبي للحفظ التالي
+ */
+async function saveProject(req, res, query) {
+  let replace = null;
+  if (query.get('overwrite') === '1') {
+    replace = projectPath(query.get('name'));
+    if (!replace) return json(res, 400, { error: 'اسم ملف المشروع غير صالح', error_en: 'Invalid project file name' });
+  }
+  return saveUpload(req, res, { dir: PROJECT_DIR, name: safeName(query.get('name'), '.montaji', 'project'), type: 'application/zip', max: 32 * GB, replace,
+    reply: r => ({ ...r, name: relName(r.path), dir: path.resolve(PROJECT_DIR) }) });
+}
 
 // ملف ترجمة SRT أو VTT (export_captions مع save_as) بجانب الفيديوهات المصدَّرة
 const saveCaptions = (req, res, query) => {

@@ -5,7 +5,9 @@
    http.js     أدوات HTTP وتقديم ملفات الواجهة من public/
    chat.js     /api/chat  يوصل الشات بالمزوّد؛ المفتاح يبقى في .env ولا يصل إلى المتصفح
    bridge.js   /api/bridge  قناة بين الخادم وتبويب المحرر
-   mcp.js      /mcp  خادم MCP: أي عميل خارجي يتحكم بالمحرر المفتوح في المتصفح */
+   mcp.js      /mcp  خادم MCP: أي عميل خارجي يتحكم بالمحرر المفتوح في المتصفح
+   exports.js  حفظ الفيديو المصدَّر وملف المشروع على القرص
+   projects.js مجلد المشاريع: القائمة وفتح ملف منه */
 
 const http = require('http'), fs = require('fs'), { spawn } = require('child_process');
 const { PORT, ENV_FILE, ENV_TEMPLATE, provider, publicConfig } = require('./config');
@@ -14,6 +16,7 @@ const { chat } = require('./chat');
 const { openBridge, resolveResult, serveMedia } = require('./bridge');
 const { mcp } = require('./mcp');
 const { saveExport, saveProject, saveCaptions } = require('./exports');
+const { listProjects, serveProject, revealProject } = require('./projects');
 const { transcribe } = require('./stt');
 const { saveKey, saveModel, listModels } = require('./settings');
 
@@ -50,6 +53,9 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/captions/save' && req.method === 'POST') return await saveCaptions(req, res, new URL(req.url, 'http://x').searchParams);
     if (p === '/api/transcribe' && req.method === 'POST') return await transcribe(req, res, new URL(req.url, 'http://x').searchParams);
     if (p === '/api/project/save' && req.method === 'POST') return await saveProject(req, res, new URL(req.url, 'http://x').searchParams);
+    if (p === '/api/projects' && req.method === 'GET') return listProjects(req, res);
+    if (p === '/api/project/file' && req.method === 'GET') return serveProject(req, res, new URL(req.url, 'http://x').searchParams);
+    if (p === '/api/project/reveal' && req.method === 'POST') return revealProject(req, res, new URL(req.url, 'http://x').searchParams);
     if (req.method === 'POST' && /json/.test(req.headers['content-type'] || '')) {
       if (p === '/api/chat') return await chat(req, res);
       if (p === '/api/settings/key') return await saveKey(req, res);

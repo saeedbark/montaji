@@ -392,7 +392,57 @@ const ProjectTools = (() => {
     return (n || tt('مشروع', 'project')) + '.' + EXT;
   }
 
-  return { VERSION, EXT, crc32, crcUpdate, crcOfBlob, copyBlob, zipParts, readZip, zipData, canInflate, serialize, normalize, entryName, fileName, ENUMS };
+  /* ================= أين يُحفظ المشروع ================= */
+  /** اسم المشروع من اسم ملفه، بلا مجلد ولا امتداد: "مجلد/إعلان.montaji" ← "إعلان" */
+  const projectName = file => String(file || '').split(/[\\/]/).pop().replace(/\.[^.\\/]+$/, '');
+
+  /**
+   * هل ما زال الملف المحفوظ سابقاً ملفَّ هذا المشروع؟ يُنسى حين يتغير اسم المشروع
+   * (مشروع جديد اسمه فارغ، أو فتح مشروع آخر)، فلا يُكتب مشروع فوق ملف مشروع آخر.
+   * target: { kind: 'server', name } في مجلد projects، أو { kind: 'handle', handle } ملف اختاره المستخدم
+   */
+  function targetFor(target, projName) {
+    if (!target || !projName) return null;
+    const file = target.kind === 'server' ? target.name : target.kind === 'handle' && target.handle ? target.handle.name : '';
+    return file && projectName(file) === projName ? target : null;
+  }
+
+  /**
+   * خطة الحفظ:
+   *   o.pick (حفظ باسم من المستخدم)        ← { kind: 'dialog' }
+   *   o.saveAs (اسم من المساعد)            ← مجلد projects بهذا الاسم؛ يكتب فوق الملف فقط إن كان ملف المشروع نفسه
+   *   للمشروع ملف حُفظ فيه من قبل           ← الملف نفسه بلا سؤال (handle أو server مع overwrite)
+   *   أول حفظ                              ← مجلد projects باسم المشروع، بلا كتابة فوق ملف آخر
+   * name: اسم المشروع (أو اسم مؤقت بالتاريخ لمشروع بلا اسم)
+   */
+  function planSave(target, o = {}, name = '') {
+    if (o.pick) return { kind: 'dialog' };
+    const t = targetFor(target, name);
+    if (o.saveAs != null && o.saveAs !== '') {
+      const file = fileName(o.saveAs);
+      if (t && t.kind === 'server' && t.name.split('/').pop().toLowerCase() === file.toLowerCase()) return { kind: 'server', name: t.name, overwrite: true };
+      return { kind: 'server', name: file, overwrite: false };
+    }
+    if (t && t.kind === 'handle') return { kind: 'handle', handle: t.handle };
+    if (t && t.kind === 'server') return { kind: 'server', name: t.name, overwrite: true };
+    return { kind: 'server', name: fileName(name), overwrite: false };
+  }
+
+  /**
+   * ملف فُتح بالسحب أو بنافذة الملفات العادية لا يُعرف مكانه؛ إن طابق اسماً وحجماً ووقت تعديل ملفاً في
+   * مجلد projects فهو هو، فيُحفظ فيه لاحقاً بدل نسخة جديدة. list: من ‎/api/projects‎
+   */
+  function matchProject(list, file) {
+    if (!file || !Array.isArray(list)) return null;
+    const hit = list.filter(p => p && typeof p.name === 'string' && p.name.split('/').pop() === file.name && p.size === file.size
+      && Math.abs((p.modified || 0) - (file.lastModified || 0)) <= 2000);
+    return hit.length === 1 ? hit[0].name : null; // اسمان متطابقان في مجلدين: لا نخمّن
+  }
+
+  return {
+    VERSION, EXT, crc32, crcUpdate, crcOfBlob, copyBlob, zipParts, readZip, zipData, canInflate, serialize, normalize, entryName, fileName, ENUMS,
+    projectName, targetFor, planSave, matchProject,
+  };
 })();
 
 if (typeof module !== 'undefined') module.exports = ProjectTools;
