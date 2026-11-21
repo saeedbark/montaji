@@ -49,7 +49,7 @@ describe('الخادم', () => {
     const envFile = path.join(tmp, '.env');
     fs.writeFileSync(envFile, 'SECRET_MARKER=do-not-leak\n');
     // نمسح مفاتيح البيئة كي لا تؤثر إعدادات جهاز المطوّر في النتيجة
-    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports'), MONTAJI_PROJECT_DIR: path.join(tmp, 'projects'), MONTAJI_REF_DIR: path.join(tmp, 'ref'), MONTAJI_RAW_DIR: path.join(tmp, 'raw') };
+    const env = { ...process.env, PORT: String(port), MONTAJI_ENV_FILE: envFile, MONTAJI_EXPORT_DIR: path.join(tmp, 'exports'), MONTAJI_PROJECT_DIR: path.join(tmp, 'projects'), MONTAJI_REF_DIR: path.join(tmp, 'ref'), MONTAJI_RAW_DIR: path.join(tmp, 'raw'), MONTAJI_NO_REVEAL: '1' };
     for (const k of Object.keys(env)) if (/^(AI_|GEMINI_|GOOGLE_API|OPENAI_|ANTHROPIC_|OPENROUTER_|GROQ_|STT_)/.test(k)) delete env[k];
     child = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     await new Promise((resolve, reject) => {
@@ -140,6 +140,124 @@ describe('الخادم', () => {
     assert.equal((await save('x', { 'Content-Type': 'video/mp4' })).status, 415);
     assert.equal((await save('x', { Origin: 'https://evil.example' })).status, 403);
     assert.equal(fs.existsSync(path.join(tmp, 'exports', 'x.mp4')), false);
+  });
+
+  test('الحفظ التالي يكتب فوق ملف المشروع نفسه في مجلد projects، ويُنشأ المجلد إن لم يوجد', async () => {
+    fs.rmSync(path.join(tmp, 'projects'), { recursive: true, force: true }); // المجلد غير موجود: الحفظ ينشئه
+    const save = (query, body) => request('/api/project/save?' + query, { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body });
+    // أول حفظ: اسم جديد، والرد يحمل الاسم النسبي الذي يكتب فيه الحفظ التالي
+    const first = await save('name=' + encodeURIComponent('إعلان العطور'), 'v1');
+    assert.equal(first.status, 200);
+    assert.equal(first.data.name, 'إعلان العطور.montaji');
+    assert.equal(first.data.dir, path.join(tmp, 'projects'));
+    // الحفظ الثاني والثالث في الملف نفسه: لا (2) ولا ملفات مؤقتة
+    for (const v of ['v2', 'v3-أطول']) {
+      const r = await save(`name=${encodeURIComponent(first.data.name)}&overwrite=1`, v);
+      assert.equal(r.status, 200);
+      assert.equal(r.data.path, first.data.path);
+      assert.equal(fs.readFileSync(first.data.path, 'utf8'), v);
+    }
+    assert.deepEqual(fs.readdirSync(path.join(tmp, 'projects')), ['إعلان العطور.montaji']);
+    // مجلد فرعي داخل projects مسموح، والخروج منه أو الأسماء المحجوزة مرفوضة دون إنشاء أي ملف
+    const sub = await save('name=' + encodeURIComponent('عملاء/محل الساعات.montaji') + '&overwrite=1', 'sub');
+    assert.equal(sub.status, 200);
+    assert.equal(sub.data.name, 'عملاء/محل الساعات.montaji');
+    for (const bad of ['../evil.montaji', '..\\evil.montaji', 'a/b/c.montaji', 'CON.montaji', 'x.txt', '', '/abs.montaji/..', 'C:\\x.montaji']) {
+      assert.equal((await save('name=' + encodeURIComponent(bad) + '&overwrite=1', 'bad')).status, 400, bad);
+    }
+    assert.equal(fs.existsSync(path.join(tmp, 'evil.montaji')), false);
+    // حفظان متزامنان في الملف نفسه: ينتهيان دون خطأ ويبقى ملف واحد كامل
+    const [a, b] = await Promise.all([save(`name=${encodeURIComponent(first.data.name)}&overwrite=1`, 'AAAA'), save(`name=${encodeURIComponent(first.data.name)}&overwrite=1`, 'BBBB')]);
+    assert.equal(a.status, 200); assert.equal(b.status, 200);
+    assert.ok(['AAAA', 'BBBB'].includes(fs.readFileSync(first.data.path, 'utf8')));
+    assert.equal(fs.readdirSync(path.join(tmp, 'projects')).filter(f => f.endsWith('.part')).length, 0);
+  });
+
+  test('حفظ انقطع في منتصفه لا يُفسد ملف المشروع الموجود', async () => {
+    const file = path.join(tmp, 'projects', 'سليم.montaji');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, 'النسخة السليمة');
+    await new Promise(resolve => {
+      const req = http.request({
+        host: '127.0.0.1', port, method: 'POST', path: '/api/project/save?overwrite=1&name=' + encodeURIComponent('سليم.montaji'),
+        headers: { Host: `localhost:${port}`, 'Content-Type': 'application/zip', 'Content-Length': 1000000 },
+      });
+      req.on('error', () => {}); // القطع نفسه يرمي خطأً عند العميل
+      req.write('نصف ملف');
+      setTimeout(() => { req.destroy(); setTimeout(resolve, 400); }, 150); // مهلة يحذف فيها الخادم ملفه المؤقت
+    });
+    assert.equal(fs.readFileSync(file, 'utf8'), 'النسخة السليمة');
+    assert.deepEqual(fs.readdirSync(path.dirname(file)).filter(f => f.endsWith('.part')), []);
+  });
+
+  test('/api/projects يعرض مشاريع المجلد الأحدث أولاً، و /api/project/file يعيد الملف نفسه', async () => {
+    const dir = path.join(tmp, 'projects');
+    fs.mkdirSync(path.join(dir, 'قديم'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'جديد.montaji'), 'NEW');
+    fs.writeFileSync(path.join(dir, 'قديم', 'أقدم.montaji'), 'OLD');
+    fs.writeFileSync(path.join(dir, 'ملاحظات.txt'), 'x');
+    fs.writeFileSync(path.join(dir, 'نصف.montaji.1a2b.part'), 'x');
+    fs.utimesSync(path.join(dir, 'قديم', 'أقدم.montaji'), new Date(1e12), new Date(1e12));
+    fs.utimesSync(path.join(dir, 'جديد.montaji'), new Date(), new Date(Date.now() + 60e3));
+    const list = await request('/api/projects');
+    assert.equal(list.status, 200);
+    assert.equal(list.data.dir, dir);
+    const names = list.data.projects.map(p => p.name);
+    assert.equal(names[0], 'جديد.montaji');
+    assert.equal(names[names.length - 1], 'قديم/أقدم.montaji');
+    assert.ok(!names.some(n => /\.txt$|\.part$/.test(n)));
+    const newest = list.data.projects[0];
+    assert.equal(newest.size, 3);
+    assert.ok(Math.abs(newest.modified - fs.statSync(path.join(dir, 'جديد.montaji')).mtimeMs) < 2);
+
+    const got = await request('/api/project/file?name=' + encodeURIComponent('قديم/أقدم.montaji'));
+    assert.equal(got.status, 200);
+    assert.equal(got.type, 'application/zip');
+    assert.equal(got.headers['content-length'], '3');
+    assert.equal(got.text, 'OLD');
+    // يُقرأ أكثر من مرة (فتح المشروع مرة ثانية وثالثة)
+    assert.equal((await request('/api/project/file?name=' + encodeURIComponent('قديم/أقدم.montaji'))).text, 'OLD');
+    for (const bad of ['../.env', '..\\.env', 'missing.montaji', 'ملاحظات.txt', '']) {
+      assert.equal((await request('/api/project/file?name=' + encodeURIComponent(bad))).status, 404, bad);
+    }
+    assert.equal((await request('/api/projects', { headers: { Origin: 'https://evil.example' } })).status, 403);
+    assert.equal((await request('/api/project/file?name=x.montaji', { headers: { Host: 'evil.example' } })).status, 403);
+    // إظهار الملف في المستكشف: داخل المجلد فقط (لا يُفتح مستكشف فعلاً في الاختبار)
+    assert.equal((await request('/api/project/reveal?name=' + encodeURIComponent('جديد.montaji'), { method: 'POST' })).status, 200);
+    assert.equal((await request('/api/project/reveal?name=..%2F.env', { method: 'POST' })).status, 404);
+    assert.equal((await request('/api/project/reveal', { method: 'POST', headers: { Origin: 'https://evil.example' } })).status, 403);
+  });
+
+  test('open_project عبر MCP من مجلد projects يمرّر اسمه النسبي فيحفظ فيه الحفظ التالي', async () => {
+    const dir = path.join(tmp, 'projects');
+    fs.mkdirSync(path.join(dir, 'عملاء'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'عملاء', 'ساعات.montaji'), 'x');
+    const outside = path.join(tmp, 'خارج.montaji');
+    fs.writeFileSync(outside, 'x');
+    const tab = http.get({ host: '127.0.0.1', port, path: `/api/bridge?loaded=${Date.now()}`, headers: { Host: `localhost:${port}` } }, res => {
+      res.setEncoding('utf8');
+      res.on('data', chunk => {
+        const m = /^data: (.*)$/m.exec(chunk);
+        if (!m) return;
+        const c = JSON.parse(m[1]);
+        request('/api/bridge/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { id: c.id, result: { data: c.args } } });
+      });
+    });
+    await new Promise(r => tab.on('response', r));
+    const call = async args => JSON.parse((await rpc('tools/call', { name: 'open_project', arguments: args })).data.result.content[0].text);
+    try {
+      const a = await call({ path: path.join(dir, 'عملاء', 'ساعات.montaji') });
+      assert.equal(a.project, 'عملاء/ساعات.montaji');
+      assert.equal(a.name, 'ساعات.montaji');
+      assert.equal((await call({ path: 'جديد' })).project, 'جديد.montaji');
+      // ملف خارج المجلد يُفتح، لكن بلا اسم نسبي: الحفظ التالي لا يكتب خارج projects
+      const b = await call({ path: outside });
+      assert.equal(b.project, undefined);
+      assert.equal(b.name, 'خارج.montaji');
+    } finally {
+      tab.destroy();
+      await new Promise(r => setTimeout(r, 100));
+    }
   });
 
   test('open_project عبر MCP: يرفض ملفاً غير موجود ويبحث عن الاسم المجرد في مجلد projects', async () => {

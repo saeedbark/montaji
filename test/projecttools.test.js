@@ -200,3 +200,53 @@ test('قائمة الخطوط واحدة في أدوات المساعد وفي �
   assert.equal(p.texts[0].font, 'cairo', 'الخط المرفق يبقى عند فتح الملف');
   assert.equal(p.captions.style.font, 'lalezar');
 });
+
+/* ================= أين يُحفظ المشروع ================= */
+test('أول حفظ في مجلد projects باسم المشروع، بلا كتابة فوق مشروع آخر', () => {
+  assert.deepEqual(PT.planSave(null, {}, 'إعلان العطور'), { kind: 'server', name: 'إعلان العطور.montaji', overwrite: false });
+  // اسم فيه رموز يرفضها ويندوز يُنظَّف
+  assert.deepEqual(PT.planSave(null, {}, 'a:b/c'), { kind: 'server', name: 'ab-c.montaji', overwrite: false });
+});
+
+test('الحفظ التالي يكتب في الملف نفسه بلا سؤال: مجلد projects أو ملف اختاره المستخدم', () => {
+  const server = { kind: 'server', name: 'عملاء/ساعات.montaji' };
+  assert.deepEqual(PT.planSave(server, {}, 'ساعات'), { kind: 'server', name: 'عملاء/ساعات.montaji', overwrite: true });
+  const handle = { name: 'رحلة.montaji' };
+  assert.deepEqual(PT.planSave({ kind: 'handle', handle }, {}, 'رحلة'), { kind: 'handle', handle });
+});
+
+test('مشروع آخر (جديد أو اسم مختلف) لا يُكتب فوق ملف المشروع السابق', () => {
+  const server = { kind: 'server', name: 'ساعات.montaji' };
+  assert.deepEqual(PT.planSave(server, {}, 'مشروع-20261121-1400'), { kind: 'server', name: 'مشروع-20261121-1400.montaji', overwrite: false });
+  assert.equal(PT.targetFor(server, ''), null);
+  assert.equal(PT.targetFor({ kind: 'handle', handle: { name: 'أ.montaji' } }, 'ب'), null);
+  assert.equal(PT.targetFor({ kind: 'handle' }, 'أ'), null);
+  assert.equal(PT.targetFor(server, 'ساعات'), server);
+});
+
+test('حفظ باسم يفتح النافذة دائماً، واسم المساعد لا يكتب إلا فوق ملف المشروع نفسه', () => {
+  const server = { kind: 'server', name: 'ساعات.montaji' };
+  assert.deepEqual(PT.planSave(server, { pick: true }, 'ساعات'), { kind: 'dialog' });
+  assert.deepEqual(PT.planSave(null, { pick: true }, 'x'), { kind: 'dialog' });
+  assert.deepEqual(PT.planSave(server, { saveAs: 'ساعات' }, 'ساعات'), { kind: 'server', name: 'ساعات.montaji', overwrite: true });
+  assert.deepEqual(PT.planSave(server, { saveAs: 'نسخة ثانية' }, 'ساعات'), { kind: 'server', name: 'نسخة ثانية.montaji', overwrite: false });
+  assert.deepEqual(PT.planSave(null, { saveAs: 'ساعات.montaji' }, 'ساعات'), { kind: 'server', name: 'ساعات.montaji', overwrite: false });
+  assert.deepEqual(PT.planSave({ kind: 'handle', handle: { name: 'ساعات.montaji' } }, { saveAs: 'ساعات' }, 'ساعات'), { kind: 'server', name: 'ساعات.montaji', overwrite: false });
+});
+
+test('ملف مفتوح بالسحب من مجلد projects يُعرف بالاسم والحجم ووقت التعديل', () => {
+  const list = [
+    { name: 'ساعات.montaji', size: 100, modified: 1_700_000_000_000 },
+    { name: 'عملاء/عطور.montaji', size: 50, modified: 1_700_000_100_000 },
+    { name: 'مكرر.montaji', size: 10, modified: 5 }, { name: 'أ/مكرر.montaji', size: 10, modified: 5 },
+  ];
+  const file = (name, size, lastModified) => ({ name, size, lastModified });
+  assert.equal(PT.matchProject(list, file('ساعات.montaji', 100, 1_700_000_000_900)), 'ساعات.montaji');
+  assert.equal(PT.matchProject(list, file('عطور.montaji', 50, 1_700_000_100_000)), 'عملاء/عطور.montaji');
+  assert.equal(PT.matchProject(list, file('ساعات.montaji', 101, 1_700_000_000_000)), null, 'حجم مختلف: نسخة أخرى');
+  assert.equal(PT.matchProject(list, file('ساعات.montaji', 100, 1_700_000_010_000)), null, 'عُدّل بعدها');
+  assert.equal(PT.matchProject(list, file('مكرر.montaji', 10, 5)), null, 'اسمان في مجلدين: لا تخمين');
+  assert.equal(PT.matchProject(null, file('x', 1, 1)), null);
+  assert.equal(PT.projectName('عملاء/ساعات.montaji'), 'ساعات');
+  assert.equal(PT.projectName(['C:', 'x', 'رحلة.MONTAJI'].join(String.fromCharCode(92))), 'رحلة');
+});

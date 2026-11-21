@@ -456,7 +456,7 @@ const MONTAJI_TOOLS = (() => {
       name: 'save_project',
       description: 'Save the whole project as one .montaji file: the timeline (clips, trims, texts, effects, music settings) together with its media files, so it can be reopened later exactly as it is. Only call it when the user asks to save the project. This is not a video: use export_video for the final MP4.',
       parameters: obj({
-        save_as: str('Save the file in the "projects" folder of the Montaji app on this computer under this name (no folders). Never overwrites: a number is added if the name exists. Without it the file goes to the user\'s Downloads folder.'),
+        save_as: str('A new name for the file in the "projects" folder of the Montaji app on this computer (no folders). Never overwrites another project: a number is added if the name exists. Without it the project is saved where it was saved or opened from before, or the first time in the "projects" folder under the project name.'),
       }),
     },
     {
