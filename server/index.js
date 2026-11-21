@@ -15,7 +15,7 @@ const { openBridge, resolveResult, serveMedia } = require('./bridge');
 const { mcp } = require('./mcp');
 const { saveExport, saveProject, saveCaptions } = require('./exports');
 const { transcribe } = require('./stt');
-const { saveKey } = require('./settings');
+const { saveKey, saveModel, listModels } = require('./settings');
 
 // --open: يفتح المحرر في المتصفح بعد أن يصبح الخادم جاهزاً (start.bat و start.command يمرّرانه)
 const OPEN = process.argv.includes('--open');
@@ -44,6 +44,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/mcp') return await mcp(req, res);
     if (p === '/api/config' && req.method === 'GET') return json(res, 200, publicConfig());
     if (p === '/api/bridge' && req.method === 'GET') return openBridge(req, res);
+    if (p === '/api/models' && req.method === 'GET') return await listModels(req, res, new URL(req.url, 'http://x').searchParams);
     if (p.startsWith('/api/media/') && req.method === 'GET') return serveMedia(res, p.slice(11));
     if (p === '/api/export/save' && req.method === 'POST') return await saveExport(req, res, new URL(req.url, 'http://x').searchParams);
     if (p === '/api/captions/save' && req.method === 'POST') return await saveCaptions(req, res, new URL(req.url, 'http://x').searchParams);
@@ -52,6 +53,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && /json/.test(req.headers['content-type'] || '')) {
       if (p === '/api/chat') return await chat(req, res);
       if (p === '/api/settings/key') return await saveKey(req, res);
+      if (p === '/api/settings/model') return await saveModel(req, res);
       if (p === '/api/bridge/result') {
         const b = JSON.parse(await readBody(req, 48e6));
         resolveResult(b.id, b.result);

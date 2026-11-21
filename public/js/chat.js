@@ -201,6 +201,7 @@ Project model
   async function submitKey(form) {
     const btn = form.querySelector('button.primary');
     const err = form.querySelector('[data-keyerr]');
+    if (btn.disabled) return; // لصق ثم Enter: حفظ واحد
     btn.disabled = true;
     err.textContent = '';
     try {
@@ -214,10 +215,20 @@ Project model
       keyError = '';
       // نموذج داخل المحادثة (بعد حذف مفتاح منتهٍ): يُستبدل بسطر تأكيد
       const inline = form.closest('.key-notice');
+      const pid = form.provider.value;
       if (inline) form.replaceWith(div('chat-note', tt('حُفظ المفتاح الجديد.', 'The new key was saved.')));
       else keyOpen = false;
+      if (pid !== 'groq') {
+        // المفتاح الجديد يعمل بنموذج هذا المزوّد: إن كان المختار من مزوّد آخر يُترك للافتراضي الجديد
+        try {
+          const saved = JSON.parse(localStorage.getItem(PICK_KEY) || 'null');
+          if (saved && saved.provider !== pid) localStorage.removeItem(PICK_KEY);
+        } catch (e2) { /* وضع خاص */ }
+      }
       await loadConfig();
-      S.toast && S.toast(form.provider.value === 'groq' ? tt('حُفظ مفتاح الترجمة التلقائية', 'Auto-caption key saved') : tt('تم تفعيل المساعد', 'Assistant enabled'));
+      S.toast && S.toast(pid === 'groq' ? tt('حُفظ مفتاح الترجمة التلقائية', 'Auto-caption key saved') : tt('تم تفعيل المساعد', 'Assistant enabled'));
+      // كان المساعد قد توقف لانتهاء الرصيد: يكمل الآن وحده
+      if (pid !== 'groq' && pendingRetry) { if (!inline) renderIntro(); runRetry(); }
     } catch (e) {
       keyError = e.message === 'Failed to fetch' ? tt('الخادم المحلي لا يعمل — شغّل البرنامج من جديد', 'The local server is not running — start the app again') : e.message;
       err.textContent = keyError;
@@ -556,11 +567,101 @@ Project model
     loadConfig();
   }
 
+  /* ================= انتهاء الرصيد أو حد الاستخدام ================= */
+  // ما يُعاد تشغيله تلقائياً بعد حفظ مفتاح جديد أو اختيار نموذج آخر: الرسالة التي لم يصلها رد، أو إكمال الدور
+  let pendingRetry = null;
+  let retryNotice = null;
+
+  function runRetry() {
+    const r = pendingRetry;
+    if (!r || busy) return;
+    pendingRetry = null;
+    if (retryNotice) { retryNotice.querySelectorAll('[data-modelform], .key-form').forEach(x => x.remove()); retryNotice = null; }
+    if (r.text != null) { el.input.value = ''; autoGrow(); send(r.text); }
+    else send('', { resume: true });
+  }
+
+  /**
+   * بطاقة داخل المحادثة حين يتوقف المزوّد لانتهاء الرصيد أو حد الاستخدام أو رفض المفتاح:
+   * نموذج آخر بنقرة، أو مفتاح جديد يُلصق فيُحفظ ويكمل المساعد عمله وحده
+   */
+  function addLimitCard(e, retry) {
+    const lim = e.limit || (e.removed && e.removed[0]) || {};
+    const pid = lim.provider || (choice && choice.provider) || (cfg && cfg.provider) || 'gemini';
+    const why = lim.reason === 'quota'
+      ? tt(`انتهى حد الاستخدام لـ ${lim.label} (${lim.model}).`, `${lim.label} (${lim.model}) has reached its usage limit.`)
+      : e.removed && e.removed.length ? '' : esc(e.message);
+    const removedLines = (e.removed || []).map(k => (k.reason === 'credit'
+      ? tt(`انتهى رصيد مفتاح ${k.label} فحذفته من الإعدادات.`, `The ${k.label} key ran out of credit, so I removed it.`)
+      : tt(`مفتاح ${k.label} مرفوض فحذفته من الإعدادات.`, `The ${k.label} key was rejected, so I removed it.`)));
+    // حد Gemini المجاني لكل مشروع في Google، لا لكل مفتاح: مفتاح جديد من المشروع نفسه لا يفيد
+    const geminiTip = pid === 'gemini' && lim.reason === 'quota'
+      ? `<p class="key-note">${tt('حد Gemini المجاني محسوب لكل مشروع في Google لا لكل مفتاح، ولكل نموذج حدّه الخاص: إما نموذج آخر، أو مفتاح من <b>مشروع جديد</b> («Create API key» ← «Create project»).', 'The free Gemini limit counts per Google project, not per key, and each model has its own limit: pick another model, or a key from a <b>new project</b> (“Create API key” → “Create project”).')}</p>` : '';
+    const card = div('key-notice limit-card', `<p>${[why, ...removedLines.map(esc)].filter(Boolean).join('<br>')}</p>
+      ${geminiTip}
+      <form class="key-form" data-modelform>
+        <label><span>${tt('جرّب نموذجاً آخر', 'Try another model')}</span>
+          <input name="model" dir="ltr" list="limitModels" autocomplete="off" spellcheck="false" placeholder="${tt('اختر أو اكتب اسم النموذج', 'Pick or type a model name')}"></label>
+        <datalist id="limitModels"></datalist>
+        <input type="hidden" name="provider" value="${esc(pid)}">
+        <p class="why" data-keyerr></p>
+        <div class="key-actions"><button class="btn small primary">${tt('أكمل بهذا النموذج', 'Continue with this model')}</button></div>
+      </form>
+      <p class="key-get">${tt('أو الصق مفتاحاً جديداً — يُحفظ وأكمل وحدي:', 'Or paste a new key — it is saved and I continue on my own:')}</p>
+      ${keyForm(pid)}
+      ${e.detail ? `<details class="key-note"><summary>${tt('تفاصيل الخطأ', 'Error details')}</summary><small dir="ltr">${esc(String(e.detail).slice(0, 600))}</small></details>` : ''}`);
+    if (retryNotice) retryNotice.querySelectorAll('[data-modelform], .key-form').forEach(x => x.remove());
+    retryNotice = add(card);
+    pendingRetry = retry;
+    fillModels(card, pid, lim.model);
+    const k = card.querySelector('.key-form:not([data-modelform]) [name=key]');
+    if (k) k.focus();
+  }
+
+  /** يملأ قائمة النماذج: المضبوطة في .env أولاً، ثم ما يتيحه مفتاح المزوّد */
+  async function fillModels(card, pid, failed) {
+    const list = card.querySelector('datalist'), input = card.querySelector('[data-modelform] [name=model]');
+    const own = ((cfg && cfg.choices) || []).filter(o => !(o.provider === pid && o.model === failed));
+    const add1 = (v, lbl) => { if (![...list.options].some(o => o.value === v)) list.append(Object.assign(document.createElement('option'), { value: v, label: lbl || '' })); };
+    own.forEach(o => add1(o.provider === pid ? o.model : `${o.provider}:${o.model}`, o.label));
+    if (own[0]) input.value = own[0].provider === pid ? own[0].model : `${own[0].provider}:${own[0].model}`;
+    try {
+      const d = await (await fetch('/api/models?provider=' + encodeURIComponent(pid))).json();
+      (d.models || []).filter(m => m !== failed).forEach(m => add1(m));
+      if (!input.value && list.options[0]) input.value = list.options[0].value;
+    } catch (err) { /* الكتابة اليدوية تكفي */ }
+  }
+
+  /** «أكمل بهذا النموذج»: يُضاف إلى .env إن لم يكن فيه، ويُختار، ثم يُعاد الطلب */
+  async function submitModel(form) {
+    const btn = form.querySelector('button.primary'), err = form.querySelector('[data-keyerr]');
+    let pid = form.provider.value, model = form.model.value.trim();
+    const m = /^([a-z]+):(.+)$/.exec(model);
+    if (m && KEY_PROVIDERS.some(k => k.id === m[1])) { pid = m[1]; model = m[2]; }
+    if (!model) return void (err.textContent = tt('اختر نموذجاً أو اكتب اسمه', 'Pick a model or type its name'));
+    btn.disabled = true;
+    err.textContent = '';
+    try {
+      if (!((cfg && cfg.choices) || []).some(o => o.provider === pid && o.model === model)) {
+        const r = await fetch('/api/settings/model', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: pid, model }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || tt('تعذّر حفظ النموذج', 'Could not save the model'));
+        model = d.model || model;
+      }
+      try { localStorage.setItem(PICK_KEY, JSON.stringify({ provider: pid, model })); } catch (e2) { /* وضع خاص */ }
+      await loadConfig();
+      S.toast && S.toast(tt(`المساعد يعمل الآن بـ ${model}`, `The assistant now runs on ${model}`));
+      runRetry();
+    } catch (e2) {
+      err.textContent = e2.message === 'Failed to fetch' ? tt('الخادم المحلي لا يعمل — شغّل البرنامج من جديد', 'The local server is not running — start the app again') : e2.message;
+    } finally { btn.disabled = false; }
+  }
+
   /* ================= حلقة المحادثة ================= */
   async function api(body) {
     const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
     const d = await r.json().catch(() => ({ error: tt('رد غير مفهوم من الخادم المحلي', 'Unreadable reply from the local server') }));
-    if (!r.ok || d.error) throw Object.assign(new Error(d.error || tt('حدث خطأ', 'Something went wrong')), { detail: d.detail, removed: d.removed });
+    if (!r.ok || d.error) throw Object.assign(new Error(d.error || tt('حدث خطأ', 'Something went wrong')), { detail: d.detail, removed: d.removed, limit: d.limit });
     return d;
   }
   const textOf = c => (typeof c === 'string' ? c : Array.isArray(c) ? c.map(p => p.text || '').join('') : '').trim();
@@ -618,9 +719,12 @@ Project model
     updateFresh();
   }
 
-  async function send(text) {
+  /** يرسل رسالة المستخدم، أو مع { resume: true } يكمل الدور الذي توقف (بعد مفتاح جديد أو نموذج آخر) */
+  async function send(text, opt = {}) {
     text = String(text || '').trim();
-    if (!text || busy) return;
+    if ((!text && !opt.resume) || busy) return;
+    if (pendingRetry && retryNotice) { retryNotice.querySelectorAll('[data-modelform], .key-form').forEach(x => x.remove()); }
+    pendingRetry = null; retryNotice = null;
     setBusy(true);
     ctl = new AbortController();
     const chat = cur;
@@ -629,6 +733,7 @@ Project model
     try {
       await loadConfig();
       if (!cfg || !cfg.ready) return;
+      if (opt.resume) return void await converse();
       el.input.value = '';
       autoGrow();
       const tObj = targetObj();
@@ -643,17 +748,22 @@ Project model
       await converse();
     } catch (e) {
       if (e.name === 'AbortError') addNote(tt('أُوقف المساعد.', 'Assistant stopped.'));
-      else {
-        console.error(e);
-        addError(e.message || String(e), e.detail);
-        if (e.removed && e.removed.length) addKeyNotice(e.removed);
-      }
       // لم يصل أي رد: نتراجع عن الرسالة ليعيد المستخدم إرسالها كما هي (مع ملفاتها)
-      if (u && msgs.length === mark + 1) {
+      const undone = !!u && msgs.length === mark + 1;
+      if (undone) {
         msgs.length = mark;
         u.media.forEach(m => seen.delete(m.url));
         if (bubble) bubble.remove();
         if (!el.input.value) { el.input.value = text; autoGrow(); }
+      }
+      if (e.name === 'AbortError') { /* أُبلغ أعلاه */ }
+      else if (e.limit || (e.removed && e.removed.length)) {
+        // رصيد أو حد استخدام أو مفتاح مرفوض: بطاقة مفتاح/نموذج، وبعدها يُعاد الطلب وحده
+        console.warn(e.message, e.detail);
+        addLimitCard(e, undone ? { text } : opt.resume || u ? { resume: true } : null);
+      } else {
+        console.error(e);
+        addError(e.message || String(e), e.detail);
       }
     } finally {
       ctl = null;
@@ -754,8 +864,18 @@ Project model
     if (keyOpen) { el.log.scrollTop = 0; const k = el.log.querySelector('.key-form [name=key]'); if (k) k.focus(); }
   };
   el.log.addEventListener('submit', e => {
+    const mform = e.target.closest('[data-modelform]');
+    if (mform) { e.preventDefault(); return void submitModel(mform); }
     const form = e.target.closest('[data-keyform]');
     if (form) { e.preventDefault(); submitKey(form); }
+  });
+  // لصق المفتاح يكفي: يُحفظ مباشرة دون الضغط على «حفظ وتفعيل»
+  el.log.addEventListener('paste', e => {
+    const input = e.target.closest('[data-keyform] [name=key]');
+    if (!input) return;
+    setTimeout(() => {
+      if (/^\S{20,}$/.test(input.value.trim()) && input.form.isConnected) submitKey(input.form);
+    }, 0);
   });
   el.log.addEventListener('change', e => {
     if (e.target.name !== 'provider') return;

@@ -239,6 +239,10 @@ body.chat-resizing { cursor: ew-resize; user-select: none; }
 .key-notice > p { margin: 0 0 8px; color: var(--accent-soft); }
 .key-notice .key-form a { color: var(--accent); }
 .key-notice .why:empty { display: none; }
+.limit-card > .key-get { color: var(--text); }
+.limit-card details { margin: 0 0 4px; }
+.limit-card details summary { cursor: pointer; }
+.limit-card details small { display: block; margin-top: 4px; direction: ltr; text-align: left; overflow-wrap: anywhere; }
 .chat-err { align-self: stretch; background: #3b171c; border: 1px solid #6b2a31; color: #ffc9cc; border-radius: 10px; padding: 8px 11px; font-size: 13px; overflow-wrap: anywhere; }
 .chat-err small { display: block; margin-top: 4px; color: #e0a3a7; direction: ltr; text-align: left; }
 .typing { align-self: flex-end; display: flex; gap: 4px; padding: 11px 13px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 13px; }

@@ -57,7 +57,7 @@ function hintOf(p, s) {
     : s === 402 ? [`انتهى رصيد مفتاح ${p.label}`, `The ${p.label_en} key is out of credit`]
     : s === 404 ? [`النموذج «${p.model}» غير متاح — اختر نموذجاً آخر أو غيّر اسمه في ملف .env`, `The model “${p.model}” is not available — choose another one or change its name in the .env file`]
     : s === 408 ? [`${p.label} لم يرد في الوقت المحدد — أعد إرسال رسالتك`, `${p.label_en} did not answer in time — send your message again`]
-    : s === 429 ? [`تجاوزت حد الاستخدام لدى ${p.label} — انتظر قليلاً أو أضف مفتاحاً آخر`, `Usage limit reached with ${p.label_en} — wait a little or add another key`]
+    : s === 429 ? [`تجاوزت حد الاستخدام لدى ${p.label} (${p.model})`, `Usage limit reached with ${p.label_en} (${p.model})`]
     : s >= 500 ? [`${p.label} مزدحم الآن — أعد إرسال رسالتك بعد لحظات`, `${p.label_en} is busy right now — send your message again in a moment`]
     : [`خطأ من ${p.label} (${s})`, `Error from ${p.label_en} (${s})`];
 }
@@ -122,7 +122,7 @@ async function chat(req, res) {
 
   const list = body.fallback === false ? [first] : candidates(first, choices());
   const dead = new Set(), removed = [], failed = [];
-  let last = null;
+  let last = null, hit = null; // hit = أول نموذج بلغ حد الاستخدام (429)
   for (let i = 0; i < list.length; i++) {
     const p = list[i];
     if (dead.has(p.id)) continue;
@@ -139,6 +139,7 @@ async function chat(req, res) {
       });
     }
     last = { p, ...out };
+    if (out.status === 429 && !hit) hit = p;
     const kind = out.offline ? 'next' : failKind(out.status, out.detail);
     failed.push(`${p.label_en} / ${p.model}: ${out.status || 'offline'}`);
     if (kind === 'dead') {
@@ -162,7 +163,10 @@ async function chat(req, res) {
   }
   const hint = hintOf(p, last.status);
   const tried = failed.length > 1 ? ` (${failed.join(' · ')})` : '';
-  json(res, 502, { error: hint[0], error_en: hint[1], detail: (last.detail || '') + tried, ...(removed.length ? { removed } : {}), ...(removed.length && !choices().length ? { setup: true } : {}) });
+  // حد الاستخدام أو الرصيد: تعرض الصفحة نموذج مفتاح جديد واختيار نموذج آخر، ثم تكمل وحدها
+  const lp = last.status === 402 ? p : hit;
+  const limit = lp ? { provider: lp.id, model: lp.model, label: lp.label, label_en: lp.label_en, reason: last.status === 402 ? 'credit' : 'quota' } : null;
+  json(res, 502, { error: hint[0], error_en: hint[1], detail: (last.detail || '') + tried, ...(limit ? { limit } : {}), ...(removed.length ? { removed } : {}), ...(removed.length && !choices().length ? { setup: true } : {}) });
 }
 
 module.exports = { chat, failKind, candidates, forGemini };

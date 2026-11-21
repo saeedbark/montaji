@@ -4,7 +4,7 @@
    المفتاح يُكتب في .env فقط ولا يُعاد إلى المتصفح أبداً، حتى في رسائل الخطأ */
 
 const fs = require('fs'), path = require('path');
-const { ENV_FILE, ENV_TEMPLATE, PROVIDERS, parseEnv } = require('./config');
+const { ENV_FILE, ENV_TEMPLATE, PROVIDERS, parseEnv, modelsOf, choices, provider } = require('./config');
 const { json, readBody } = require('./http');
 
 // ما يمكن ضبطه من المحرر: اسم المتغيّر، وهل هو مزوّد للمحادثة (يُختار في AI_PROVIDER) أم للترجمة فقط
@@ -69,6 +69,61 @@ async function saveKey(req, res) {
   json(res, 200, { ok: true, provider: body.provider });
 }
 
+// أسماء النماذج: حروف ظاهرة بلا مسافات (gemini-3.6-flash، openai/gpt-5، llama3.2:3b…)
+const MODEL_RE = /^[A-Za-z0-9._\-:/@]{1,120}$/;
+
+/**
+ * /api/settings/model — يضيف نموذجاً إلى قائمة نماذج المزوّد في .env (GEMINI_MODEL…) ليظهر في قائمة الاختيار.
+ * النماذج الموجودة تبقى، فلا يختفي النموذج الحالي حين تُكتب القائمة أول مرة
+ */
+async function saveModel(req, res) {
+  let body;
+  try { body = JSON.parse(await readBody(req, 10e3)); } catch (e) { return json(res, 400, { error: 'طلب غير صالح', error_en: 'Invalid request' }); }
+  const id = body && body.provider, model = typeof (body && body.model) === 'string' ? body.model.trim().replace(/^models\//, '') : '';
+  if (!KEY_TARGETS[id] || !KEY_TARGETS[id].chat) return json(res, 400, { error: 'اختر مزوّداً من القائمة', error_en: 'Choose a provider from the list' });
+  if (!MODEL_RE.test(model)) return json(res, 400, { error: 'اسم النموذج غير صالح', error_en: 'Invalid model name' });
+  let txt = '';
+  try { txt = fs.readFileSync(ENV_FILE, 'utf8'); } catch (e) { /* لا ملف بعد */ }
+  const vals = parseEnv(txt), env = k => vals[k] || process.env[k] || '';
+  const list = [...new Set([...modelsOf(env, id, false), model])].join(',');
+  const tmp = path.join(path.dirname(ENV_FILE), `.env.${process.pid}.tmp`);
+  try {
+    fs.writeFileSync(tmp, setEnvValues(txt, { [id.toUpperCase() + '_MODEL']: list }), { mode: 0o600 });
+    fs.renameSync(tmp, ENV_FILE);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch (e2) { /* لم يُنشأ */ }
+    return json(res, 500, { error: 'تعذّر حفظ ملف .env — تأكد من أن مجلد البرنامج قابل للكتابة', error_en: 'Could not save the .env file — make sure the app folder is writable' });
+  }
+  json(res, 200, { ok: true, provider: id, model });
+}
+
+/** نماذج المحادثة من قائمة المزوّد: تُستبعد نماذج الصور والصوت والتضمين، الأحدث أولاً */
+function chatModels(id, ids) {
+  const skip = /embed|tts|audio|image|imagen|veo|live|realtime|transcribe|moderation|whisper|dall-e|aqa|learnlm|search|computer-use|robotics|banana/i;
+  let out = ids.map(x => String(x || '').replace(/^models\//, '')).filter(x => x && !skip.test(x));
+  if (id === 'gemini') out = out.filter(x => /^gemini/i.test(x));
+  if (id === 'openai') out = out.filter(x => /^(gpt|o\d|chatgpt)/i.test(x));
+  return [...new Set(out)].sort((a, b) => b.localeCompare(a, 'en', { numeric: true })).slice(0, 80);
+}
+
+/**
+ * /api/models?provider=gemini — النماذج المتاحة بمفتاح المزوّد الموجود في .env، لقائمة «جرّب نموذجاً آخر».
+ * إن تعذّر جلبها تُعاد قائمة فارغة: الواجهة تقبل كتابة الاسم يدوياً
+ */
+async function listModels(req, res, params) {
+  const id = params.get('provider') || '';
+  const c = choices().find(o => o.provider === id);
+  const p = c && provider(undefined, c);
+  if (!p || p.error || !p.key) return json(res, 200, { models: [] });
+  const headers = id === 'anthropic' ? { 'x-api-key': p.key, 'anthropic-version': '2023-06-01' } : { Authorization: 'Bearer ' + p.key };
+  try {
+    const r = await fetch(p.base + '/models', { headers, signal: AbortSignal.timeout(8000) });
+    const d = await r.json();
+    const ids = (Array.isArray(d.data) ? d.data : Array.isArray(d.models) ? d.models : []).map(m => m.id || m.name);
+    json(res, 200, { models: r.ok ? chatModels(id, ids) : [] });
+  } catch (e) { json(res, 200, { models: [] }); }
+}
+
 /**
  * يحذف مفتاح مزوّد من ملف .env (حين ينتهي رصيده أو يرفضه المزوّد)، فيعمل المساعد بالمفتاح التالي.
  * إن كان المزوّد الافتراضي يُفرَّغ AI_PROVIDER و AI_MODEL أيضاً. يعيد اسم المتغيّر المحذوف، أو '' إن لم يكن في الملف
@@ -94,4 +149,4 @@ function removeKey(id) {
   return name;
 }
 
-module.exports = { setEnvValues, saveKey, removeKey };
+module.exports = { setEnvValues, saveKey, saveModel, listModels, chatModels, removeKey };

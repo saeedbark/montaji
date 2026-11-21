@@ -153,4 +153,4 @@ function publicConfig() {
     : { ...base, ready: true, provider: p.id, label: p.label, label_en: p.label_en, model: p.model, vision: p.vision, choices: choices() };
 }
 
-module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, REF_DIRS, RAW_DIRS, VERSION, PROVIDERS, STT_PROVIDERS, parseEnv, provider, choices, sttProvider, publicConfig };
+module.exports = { ROOT, PUBLIC_DIR, PORT, ENV_FILE, ENV_TEMPLATE, EXPORT_DIR, PROJECT_DIR, REF_DIRS, RAW_DIRS, VERSION, PROVIDERS, STT_PROVIDERS, parseEnv, readEnv, modelsOf, provider, choices, sttProvider, publicConfig };
