@@ -1083,6 +1083,13 @@ const Agent = (() => {
       };
     },
 
+    // المثال الجاهز نفسه الذي يضعه زر «جرّب مثالاً جاهزاً»، في صفحة المستخدم المفتوحة
+    async load_sample() {
+      if (!S.isEmpty()) fail('The project is not empty. The sample loads only into an empty project: ask the user to start a new project first.');
+      if (!(await S.loadSample())) fail('Could not create the sample.');
+      return project();
+    },
+
     async save_project(a) {
       if (S.isEmpty()) fail('The project is empty, there is nothing to save.');
       const r = await ProjectIO.save({ saveAs: has(a.save_as) ? String(a.save_as) : null });
@@ -1124,7 +1131,7 @@ const Agent = (() => {
   };
 
   // أدوات لا تعدّل المشروع، أو تسجّل خطوتها في سجل التراجع بنفسها (فتح مشروع، إضافة ملفات)
-  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'save_project', 'open_project', 'export_captions', 'analyze_reference', 'view_media', 'split_video_file']);
+  const READ_ONLY = new Set(['get_project', 'analyze_audio', 'view_frame', 'save_image', 'seek', 'export_video', 'undo', 'import_media', 'load_sample', 'save_project', 'open_project', 'export_captions', 'analyze_reference', 'view_media', 'split_video_file']);
 
   /** يسجّل تعديلات المساعد كخطوة واحدة في سجل التراجع */
   function flush() {

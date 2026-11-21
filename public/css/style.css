@@ -140,7 +140,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 /* ---------- لوحة الخصائص ---------- */
 .side { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .side > .props { flex: 1; border-inline-start: 0; border-left: 1px solid var(--line); }
-.side-head, .sheet-only { display: none; }
+.side-head, .sheet-only, .side-toggle { display: none; }
 .props {
   background: var(--panel); border-inline-start: 1px solid var(--line);
   padding: 14px; overflow-y: auto; min-height: 0;
@@ -732,3 +732,28 @@ body.tl-resizing { cursor: ns-resize; user-select: none; }
 :root[dir="rtl"] :is(.tl-label, .tl-hint, .item .name, .item .dur, .tr-badge, .item .thumbs, .tick > b) { transform: scaleX(-1); }
 :root[dir="rtl"] .tl-label { border-right: 0; border-left: 1px solid var(--line); }
 .tick > b { display: inline-block; font-weight: inherit; }
+
+/* ---------- لوحة الخصائص تُغلق وتُفتح بزر واحد في زاويتها (على الحاسوب) ---------- */
+@media (min-width: 641px) {
+  .workspace { position: relative; }
+  /* الزر في الزاوية العليا اليمنى دائماً: فوق اللوحة حين تكون مفتوحة، وفي مكانها حين تُغلق */
+  .side-toggle { display: inline-flex; position: absolute; top: 10px; right: 10px; z-index: 5; width: 32px; height: 32px; }
+  .side-toggle .ic { transition: transform .15s ease; }
+  /* مساحة للزر بجانب عنوان اللوحة */
+  .side > .props > h2:first-child, .side > .props > h2:first-child + .sub,
+  .side > .props > #projInfo:first-child > h2, .side > .props > #projInfo:first-child > .sub,
+  .side > .props > #projInfo:empty + h2,
+  .side > .props > .props-ai:first-child + h2, .side > .props > .props-ai:first-child + h2 + .sub { padding-right: 38px; }
+  /* زر «اسأل المساعد» يطفو إلى اليمين بالإنجليزية، فيُزاح عن الزر */
+  .side > .props > .props-ai:first-child { margin-right: 38px; }
+  :root[data-side="off"] .side { display: none; }
+  :root[data-side="off"] .workspace { grid-template-columns: minmax(0, 1fr); }
+  :root[data-side="off"] body.chat-on .workspace { grid-template-columns: var(--chat-w) minmax(0, 1fr); }
+  /* مغلقة: الأيقونة نفسها مقلوبة وملوّنة */
+  :root[data-side="off"] .side-toggle { border-color: var(--accent); color: var(--accent-soft); }
+  :root[data-side="off"] .side-toggle .ic { transform: scaleX(-1); }
+}
+@media (min-width: 641px) and (max-width: 1120px) {
+  /* مع إغلاق الخصائص يتسع المكان: المساعد عمود بجانب المعاينة بدل أن يطفو فوقها، فيُرى ما يتغير */
+  :root[data-side="off"] .chat { position: relative; inset: auto; width: auto; z-index: auto; box-shadow: none; }
+}

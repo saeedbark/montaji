@@ -80,7 +80,7 @@ claude mcp add --transport http montaji http://localhost:4747/mcp
 { "mcpServers": { "montaji": { "url": "http://localhost:4747/mcp" } } }
 ```
 
-Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_overlay` `update_overlays` `to_overlay` `to_main` `set_keyframes` `clear_keyframes` `transcribe` `update_captions` `export_captions` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `add_effect` `update_effects` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `save_project` `open_project` `export_video` `analyze_reference` `view_media` `apply_reference`
+Tools: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_overlay` `update_overlays` `to_overlay` `to_main` `set_keyframes` `clear_keyframes` `transcribe` `update_captions` `export_captions` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `add_effect` `update_effects` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `load_sample` `save_project` `open_project` `export_video` `analyze_reference` `view_media` `apply_reference`
 
 The server instructions tell every agent to **ask before it edits**: before the first change to the project it asks the user a few short questions with ready answers (what the video is for and where it will be posted, which music, which words on screen, calm or lively with zooms and flashes), unless the request already answers them or is one small precise edit. The built-in assistant follows the same rule.
 
