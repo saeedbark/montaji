@@ -1,5 +1,5 @@
 'use strict';
-/* setEnvValues: كتابة المفتاح في نص ملف .env دون المساس ببقيته */
+/* setEnvValues: كتابة المفتاح في نص ملف .env دون المساس ببقيته، و chatModels: تصفية قائمة نماذج المزوّد */
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -21,4 +21,11 @@ test('يحافظ على نهايات أسطر ويندوز', () => {
 
 test('يطابق اسم المتغيّر كاملاً لا بدايته', () => {
   assert.equal(setEnvValues('AI_MODEL_X=1\nAI_MODEL=old\n', { AI_MODEL: '' }), 'AI_MODEL_X=1\nAI_MODEL=\n');
+});
+
+test('chatModels: نماذج المحادثة فقط، بلا models/ والأحدث أولاً', () => {
+  const { chatModels } = require('../server/settings');
+  assert.deepEqual(chatModels('gemini', ['models/gemini-2.5-flash', 'models/text-embedding-004', 'models/gemini-3.6-flash', 'models/gemini-3.6-flash-image', 'models/imagen-4', 'models/gemini-3.6-flash-lite']),
+    ['gemini-3.6-flash-lite', 'gemini-3.6-flash', 'gemini-2.5-flash']);
+  assert.deepEqual(chatModels('openai', ['gpt-5.4-mini', 'whisper-1', 'o4-mini', 'tts-1', 'davinci-002']), ['o4-mini', 'gpt-5.4-mini']);
 });
