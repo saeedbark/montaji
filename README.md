@@ -124,7 +124,7 @@ Cursor وغيره (ملف إعدادات MCP):
 
 أبقِ صفحة المحرر مفتوحة أثناء العمل، فالأدوات تُنفَّذ داخلها. هذا الخادم لا يحتاج مفتاحاً؛ النموذج هنا هو نموذج العميل نفسه.
 
-الأدوات: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_overlay` `update_overlays` `to_overlay` `to_main` `set_keyframes` `clear_keyframes` `transcribe` `update_captions` `export_captions` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `add_effect` `update_effects` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `save_project` `open_project` `export_video` `analyze_reference` `view_media` `apply_reference`
+الأدوات: `get_project` `import_media` `set_ratio` `update_clips` `reorder_clips` `split` `add_overlay` `update_overlays` `to_overlay` `to_main` `set_keyframes` `clear_keyframes` `transcribe` `update_captions` `export_captions` `add_text` `update_texts` `update_audio` `analyze_audio` `sync_to_beat` `add_effect` `update_effects` `duplicate_item` `delete_items` `edit_image` `merge_images` `extract_audio` `split_video_file` `save_image` `view_frame` `seek` `undo` `load_sample` `save_project` `open_project` `export_video` `analyze_reference` `view_media` `apply_reference`
 
 تعليمات الخادم تطلب من أي وكيل أن **يسأل قبل أن يعدّل**: قبل أول تغيير في المشروع يطرح على المستخدم أسئلة قصيرة بخيارات جاهزة (لأي غرض الفيديو وأين يُنشر، أي موسيقى، أي كلمات تظهر على الشاشة، هادئ أم حيوي بزوم ووميض)، إلا إن أجاب طلبه عنها أو كان تعديلاً صغيراً محدداً. والمساعد داخل المحرر يتبع القاعدة نفسها.
 

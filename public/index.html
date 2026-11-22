@@ -13,6 +13,8 @@
 try { const l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('montaji.lang'); if (l === 'en') { document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr'; } } catch (e) { /* وضع خاص */ }
 /* واللون المميز كذلك (js/theme.js) */
 try { const a = localStorage.getItem('montaji.accent'); if (a === 'amber' || a === 'blue') document.documentElement.dataset.accent = a; } catch (e) { /* وضع خاص */ }
+/* ولوحة الخصائص المخفية (js/app.js) تبقى مخفية بعد إعادة التحميل */
+try { if (localStorage.getItem('montaji.side') === 'off') document.documentElement.dataset.side = 'off'; } catch (e) { /* وضع خاص */ }
 /* وعلى ماك يصير خط الواجهة تجوّل (Tajawal) بدل Segoe UI غير الموجود هناك */
 try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform)) document.documentElement.dataset.os = 'mac'; } catch (e) { /* متصفح قديم */ }</script>
 </head>
@@ -50,6 +52,7 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
   <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l4 4v12H5zM8 4v5h7V4M8 20v-6h8v6"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
   <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 12.5l9 5 9-5M3 17l9 5 9-5"/></symbol>
   <symbol id="i-cc" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10.5 10.3a2.2 2.2 0 100 3.4M17 10.3a2.2 2.2 0 100 3.4"/></symbol>
   <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9v6l5-3z" fill="currentColor"/></symbol>
@@ -210,6 +213,9 @@ try { if (/Mac/.test((navigator.userAgentData && navigator.userAgentData.platfor
       <button class="btn icon" id="btnFull" title="ملء الشاشة (F)" aria-label="ملء الشاشة" aria-pressed="false"><svg class="ic"><use id="fullIcon" href="#i-expand"/></svg></button>
     </div>
   </section>
+
+  <!-- زر واحد في زاوية لوحة الخصائص يغلقها ويفتحها، ويبقى في مكانه حين تُغلق (كزر الشريط الجانبي في تطبيقات المحادثة) -->
+  <button class="btn icon side-toggle" id="btnSide" type="button" title="إخفاء لوحة الخصائص" aria-label="إخفاء لوحة الخصائص" aria-expanded="true" aria-controls="side"><svg class="ic"><use href="#i-panel"/></svg></button>
 
   <aside class="side" id="side" aria-label="الخصائص">
     <header class="side-head">

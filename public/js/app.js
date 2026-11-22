@@ -29,6 +29,25 @@
   }
   const sheetOpen = () => document.body.classList.contains('props-open');
   sheetMode.addEventListener('change', () => setSheet(false));
+
+  /* على الحاسوب تُخفى لوحة الخصائص وتُفتح بزر واحد في زاوية اللوحة يبقى في مكانه حين تُغلق، فتتسع المساحة للمعاينة وللمساعد
+     (مفيد حين تكون النافذة نصف الشاشة). يُحفظ الاختيار، والسكربت في رأس index.html يطبّقه قبل الرسم */
+  const SIDE_KEY = 'montaji.side';
+  const sideShown = () => document.documentElement.dataset.side !== 'off';
+  function syncSideBtn() {
+    const b = $('#btnSide'), on = sideShown();
+    const t = on ? tt('إخفاء لوحة الخصائص', 'Hide the properties panel') : tt('إظهار لوحة الخصائص', 'Show the properties panel');
+    b.title = t;
+    b.setAttribute('aria-label', t);
+    b.setAttribute('aria-expanded', String(on));
+  }
+  function setSide(on) {
+    const root = document.documentElement;
+    if (on) delete root.dataset.side; else root.dataset.side = 'off';
+    try { on ? localStorage.removeItem(SIDE_KEY) : localStorage.setItem(SIDE_KEY, 'off'); } catch (e) { /* وضع خاص */ }
+    syncSideBtn();
+    window.dispatchEvent(new Event('resize')); // المعاينة ولوحة المساعد تعيدان حساب مقاسهما
+  }
   let dirty = true;
   let lastTs = 0;
   // الخطوط المرفقة تُحمَّل بعد أول رسم: أعد رسم المعاينة حين تجهز
@@ -1822,7 +1841,7 @@
   /* ================= مثال جاهز ================= */
   function sampleImage(c1, c2, seed) {
     const cv = document.createElement('canvas');
-    cv.width = 1920; cv.height = 1280;
+    cv.width = 1920; cv.height = 1080; // بنسبة إطار المشروع ‎16:9‎ فلا تظهر حواف ضبابية على الجانبين
     const g = cv.getContext('2d');
     const grad = g.createLinearGradient(0, 0, cv.width, cv.height);
     grad.addColorStop(0, c1); grad.addColorStop(1, c2);
@@ -1843,8 +1862,9 @@
     return new Blob([bytes], { type: 'image/jpeg' });
   }
 
-  async function sampleMusic() {
-    const sr = 48000, dur = 14;
+  /** لحن مدته dur ثانية بالضبط: بطول الفيديو كي يُسمع اختفاؤه التدريجي في آخره ولا ينقطع */
+  async function sampleMusic(dur) {
+    const sr = 48000;
     const oc = new OfflineAudioContext(2, sr * dur, sr);
     const master = oc.createGain(); master.gain.value = 0.5; master.connect(oc.destination);
     const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]];
@@ -1870,12 +1890,14 @@
   }
 
   async function loadSample() {
+    let ok = false;
     els.busy.hidden = false;
     try {
       const pal = [['#ff7a59', '#7a1f5c'], ['#12c2a0', '#0b3a6e'], ['#ffd166', '#e0456b']];
       const files = [];
       for (let i = 0; i < pal.length; i++) files.push(new File([await sampleImage(pal[i][0], pal[i][1], 7 + i * 13)], `${tt('صورة', 'photo')}-${i + 1}.jpg`, { type: 'image/jpeg' }));
-      files.push(new File([await sampleMusic()], tt('لحن-تجريبي', 'sample-tune') + '.wav', { type: 'audio/wav' }));
+      const SAMPLE_CLIP = 4; // مدة الصورة الافتراضية في makeImage
+      files.push(new File([await sampleMusic(pal.length * SAMPLE_CLIP)],tt('لحن-تجريبي', 'sample-tune') + '.wav', { type: 'audio/wav' }));
       await addFiles(files);
       const motions = ['zoomIn', 'panRight', 'zoomOut'];
       state.clips.forEach((c, i) => { c.motion = motions[i % 3]; if (i) c.transition = ['fade', 'slide'][(i - 1) % 2]; });
@@ -1884,11 +1906,13 @@
       state.texts.push({ ...base, id: uid(), text: tt('جرّب تعديل أي عنصر ثم صدّر الفيديو', 'Try editing any item, then export the video'), start: 8.4, dur: 3.3, y: 0.82, size: 0.065, bg: true, anim: 'fade' });
       touch();
       fitTimeline();
+      ok = true;
     } catch (e) {
       console.error(e);
       toast(tt('تعذّر إنشاء المثال', 'Could not create the sample'), 'err');
     }
     els.busy.hidden = true;
+    return ok; // لأداة load_sample
   }
 
   /* ================= ربط الأزرار والاختصارات ================= */
@@ -1913,6 +1937,8 @@
   initTimelineResize();
   els.btnProps.onclick = () => setSheet(!sheetOpen());
   $('#propsClose').onclick = () => setSheet(false);
+  $('#btnSide').onclick = () => setSide(!sideShown());  syncSideBtn();
+  I18N.onChange(syncSideBtn);
   els.btnUndo.onclick = undo;
   els.btnRedo.onclick = redo;
   els.zoom.oninput = () => { view.pps = +els.zoom.value; renderTimeline(); };

@@ -453,6 +453,11 @@ const MONTAJI_TOOLS = (() => {
       parameters: obj({ steps: num('How many steps to undo. Default 1.') }),
     },
     {
+      name: 'load_sample',
+      description: 'Fill an empty project with the built-in sample, the same as the "Try a sample" button on the start screen: three generated photos with motion and transitions, a short tune as long as the video, and two texts. Use it when the user wants to try the editor or test a tool without their own files. Works only on an empty project.',
+      parameters: obj({}),
+    },
+    {
       name: 'save_project',
       description: 'Save the whole project as one .montaji file: the timeline (clips, trims, texts, effects, music settings) together with its media files, so it can be reopened later exactly as it is. Only call it when the user asks to save the project. This is not a video: use export_video for the final MP4.',
       parameters: obj({

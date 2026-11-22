@@ -103,6 +103,7 @@ const I18N = (() => {
     'تشغيل / إيقاف (مسافة)': 'Play / pause (Space)',
     'حفظ الإطار الحالي كصورة': 'Save the current frame as an image',
     'ملء الشاشة (F)': 'Full screen (F)',
+    'إخفاء لوحة الخصائص': 'Hide the properties panel',
     'ملء الشاشة': 'Full screen',
     'الخصائص': 'Properties',
     'إخفاء الخصائص': 'Hide properties',
